@@ -40,8 +40,13 @@ def git_state(path_slug: str) -> dict:
         except Exception:
             return ""
     branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-    head = run(["git", "log", "-1", "--oneline"])
-    status = run(["git", "status", "--short"])
+    # Avoid a self-referential dirty loop: QG generates its own public registry.
+    if path_slug == "omar-qg":
+        head = "current qg build"
+        status = run(["git", "status", "--short", "--", ".", ":!public"])
+    else:
+        head = run(["git", "log", "-1", "--oneline"])
+        status = run(["git", "status", "--short"])
     return {"exists": True, "branch": branch or "no-git", "dirty": bool(status), "head": head, "status_short": status.splitlines()[:8]}
 
 

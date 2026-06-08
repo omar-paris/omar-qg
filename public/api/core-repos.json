@@ -96,10 +96,12 @@
       "next": "Connecter à données dynamiques plus tard ; ne pas copier Lab/Hub/Top.",
       "git": {
         "exists": true,
-        "branch": "no-git",
-        "dirty": false,
-        "head": "",
-        "status_short": []
+        "branch": "main",
+        "dirty": true,
+        "head": "current qg build",
+        "status_short": [
+          "M scripts/build.py"
+        ]
       }
     },
     {
@@ -140,7 +142,7 @@
         "exists": true,
         "branch": "feat/omartop-bible-ui",
         "dirty": false,
-        "head": "45cf6aa feat: move OmarTop Bible UI into repo",
+        "head": "b84d96b docs: align OmarTop site deploy stanza",
         "status_short": []
       }
     }
