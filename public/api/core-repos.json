@@ -9,7 +9,7 @@
       "repo": "omar-paris/omar-landing",
       "path": "omar-landing",
       "scope": "CORE OA",
-      "role": "Vitrine publique. Explique et convainc. CTA cible : admin-app.",
+      "role": "Vitrine publique. Explique et convainc. CTA cible : AppOmar.",
       "version": "V0.2.0",
       "changelog": "https://landing.omar.paris/changelog/",
       "live": "live",
@@ -24,7 +24,7 @@
     },
     {
       "id": "app",
-      "name": "admin-app / app",
+      "name": "AppOmar",
       "domain": "app.omar.paris",
       "repo": "omar-paris/omar-app",
       "path": "omar-app",
@@ -32,13 +32,13 @@
       "role": "Portail client/prospect : onboarding, config, buy, SAV, factures, compte.",
       "version": "V0.1.0",
       "changelog": "https://app.omar.paris/changelog/",
-      "live": "runtime",
-      "next": "Persister Caddy/DNS puis rendre onboarding/config interactifs.",
+      "live": "public",
+      "next": "Persister Caddy public/DNS puis rendre onboarding/config interactifs.",
       "git": {
         "exists": true,
         "branch": "main",
         "dirty": false,
-        "head": "dca5615 chore: ignore generated caches and document admin-app naming",
+        "head": "0c013d0 fix: align AppOmar naming",
         "status_short": []
       }
     },
@@ -52,8 +52,8 @@
       "role": "Recommandations, Apps, Agents, Tools, Skills, MCP, Bundles.",
       "version": "V0.7.3",
       "changelog": "https://catalogue.omar.paris/changelog/",
-      "live": "runtime",
-      "next": "Persister Caddy/DNS normal ; enrichir recommandations.",
+      "live": "tailnet",
+      "next": "Persister Caddy Tailnet-only ; enrichir recommandations ; Hub garde seulement un lien.",
       "git": {
         "exists": true,
         "branch": "main",
@@ -92,14 +92,17 @@
       "role": "Registry opérationnel : versions, état repos, liens, dettes.",
       "version": "V0.1.0",
       "changelog": "https://qg.omar.paris/changelog/",
-      "live": "runtime",
-      "next": "Connecter à données dynamiques plus tard ; ne pas copier Lab/Hub/Top.",
+      "live": "tailnet",
+      "next": "Persister Caddy Tailnet-only ; connecter à données dynamiques plus tard ; ne pas copier Lab/Hub/Top.",
       "git": {
         "exists": true,
         "branch": "main",
-        "dirty": false,
+        "dirty": true,
         "head": "current qg build",
-        "status_short": []
+        "status_short": [
+          "M scripts/build.py",
+          " M tests/test_qg_static.py"
+        ]
       }
     },
     {
@@ -140,7 +143,7 @@
         "exists": true,
         "branch": "feat/omartop-bible-ui",
         "dirty": false,
-        "head": "b84d96b docs: align OmarTop site deploy stanza",
+        "head": "4f20095 docs: surface Bible UI on OmarTop home",
         "status_short": []
       }
     }
@@ -149,6 +152,6 @@
     "total": 7,
     "core": 5,
     "vps": 2,
-    "runtime_or_live": 7
+    "runtime_or_live": 4
   }
 }

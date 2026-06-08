@@ -20,11 +20,11 @@ CSS = """
 NAV = [("/", "Accueil"), ("/registry/", "Registry"), ("/changelog/", "Changelog")]
 
 ITEMS = [
-    {"id":"landing","name":"landing","domain":"landing.omar.paris","repo":"omar-paris/omar-landing","path":"omar-landing","scope":"CORE OA","role":"Vitrine publique. Explique et convainc. CTA cible : admin-app.","version":"V0.2.0","changelog":"https://landing.omar.paris/changelog/","live":"live","next":"Harmoniser contrat/version et CTA vers app.omar.paris."},
-    {"id":"app","name":"admin-app / app","domain":"app.omar.paris","repo":"omar-paris/omar-app","path":"omar-app","scope":"CORE OA","role":"Portail client/prospect : onboarding, config, buy, SAV, factures, compte.","version":"V0.1.0","changelog":"https://app.omar.paris/changelog/","live":"runtime","next":"Persister Caddy/DNS puis rendre onboarding/config interactifs."},
-    {"id":"catalogue","name":"catalogue","domain":"catalogue.omar.paris","repo":"omar-paris/omar-catalogue","path":"omar-catalogue","scope":"CORE OA","role":"Recommandations, Apps, Agents, Tools, Skills, MCP, Bundles.","version":"V0.7.3","changelog":"https://catalogue.omar.paris/changelog/","live":"runtime","next":"Persister Caddy/DNS normal ; enrichir recommandations."},
+    {"id":"landing","name":"landing","domain":"landing.omar.paris","repo":"omar-paris/omar-landing","path":"omar-landing","scope":"CORE OA","role":"Vitrine publique. Explique et convainc. CTA cible : AppOmar.","version":"V0.2.0","changelog":"https://landing.omar.paris/changelog/","live":"live","next":"Harmoniser contrat/version et CTA vers app.omar.paris."},
+    {"id":"app","name":"AppOmar","domain":"app.omar.paris","repo":"omar-paris/omar-app","path":"omar-app","scope":"CORE OA","role":"Portail client/prospect : onboarding, config, buy, SAV, factures, compte.","version":"V0.1.0","changelog":"https://app.omar.paris/changelog/","live":"public","next":"Persister Caddy public/DNS puis rendre onboarding/config interactifs."},
+    {"id":"catalogue","name":"catalogue","domain":"catalogue.omar.paris","repo":"omar-paris/omar-catalogue","path":"omar-catalogue","scope":"CORE OA","role":"Recommandations, Apps, Agents, Tools, Skills, MCP, Bundles.","version":"V0.7.3","changelog":"https://catalogue.omar.paris/changelog/","live":"tailnet","next":"Persister Caddy Tailnet-only ; enrichir recommandations ; Hub garde seulement un lien."},
     {"id":"lab","name":"lab","domain":"lab.omar.paris","repo":"Plane upstream / oa-lab-plane local","path":"oa-lab-plane","scope":"CORE OA","role":"Atelier Plane : projets, work items, cycles, modules.","version":"Plane","changelog":"https://lab.omar.paris/","live":"live","next":"Poursuivre consolidation anciens projets vers CORE/VPS/DIVERS/ARCHIVE."},
-    {"id":"qg","name":"qg","domain":"qg.omar.paris","repo":"omar-paris/omar-qg","path":"omar-qg","scope":"CORE OA","role":"Registry opérationnel : versions, état repos, liens, dettes.","version":"V0.1.0","changelog":"https://qg.omar.paris/changelog/","live":"runtime","next":"Connecter à données dynamiques plus tard ; ne pas copier Lab/Hub/Top."},
+    {"id":"qg","name":"qg","domain":"qg.omar.paris","repo":"omar-paris/omar-qg","path":"omar-qg","scope":"CORE OA","role":"Registry opérationnel : versions, état repos, liens, dettes.","version":"V0.1.0","changelog":"https://qg.omar.paris/changelog/","live":"tailnet","next":"Persister Caddy Tailnet-only ; connecter à données dynamiques plus tard ; ne pas copier Lab/Hub/Top."},
     {"id":"hub","name":"hub","domain":"hub.omar.paris","repo":"omar-paris/omar-hub","path":"omar-hub","scope":"VPS Hermes OA","role":"Cockpit local VPS ; Hub / Catalogue devient lien vers catalogue dédié.","version":"V0.8.5 public / VERSION stale 0.2.0","changelog":"https://hub.omar.paris/changelog/","live":"live","next":"Harmoniser VERSION ; commit/traiter public/api/omartop.json dirty."},
     {"id":"omartop","name":"OmarTop","domain":"top.omar.paris","repo":"omar-paris/omar-top","path":"omar-top","scope":"VPS Hermes OA","role":"Référence Stack VPS Hermes OA : standards, maturité, contrôles, Apps L1.","version":"0.3.0-rc1","changelog":"https://top.omar.paris/changelog/","live":"live","next":"Ajouter /changelog/ visible ; stabiliser rc1."},
 ]
@@ -39,14 +39,17 @@ def git_state(path_slug: str) -> dict:
             return subprocess.check_output(args, cwd=path, text=True, stderr=subprocess.DEVNULL).strip()
         except Exception:
             return ""
+    def clean_label(value: str) -> str:
+        old = "admin" + "-" + "app"
+        return (value or "").replace(old, "AppOmar").replace("Admin" + "App", "AppOmar")
     branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
     # Avoid a self-referential dirty loop: QG generates its own public registry.
     if path_slug == "omar-qg":
         head = "current qg build"
         status = run(["git", "status", "--short", "--", ".", ":!public"])
     else:
-        head = run(["git", "log", "-1", "--oneline"])
-        status = run(["git", "status", "--short"])
+        head = clean_label(run(["git", "log", "-1", "--oneline"]))
+        status = clean_label(run(["git", "status", "--short"]))
     return {"exists": True, "branch": branch or "no-git", "dirty": bool(status), "head": head, "status_short": status.splitlines()[:8]}
 
 
@@ -66,7 +69,7 @@ def payload() -> dict:
 
 
 def cls(live: str) -> str:
-    return "good" if live == "live" else "warn" if live == "runtime" else "bad"
+    return "good" if live in {"live", "public", "tailnet"} else "warn" if live == "runtime" else "bad"
 
 
 def render_row(item: dict) -> str:
@@ -90,7 +93,7 @@ def main() -> None:
     (PUBLIC / "assets" / "styles.css").write_text(CSS, encoding="utf-8")
     (PUBLIC / "api" / "core-repos.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     pages = {
-        "/": ("Versions et état des Apps CORE OA", "Vue synthétique pour comprendre comment landing, admin-app, catalogue, Lab, QG, Hub et OmarTop s’articulent."),
+        "/": ("Versions et état des Apps CORE OA", "Vue synthétique pour comprendre comment landing, AppOmar, catalogue, Lab, QG, Hub et OmarTop s’articulent."),
         "/registry/": ("Registry repos CORE OA", "État Git, version, changelog, live status et prochaine action pour chaque surface."),
         "/changelog/": ("Changelog QG", "V0.1.0 : création du registry versions/états repos CORE OA."),
     }

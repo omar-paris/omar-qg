@@ -45,7 +45,7 @@ def test_qg_lists_required_core_repos():
 def test_qg_pages_link_to_changelogs_and_no_secrets():
     build()
     text = "\n".join(p.read_text(encoding="utf-8") for p in PUBLIC.rglob("*.html"))
-    for word in ["landing", "admin-app", "catalogue", "hub", "OmarTop"]:
+    for word in ["landing", "AppOmar", "catalogue", "hub", "OmarTop"]:
         assert word in text
     assert "/changelog/" in text
     forbidden = ["ghp_", "sk-", "BEGIN OPENSSH PRIVATE KEY", "POSTGRES_PASSWORD"]
