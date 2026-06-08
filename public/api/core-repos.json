@@ -1,0 +1,154 @@
+{
+  "version": "V0.1.0",
+  "domain": "qg.omar.paris",
+  "items": [
+    {
+      "id": "landing",
+      "name": "landing",
+      "domain": "landing.omar.paris",
+      "repo": "omar-paris/omar-landing",
+      "path": "omar-landing",
+      "scope": "CORE OA",
+      "role": "Vitrine publique. Explique et convainc. CTA cible : admin-app.",
+      "version": "V0.2.0",
+      "changelog": "https://landing.omar.paris/changelog/",
+      "live": "live",
+      "next": "Harmoniser contrat/version et CTA vers app.omar.paris.",
+      "git": {
+        "exists": true,
+        "branch": "feat/conversion-june-cta",
+        "dirty": false,
+        "head": "955ee68 feat: add June conversion CTA landing",
+        "status_short": []
+      }
+    },
+    {
+      "id": "app",
+      "name": "admin-app / app",
+      "domain": "app.omar.paris",
+      "repo": "omar-paris/omar-app",
+      "path": "omar-app",
+      "scope": "CORE OA",
+      "role": "Portail client/prospect : onboarding, config, buy, SAV, factures, compte.",
+      "version": "V0.1.0",
+      "changelog": "https://app.omar.paris/changelog/",
+      "live": "runtime",
+      "next": "Persister Caddy/DNS puis rendre onboarding/config interactifs.",
+      "git": {
+        "exists": true,
+        "branch": "main",
+        "dirty": false,
+        "head": "dca5615 chore: ignore generated caches and document admin-app naming",
+        "status_short": []
+      }
+    },
+    {
+      "id": "catalogue",
+      "name": "catalogue",
+      "domain": "catalogue.omar.paris",
+      "repo": "omar-paris/omar-catalogue",
+      "path": "omar-catalogue",
+      "scope": "CORE OA",
+      "role": "Recommandations, Apps, Agents, Tools, Skills, MCP, Bundles.",
+      "version": "V0.7.3",
+      "changelog": "https://catalogue.omar.paris/changelog/",
+      "live": "runtime",
+      "next": "Persister Caddy/DNS normal ; enrichir recommandations.",
+      "git": {
+        "exists": true,
+        "branch": "main",
+        "dirty": false,
+        "head": "7f3671f docs: record catalogue public publish status",
+        "status_short": []
+      }
+    },
+    {
+      "id": "lab",
+      "name": "lab",
+      "domain": "lab.omar.paris",
+      "repo": "Plane upstream / oa-lab-plane local",
+      "path": "oa-lab-plane",
+      "scope": "CORE OA",
+      "role": "Atelier Plane : projets, work items, cycles, modules.",
+      "version": "Plane",
+      "changelog": "https://lab.omar.paris/",
+      "live": "live",
+      "next": "Poursuivre consolidation anciens projets vers CORE/VPS/DIVERS/ARCHIVE.",
+      "git": {
+        "exists": true,
+        "branch": "no-git",
+        "dirty": false,
+        "head": "",
+        "status_short": []
+      }
+    },
+    {
+      "id": "qg",
+      "name": "qg",
+      "domain": "qg.omar.paris",
+      "repo": "omar-paris/omar-qg",
+      "path": "omar-qg",
+      "scope": "CORE OA",
+      "role": "Registry opérationnel : versions, état repos, liens, dettes.",
+      "version": "V0.1.0",
+      "changelog": "https://qg.omar.paris/changelog/",
+      "live": "runtime",
+      "next": "Connecter à données dynamiques plus tard ; ne pas copier Lab/Hub/Top.",
+      "git": {
+        "exists": true,
+        "branch": "no-git",
+        "dirty": false,
+        "head": "",
+        "status_short": []
+      }
+    },
+    {
+      "id": "hub",
+      "name": "hub",
+      "domain": "hub.omar.paris",
+      "repo": "omar-paris/omar-hub",
+      "path": "omar-hub",
+      "scope": "VPS Hermes OA",
+      "role": "Cockpit local VPS ; Hub / Catalogue devient lien vers catalogue dédié.",
+      "version": "V0.8.5 public / VERSION stale 0.2.0",
+      "changelog": "https://hub.omar.paris/changelog/",
+      "live": "live",
+      "next": "Harmoniser VERSION ; commit/traiter public/api/omartop.json dirty.",
+      "git": {
+        "exists": true,
+        "branch": "feat/hub-home-omartop-boussole",
+        "dirty": true,
+        "head": "1b8671e feat: point hub catalogue to dedicated catalogue site",
+        "status_short": [
+          "M public/api/omartop.json"
+        ]
+      }
+    },
+    {
+      "id": "omartop",
+      "name": "OmarTop",
+      "domain": "top.omar.paris",
+      "repo": "omar-paris/omar-top",
+      "path": "omar-top",
+      "scope": "VPS Hermes OA",
+      "role": "Référence Stack VPS Hermes OA : standards, maturité, contrôles, Apps L1.",
+      "version": "0.3.0-rc1",
+      "changelog": "https://top.omar.paris/changelog/",
+      "live": "live",
+      "next": "Ajouter /changelog/ visible ; stabiliser rc1.",
+      "git": {
+        "exists": true,
+        "branch": "feat/omartop-bible-ui",
+        "dirty": false,
+        "head": "45cf6aa feat: move OmarTop Bible UI into repo",
+        "status_short": []
+      }
+    }
+  ],
+  "counts": {
+    "total": 7,
+    "core": 5,
+    "vps": 2,
+    "runtime_or_live": 7
+  }
+}
