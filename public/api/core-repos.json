@@ -97,11 +97,9 @@
       "git": {
         "exists": true,
         "branch": "main",
-        "dirty": true,
+        "dirty": false,
         "head": "current qg build",
-        "status_short": [
-          "M scripts/build.py"
-        ]
+        "status_short": []
       }
     },
     {
