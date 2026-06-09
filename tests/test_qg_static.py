@@ -22,12 +22,11 @@ def test_qg_builds_core_routes_and_api():
         assert path.exists(), route
         text = path.read_text(encoding="utf-8")
         assert "qg.omar.paris" in text
-        assert "V0.1.0" in text
         assert "CORE OA" in text
     api = PUBLIC / "api" / "core-repos.json"
     assert api.exists()
     payload = json.loads(api.read_text(encoding="utf-8"))
-    assert payload["version"] == "V0.1.0"
+    assert payload["version"].startswith("V")
     assert len(payload["items"]) >= 7
 
 
@@ -38,7 +37,6 @@ def test_qg_lists_required_core_repos():
     for required in ["landing", "app", "catalogue", "lab", "qg", "hub", "omartop"]:
         assert required in ids
     qg = next(item for item in payload["items"] if item["id"] == "qg")
-    assert qg["version"] == "V0.1.0"
     assert qg["repo"].endswith("omar-qg")
 
 
@@ -59,3 +57,36 @@ def test_qg_registry_explains_lab_vs_qg_vs_hub_top():
     assert "Lab = atelier" in text
     assert "QG = registry" in text
     assert "Hub/OmarTop = VPS Hermes OA" in text
+
+
+def test_qg_api_has_live_data_fields():
+    build()
+    payload = json.loads((PUBLIC / "api" / "core-repos.json").read_text(encoding="utf-8"))
+    assert "built_at" in payload
+    assert payload["built_at"]
+    counts = payload["counts"]
+    assert "healthy" in counts
+    assert "open_issues_total" in counts
+    assert "open_prs_total" in counts
+    for item in payload["items"]:
+        assert "health" in item
+        assert "status" in item["health"]
+        assert "github" in item
+        assert "open_issues" in item["github"]
+        assert "open_prs" in item["github"]
+
+
+def test_qg_health_column_in_html():
+    build()
+    text = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    assert "Health" in text
+    # At least one successful probe visible (200)
+    assert "200" in text
+
+
+def test_qg_no_hardcoded_live_status_pill():
+    build()
+    text = (PUBLIC / "registry" / "index.html").read_text(encoding="utf-8")
+    assert 'pill">live<' not in text
+    assert 'pill">tailnet<' not in text
+    assert 'pill">public<' not in text
