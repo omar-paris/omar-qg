@@ -3,18 +3,18 @@
   "items": [
     {
       "date": "2026-06-09",
-      "generated_at": "2026-06-09T19:47:50Z",
+      "generated_at": "2026-06-09T20:03:04Z",
       "version": "V0.7.0",
       "sessions": {
         "hermes": {
-          "sessions": 21,
-          "messages": 4073,
-          "tool_calls": 2105,
-          "api_calls": 1020,
+          "sessions": 22,
+          "messages": 4122,
+          "tool_calls": 2131,
+          "api_calls": 1048,
           "by_source": {
             "cli": 1,
             "cron": 1,
-            "tui": 19
+            "tui": 20
           },
           "db": "/home/omar/.hermes/state.db",
           "error": null
@@ -32,9 +32,9 @@
       },
       "github_totals": {
         "issues_created": 77,
-        "issues_closed": 3,
-        "prs_created": 12,
-        "prs_merged": 13,
+        "issues_closed": 4,
+        "prs_created": 13,
+        "prs_merged": 14,
         "build_runs": 0,
         "build_success": 0,
         "build_failed": 0,
@@ -144,7 +144,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 18
+            "latency_ms": 21
           },
           "git": {
             "exists": true,
@@ -164,9 +164,9 @@
           },
           "activity": {
             "issues_created": 6,
-            "issues_closed": 0,
+            "issues_closed": 1,
             "prs_created": 1,
-            "prs_merged": 0,
+            "prs_merged": 1,
             "build_runs": 0,
             "build_success": 0,
             "build_failed": 0
@@ -179,7 +179,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 17
+            "latency_ms": 19
           },
           "git": {
             "exists": true,
@@ -215,7 +215,7 @@
           },
           "github_open": {
             "open_issues": 8,
-            "open_prs": 0,
+            "open_prs": 1,
             "last_merged_pr": {
               "title": "feat(qg): V0.6.0 — page Clients & VPS (galerie flotte Hetzner)",
               "number": 10,
@@ -225,7 +225,7 @@
           "activity": {
             "issues_created": 11,
             "issues_closed": 3,
-            "prs_created": 5,
+            "prs_created": 6,
             "prs_merged": 5,
             "build_runs": 0,
             "build_success": 0,
@@ -274,7 +274,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 17
+            "latency_ms": 20
           },
           "git": {
             "exists": true,

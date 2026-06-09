@@ -32,6 +32,9 @@ def test_qg_builds_core_routes_and_api():
     assert len(payload["items"]) >= 7
     ledger = json.loads((PUBLIC / "api" / "daily-ledger" / "index.json").read_text(encoding="utf-8"))
     assert ledger["latest"].startswith("/api/daily-ledger/")
+    snapshot_name = ledger["latest"].removeprefix("/api/daily-ledger/")
+    snapshot = json.loads((PUBLIC / "api" / "daily-ledger" / snapshot_name).read_text(encoding="utf-8"))
+    assert ledger["items"][0] == snapshot
     assert ledger["items"][0]["github_totals"]
 
 

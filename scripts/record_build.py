@@ -3,10 +3,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import datetime as dt
 import time
 from pathlib import Path
 
 LEDGER_ROOT = Path("/home/omar/11-Pilotage/ledgers/builds")
+try:
+    from zoneinfo import ZoneInfo
+except Exception:  # pragma: no cover
+    ZoneInfo = None
+
+
+def paris_day() -> str:
+    if ZoneInfo:
+        return dt.datetime.now(ZoneInfo("Europe/Paris")).date().isoformat()
+    return time.strftime("%Y-%m-%d", time.localtime())
 
 
 def main() -> None:
@@ -22,7 +33,7 @@ def main() -> None:
     args = parser.parse_args()
 
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    day = time.strftime("%Y-%m-%d", time.localtime())
+    day = paris_day()
     LEDGER_ROOT.mkdir(parents=True, exist_ok=True)
     row = {
         "timestamp": ts,

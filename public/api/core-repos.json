@@ -1,7 +1,7 @@
 {
   "version": "V0.7.0",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-09T19:47:50Z",
+  "built_at": "2026-06-09T20:03:04Z",
   "items": [
     {
       "id": "landing",
@@ -93,7 +93,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 21
       }
     },
     {
@@ -122,7 +122,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 19
       }
     },
     {
@@ -147,7 +147,7 @@
       },
       "github": {
         "open_issues": 8,
-        "open_prs": 0,
+        "open_prs": 1,
         "last_merged_pr": {
           "title": "feat(qg): V0.6.0 — page Clients & VPS (galerie flotte Hetzner)",
           "number": 10,
@@ -223,7 +223,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 20
       }
     }
   ],
@@ -233,7 +233,7 @@
     "vps": 2,
     "healthy": 7,
     "open_issues_total": 108,
-    "open_prs_total": 11
+    "open_prs_total": 12
   },
   "catalog": [
     {
@@ -629,7 +629,7 @@
       "traffic_inc_tb": 22.0
     },
     {
-      "name": "ubuntu-8gb-pan",
+      "name": "ubuntu-16gb-pan",
       "label": "VPS-Pantheos",
       "role": "STUDIO",
       "role_color": "#7c3aed",
