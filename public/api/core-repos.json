@@ -1,7 +1,7 @@
 {
-  "version": "V0.6.0",
+  "version": "V0.7.0",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-09T05:32:06Z",
+  "built_at": "2026-06-09T20:03:04Z",
   "items": [
     {
       "id": "landing",
@@ -22,14 +22,14 @@
         "status_short": []
       },
       "github": {
-        "open_issues": 15,
+        "open_issues": 29,
         "open_prs": 1,
         "last_merged_pr": null
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 17
       }
     },
     {
@@ -53,14 +53,14 @@
         ]
       },
       "github": {
-        "open_issues": 12,
+        "open_issues": 17,
         "open_prs": 0,
         "last_merged_pr": null
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 17
       }
     },
     {
@@ -93,7 +93,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 21
       }
     },
     {
@@ -122,7 +122,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 24
+        "latency_ms": 19
       }
     },
     {
@@ -138,29 +138,26 @@
       "next": "Rebuild cron actif 30 min.",
       "git": {
         "exists": true,
-        "branch": "feat/qg-v6-clients-page",
+        "branch": "main",
         "dirty": true,
         "head": "current qg build",
         "status_short": [
-          "M CHANGELOG.md",
-          " M VERSION",
-          " M scripts/build.py",
           "?? var/"
         ]
       },
       "github": {
-        "open_issues": 2,
-        "open_prs": 0,
+        "open_issues": 8,
+        "open_prs": 1,
         "last_merged_pr": {
-          "title": "feat(qg): V0.5.0 — statut API fournisseurs temps réel",
-          "number": 9,
-          "merged_at": "2026-06-09T04:53:23Z"
+          "title": "feat(qg): V0.6.0 — page Clients & VPS (galerie flotte Hetzner)",
+          "number": 10,
+          "merged_at": "2026-06-09T05:32:36Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 17
       }
     },
     {
@@ -182,7 +179,7 @@
         "status_short": []
       },
       "github": {
-        "open_issues": 5,
+        "open_issues": 10,
         "open_prs": 7,
         "last_merged_pr": {
           "title": "feat: Home V1.0 — multi-select filtres + groupement type/statut + toolbar compact",
@@ -209,19 +206,10 @@
       "next": "Stabiliser rc1.",
       "git": {
         "exists": true,
-        "branch": "main",
-        "dirty": true,
-        "head": "83b6c04 feat: map OA promise to OmarTop standards (#41)",
-        "status_short": [
-          "?? checks/automation/",
-          "?? checks/biz_brand/",
-          "?? checks/biz_clients/",
-          "?? checks/biz_finance/",
-          "?? checks/biz_manifest/",
-          "?? checks/biz_offre/",
-          "?? checks/canaux/",
-          "?? checks/memoire/"
-        ]
+        "branch": "feat/omartop-pillars-bc-night",
+        "dirty": false,
+        "head": "f57347f feat(omartop): grave piliers B (agent capable) + C (entreprise connue)",
+        "status_short": []
       },
       "github": {
         "open_issues": 37,
@@ -235,7 +223,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 20
       }
     }
   ],
@@ -244,8 +232,8 @@
     "core": 5,
     "vps": 2,
     "healthy": 7,
-    "open_issues_total": 78,
-    "open_prs_total": 11
+    "open_issues_total": 108,
+    "open_prs_total": 12
   },
   "catalog": [
     {
@@ -637,11 +625,11 @@
       "created": "2026-03-24",
       "price_eur": 37.79,
       "backups": "on",
-      "traffic_out_gb": 14.5,
+      "traffic_out_gb": 14.9,
       "traffic_inc_tb": 22.0
     },
     {
-      "name": "ubuntu-8gb-pan",
+      "name": "ubuntu-16gb-pan",
       "label": "VPS-Pantheos",
       "role": "STUDIO",
       "role_color": "#7c3aed",
@@ -693,7 +681,7 @@
       "created": "2026-01-29",
       "price_eur": 37.79,
       "backups": "on",
-      "traffic_out_gb": 1.1,
+      "traffic_out_gb": 1.2,
       "traffic_inc_tb": 22.0
     },
     {
@@ -743,7 +731,7 @@
       "created": "2026-04-17",
       "price_eur": 9.59,
       "backups": "on",
-      "traffic_out_gb": 5.9,
+      "traffic_out_gb": 6.3,
       "traffic_inc_tb": 22.0
     }
   ]

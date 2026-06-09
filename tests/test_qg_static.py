@@ -7,6 +7,7 @@ PUBLIC = ROOT / "public"
 
 ROUTES = {
     "/": PUBLIC / "index.html",
+    "/ops": PUBLIC / "ops" / "index.html",
     "/partenaires": PUBLIC / "partenaires" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
 }
@@ -29,6 +30,12 @@ def test_qg_builds_core_routes_and_api():
     payload = json.loads(api.read_text(encoding="utf-8"))
     assert payload["version"].startswith("V")
     assert len(payload["items"]) >= 7
+    ledger = json.loads((PUBLIC / "api" / "daily-ledger" / "index.json").read_text(encoding="utf-8"))
+    assert ledger["latest"].startswith("/api/daily-ledger/")
+    snapshot_name = ledger["latest"].removeprefix("/api/daily-ledger/")
+    snapshot = json.loads((PUBLIC / "api" / "daily-ledger" / snapshot_name).read_text(encoding="utf-8"))
+    assert ledger["items"][0] == snapshot
+    assert ledger["items"][0]["github_totals"]
 
 
 def test_qg_lists_required_core_repos():
@@ -47,6 +54,7 @@ def test_qg_pages_link_to_changelogs_and_no_secrets():
     for word in ["landing", "AppOmar", "catalogue", "hub", "OmarTop"]:
         assert word in text
     assert "/changelog/" in text
+    assert "/ops/" in text
     forbidden = ["ghp_", "sk-", "BEGIN OPENSSH PRIVATE KEY", "POSTGRES_PASSWORD"]
     for token in forbidden:
         assert token not in text

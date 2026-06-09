@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 import ssl
+import sqlite3
 import subprocess
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from html import escape
 from pathlib import Path
@@ -16,6 +19,12 @@ PUBLIC = ROOT / "public"
 ACTIFS = Path("/home/omar/23-Offre/actifs")
 VERSION = "V" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 DOMAIN = "qg.omar.paris"
+STATE_DB = Path("/home/omar/.hermes/state.db")
+BUILD_LEDGER_DIR = Path("/home/omar/11-Pilotage/ledgers/builds")
+try:
+    from zoneinfo import ZoneInfo
+except Exception:  # pragma: no cover
+    ZoneInfo = None
 
 # ── GitHub token ──────────────────────────────────────────────────────────────
 
@@ -231,6 +240,216 @@ def health_probe(domain: str) -> dict:
         return {"status": "ok" if e.code < 500 else "error", "http_code": e.code, "latency_ms": latency_ms}
     except Exception:
         return {"status": "error", "http_code": None, "latency_ms": None}
+
+
+def _paris_now() -> dt.datetime:
+    if ZoneInfo:
+        return dt.datetime.now(ZoneInfo("Europe/Paris"))
+    return dt.datetime.now().astimezone()
+
+
+def _day_bounds(day: str) -> tuple[int, int]:
+    if ZoneInfo:
+        tz = ZoneInfo("Europe/Paris")
+        start = dt.datetime.fromisoformat(day).replace(tzinfo=tz)
+    else:
+        start = dt.datetime.fromisoformat(day).astimezone()
+    end = start + dt.timedelta(days=1)
+    return int(start.timestamp()), int(end.timestamp())
+
+
+def hermes_daily_state(day: str) -> dict:
+    base = {"sessions": 0, "messages": 0, "tool_calls": 0, "api_calls": 0, "by_source": {}, "db": str(STATE_DB), "error": None}
+    if not STATE_DB.exists():
+        base["error"] = "state_db_missing"
+        return base
+    start, end = _day_bounds(day)
+    try:
+        con = sqlite3.connect(STATE_DB)
+        con.row_factory = sqlite3.Row
+        row = con.execute(
+            """
+            select count(*) sessions,
+                   coalesce(sum(message_count),0) messages,
+                   coalesce(sum(tool_call_count),0) tool_calls,
+                   coalesce(sum(api_call_count),0) api_calls
+            from sessions where started_at >= ? and started_at < ?
+            """,
+            (start, end),
+        ).fetchone()
+        base.update({k: int(row[k] or 0) for k in ["sessions", "messages", "tool_calls", "api_calls"]})
+        by_source = {}
+        for r in con.execute(
+            "select coalesce(source,'unknown') source, count(*) c from sessions where started_at >= ? and started_at < ? group by source",
+            (start, end),
+        ):
+            by_source[r["source"]] = int(r["c"])
+        base["by_source"] = by_source
+    except Exception as exc:
+        base["error"] = exc.__class__.__name__
+    return base
+
+
+def _ccusage_bin() -> str | None:
+    for candidate in ["/home/omar/.npm-global/bin/ccusage", "ccusage"]:
+        try:
+            subprocess.check_output([candidate, "--version"], text=True, stderr=subprocess.DEVNULL, timeout=4)
+            return candidate
+        except Exception:
+            continue
+    return None
+
+
+def ccusage_daily_state(day: str) -> dict:
+    out = {"sessions_by_agent": {}, "daily": None, "error": None}
+    exe = _ccusage_bin()
+    if not exe:
+        out["error"] = "ccusage_missing"
+        return out
+    try:
+        raw_daily = subprocess.check_output([exe, "daily", "--json", "--since", day, "--until", day], text=True, stderr=subprocess.DEVNULL, timeout=45)
+        daily_data = json.loads(raw_daily or "{}")
+        rows = daily_data.get("daily", []) if isinstance(daily_data, dict) else []
+        row = rows[-1] if rows else {}
+        out["daily"] = {
+            "total_cost_usd": round(float(row.get("totalCost", 0) or 0), 4),
+            "total_tokens": int(row.get("totalTokens", 0) or 0),
+            "agents": (row.get("metadata") or {}).get("agents", []),
+            "models_used": row.get("modelsUsed", []),
+        }
+        raw_sessions = subprocess.check_output([exe, "session", "--json", "--since", day, "--until", day], text=True, stderr=subprocess.DEVNULL, timeout=60)
+        sess_data = json.loads(raw_sessions or "{}")
+        sessions = sess_data.get("session", []) if isinstance(sess_data, dict) else []
+        by_agent = {}
+        for r in sessions:
+            if (r.get("metadata") or {}).get("lastActivity") != day:
+                continue
+            agent = r.get("agent") or "unknown"
+            bucket = by_agent.setdefault(agent, {"sessions": 0, "cost_usd": 0.0, "tokens": 0})
+            bucket["sessions"] += 1
+            bucket["cost_usd"] += float(r.get("totalCost", 0) or 0)
+            bucket["tokens"] += int(r.get("totalTokens", 0) or 0)
+        out["sessions_by_agent"] = {k: {**v, "cost_usd": round(v["cost_usd"], 4)} for k, v in sorted(by_agent.items())}
+    except Exception as exc:
+        out["error"] = exc.__class__.__name__
+    return out
+
+
+def _iso_day(value: str | None) -> str:
+    return (value or "")[:10]
+
+
+def github_daily_activity(repo_slug: str, day: str) -> dict:
+    base: dict[str, int | None] = {
+        "issues_created": None,
+        "issues_closed": None,
+        "prs_created": None,
+        "prs_merged": None,
+        "build_runs": None,
+        "build_success": None,
+        "build_failed": None,
+    }
+    if not repo_slug or "/" not in repo_slug or not GH_TOKEN:
+        return base
+
+    # Use normal repo endpoints instead of GitHub Search API: Search is capped at
+    # ~30 requests/min and test rebuilds can exhaust it. Repo endpoints use the
+    # main REST quota and are enough for daily created/merged counts.
+    issues = _gh_get(f"https://api.github.com/repos/{repo_slug}/issues?state=all&since={day}T00:00:00Z&per_page=100")
+    if isinstance(issues, list):
+        real_issues = [i for i in issues if "pull_request" not in i]
+        base["issues_created"] = sum(1 for i in real_issues if _iso_day(i.get("created_at")) == day)
+        base["issues_closed"] = sum(1 for i in real_issues if _iso_day(i.get("closed_at")) == day)
+
+    prs = _gh_get(f"https://api.github.com/repos/{repo_slug}/pulls?state=all&sort=updated&direction=desc&per_page=100")
+    if isinstance(prs, list):
+        base["prs_created"] = sum(1 for p in prs if _iso_day(p.get("created_at")) == day)
+        base["prs_merged"] = sum(1 for p in prs if _iso_day(p.get("merged_at")) == day)
+
+    runs_url = f"https://api.github.com/repos/{repo_slug}/actions/runs?per_page=100&created={urllib.parse.quote('>='+day)}"
+    runs = _gh_get(runs_url)
+    if isinstance(runs, dict) and isinstance(runs.get("workflow_runs"), list):
+        wr = runs["workflow_runs"]
+        base["build_runs"] = len(wr)
+        base["build_success"] = sum(1 for r in wr if r.get("conclusion") == "success")
+        base["build_failed"] = sum(1 for r in wr if r.get("conclusion") in {"failure", "cancelled", "timed_out"})
+    return base
+
+
+def local_build_ledger(day: str) -> dict:
+    path = BUILD_LEDGER_DIR / f"{day}.jsonl"
+    rows = []
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                rows.append(json.loads(line))
+            except Exception:
+                continue
+    return {
+        "path": str(path),
+        "count": len(rows),
+        "success": sum(1 for r in rows if r.get("status") == "success"),
+        "failure": sum(1 for r in rows if r.get("status") == "failure"),
+        "blocked": sum(1 for r in rows if r.get("status") == "blocked"),
+        "recent": rows[-12:],
+    }
+
+
+def daily_ledger(data: dict, built_at: str) -> dict:
+    day = _paris_now().date().isoformat()
+    repos = []
+    totals = {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0,
+        "unknown_fields": 0,
+    }
+    for item in data.get("items", []):
+        repo = item.get("repo", "")
+        activity = github_daily_activity(repo, day) if repo else {}
+        for k in ["issues_created", "issues_closed", "prs_created", "prs_merged", "build_runs", "build_success", "build_failed"]:
+            if activity.get(k) is None:
+                totals["unknown_fields"] += 1
+            else:
+                totals[k] += int(activity.get(k) or 0)
+        repos.append({
+            "id": item.get("id"),
+            "name": item.get("name"),
+            "repo": repo,
+            "health": item.get("health", {}),
+            "git": item.get("git", {}),
+            "github_open": item.get("github", {}),
+            "activity": activity,
+        })
+    hermes = hermes_daily_state(day)
+    cc = ccusage_daily_state(day)
+    builds = local_build_ledger(day)
+    totals["local_build_records"] = builds["count"]
+    alerts = []
+    dirty = [r for r in repos if (r.get("git") or {}).get("dirty")]
+    if dirty:
+        alerts.append({"level": "warning", "code": "DIRTY_REPOS", "message": f"{len(dirty)} repo(s) locaux dirty dans le registry."})
+    if totals["build_runs"] == 0 and builds["count"] == 0:
+        alerts.append({"level": "warning", "code": "NO_BUILDS_RECORDED", "message": "Aucun build GitHub Actions ou ledger local détecté aujourd'hui."})
+    session_total = int(hermes.get("sessions", 0) or 0) + sum(int(v.get("sessions", 0)) for v in cc.get("sessions_by_agent", {}).values())
+    if session_total >= 10 and totals["prs_created"] == 0:
+        alerts.append({"level": "warning", "code": "SESSIONS_WITHOUT_PRS", "message": "Beaucoup de sessions détectées mais aucune PR créée aujourd'hui."})
+    if totals["prs_created"] > 0 and totals["prs_merged"] == 0:
+        alerts.append({"level": "info", "code": "PRS_NOT_MERGED", "message": "PRs créées aujourd'hui mais aucune PR mergée détectée."})
+    return {
+        "date": day,
+        "generated_at": built_at,
+        "version": VERSION,
+        "sessions": {"hermes": hermes, "ccusage": cc},
+        "github_totals": totals,
+        "local_builds": builds,
+        "repos": repos,
+        "alerts": alerts,
+    }
 
 
 def git_state(path_slug: str) -> dict:
@@ -488,6 +707,7 @@ FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;
 
 NAV_ITEMS = [
     ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
+    ("/ops/",         "ops",         "Ops",         'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125C16.5 3.504 17.004 3 17.625 3h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z'),
     ("/clients/",     "clients",     "Clients",     'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z'),
     ("/partenaires/", "partenaires", "Partenaires", 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.015M3.75 9.349a3 3 0 0 0 3.75.616m-3.75-.616a3.001 3.001 0 0 1-.75-1.99V6h17.25v1.36a3 3 0 0 1-.75 1.99m0 0a2.993 2.993 0 0 1-2.25 1.016'),
     ("/changelog/",   "changelog",   "Changelog",   'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'),
@@ -833,6 +1053,84 @@ def page_clients(data: dict) -> str:
     return html
 
 
+def _num(v) -> int:
+    try:
+        return int(v or 0)
+    except Exception:
+        return 0
+
+
+def page_ops(ledger: dict) -> str:
+    gh = ledger.get("github_totals", {})
+    hermes = ledger.get("sessions", {}).get("hermes", {})
+    cc = ledger.get("sessions", {}).get("ccusage", {})
+    by_agent = cc.get("sessions_by_agent", {}) or {}
+    cc_sessions = sum(_num(v.get("sessions")) for v in by_agent.values())
+    cc_daily = cc.get("daily") or {}
+    alerts = ledger.get("alerts", [])
+
+    def card(label: str, value: str, sub: str = "") -> str:
+        sub_html = f'<div class="text-xs text-gray-400 mt-1">{escape(sub)}</div>' if sub else ""
+        return f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{escape(str(value))}</div><div class="text-xs text-gray-500 mt-0.5">{escape(label)}</div>{sub_html}</div>'
+
+    html = (
+        '<div class="flex items-center justify-between mb-6">'
+        '<div><h1 class="text-xl font-bold text-gray-900">Ops quotidien</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">Ledger automatique du {escape(ledger.get("date", ""))} — sessions, issues, PRs, builds, anomalies.</p></div>'
+        '<a href="/api/daily-ledger/index.json" class="text-xs text-blue-500 hover:underline">API ledger</a>'
+        '</div>'
+    )
+    html += '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">'
+    html += card("Sessions Hermes", hermes.get("sessions", 0), f'{hermes.get("messages", 0)} messages · {hermes.get("tool_calls", 0)} tools')
+    html += card("Sessions Claude/CLI", cc_sessions, ", ".join(f"{k}:{v.get('sessions',0)}" for k, v in by_agent.items()) or "ccusage")
+    html += card("Issues créées", gh.get("issues_created", 0), f'{gh.get("issues_closed", 0)} fermées')
+    html += card("PRs créées", gh.get("prs_created", 0), f'{gh.get("prs_merged", 0)} mergées')
+    html += card("Builds", gh.get("build_runs", 0) + gh.get("local_build_records", 0), f'{gh.get("build_success", 0)} OK · {gh.get("build_failed", 0)} KO · {gh.get("local_build_records", 0)} locaux')
+    html += card("Coût tokens", f'${cc_daily.get("total_cost_usd", 0):.2f}' if isinstance(cc_daily.get("total_cost_usd", 0), (int, float)) else "—", f'{cc_daily.get("total_tokens", 0)} tokens')
+    html += card("Repos dirty", sum(1 for r in ledger.get("repos", []) if (r.get("git") or {}).get("dirty")), "statut local")
+    html += card("Alertes", len(alerts), "warnings / infos")
+    html += '</div>'
+
+    if alerts:
+        html += '<div class="space-y-2 mb-6">'
+        for a in alerts:
+            cls = "border-yellow-200 bg-yellow-50 text-yellow-800" if a.get("level") == "warning" else "border-blue-200 bg-blue-50 text-blue-800"
+            html += f'<div class="rounded-xl border px-4 py-3 text-sm {cls}"><span class="font-semibold">{escape(a.get("code", "ALERT"))}</span> — {escape(a.get("message", ""))}</div>'
+        html += '</div>'
+
+    html += '<div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+    html += '<div class="px-4 py-3 border-b border-gray-100"><div class="text-sm font-bold text-gray-900">Repos core — activité du jour</div></div>'
+    html += '<div class="grid grid-cols-[1fr_80px_80px_80px_80px_80px] gap-2 px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase hidden md:grid"><span>Repo</span><span>Issues</span><span>PRs</span><span>Merges</span><span>Builds</span><span>Local</span></div>'
+    for r in ledger.get("repos", []):
+        act = r.get("activity", {}) or {}
+        git = r.get("git", {}) or {}
+        dirty = git.get("dirty", False)
+        repo = r.get("repo") or "—"
+        html += (
+            f'<div class="grid md:grid-cols-[1fr_80px_80px_80px_80px_80px] gap-2 px-4 py-3 border-b border-gray-100 last:border-0 text-sm items-center">'
+            f'<div><div class="font-semibold text-gray-900">{escape(r.get("name") or r.get("id") or "")}</div><div class="text-xs text-gray-400 font-mono">{escape(repo)}</div></div>'
+            f'<div class="text-gray-700">{escape(str(act.get("issues_created", "—")))}</div>'
+            f'<div class="text-gray-700">{escape(str(act.get("prs_created", "—")))}</div>'
+            f'<div class="text-gray-700">{escape(str(act.get("prs_merged", "—")))}</div>'
+            f'<div class="text-gray-700">{escape(str(act.get("build_runs", "—")))}</div>'
+            f'<div><span class="{"pill-warn" if dirty else "pill-ok"} inline-flex rounded-full px-2 py-0.5 text-xs font-medium">{"dirty" if dirty else "clean"}</span></div>'
+            f'</div>'
+        )
+    html += '</div>'
+
+    local = ledger.get("local_builds", {})
+    html += '<div class="bg-white rounded-xl border border-gray-200 px-4 py-3">'
+    html += '<div class="text-sm font-bold text-gray-900 mb-1">Ledger builds local</div>'
+    html += f'<div class="text-xs text-gray-400 font-mono mb-3">{escape(local.get("path", ""))}</div>'
+    if local.get("recent"):
+        for b in local.get("recent", []):
+            html += f'<div class="text-xs text-gray-600 py-1 border-t border-gray-50"><span class="font-mono">{escape(b.get("repo", ""))}</span> · {escape(b.get("status", ""))} · {escape(b.get("command", ""))}</div>'
+    else:
+        html += '<div class="text-sm text-gray-500">Aucun build local enregistré aujourd’hui. Utiliser <code class="font-mono text-xs bg-gray-100 px-1 rounded">python3 scripts/record_build.py ...</code>.</div>'
+    html += '</div>'
+    return html
+
+
 def page_changelog() -> str:
     cl = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     lines = cl.splitlines()
@@ -856,6 +1154,7 @@ def page_changelog() -> str:
 def main() -> None:
     built_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     data = payload(built_at)
+    ledger = daily_ledger(data, built_at)
 
     tmp = PUBLIC.parent / "public_build_tmp"
     if tmp.exists():
@@ -866,9 +1165,18 @@ def main() -> None:
     (tmp / "api" / "core-repos.json").write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    ledger_dir = tmp / "api" / "daily-ledger"
+    ledger_dir.mkdir(parents=True, exist_ok=True)
+    (ledger_dir / f"{ledger['date']}.json").write_text(
+        json.dumps(ledger, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (ledger_dir / "index.json").write_text(
+        json.dumps({"latest": f"/api/daily-ledger/{ledger['date']}.json", "items": [ledger]}, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     pages = [
         ("/",             "registry",    "Registry CORE OA",        page_registry(data)),
+        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/partenaires/", "partenaires", "Partenaires",              page_partenaires(data)),
         ("/changelog/",   "changelog",   "Changelog",                page_changelog()),
@@ -886,7 +1194,7 @@ def main() -> None:
     healthy = data["counts"]["healthy"]
     issues  = data["counts"]["open_issues_total"]
     prs     = data["counts"]["open_prs_total"]
-    print(f"built qg {len(pages)} routes · {healthy}/{data['counts']['total']} healthy · {issues} issues · {prs} PRs · {built_at}")
+    print(f"built qg {len(pages)} routes · {healthy}/{data['counts']['total']} healthy · {issues} issues · {prs} PRs · ledger {ledger['date']} · {built_at}")
 
 
 if __name__ == "__main__":

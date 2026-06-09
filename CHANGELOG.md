@@ -1,5 +1,12 @@
 # Changelog
 
+## V0.7.0 — 2026-06-09
+
+- Nouvelle page `/ops/` : consolidation quotidienne sessions Hermes, sessions Claude/CLI, issues, PRs, merges, builds, coûts tokens, repos dirty et alertes.
+- Nouvel endpoint `/api/daily-ledger/index.json` et snapshot daté `/api/daily-ledger/YYYY-MM-DD.json`.
+- Ajout `scripts/record_build.py` pour tracer les builds locaux dans `/home/omar/11-Pilotage/ledgers/builds/YYYY-MM-DD.jsonl`.
+- Alertes automatiques : repos dirty, absence de builds enregistrés, sessions nombreuses sans PR, PRs créées non mergées.
+
 ## V0.6.0 — 2026-06-09
 
 - Nouvelle page Clients & VPS sous Registry : galerie 2 colonnes.
