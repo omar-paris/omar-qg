@@ -44,6 +44,17 @@ Afficher en une page :
 /api/core-repos.json
 ```
 
+## Rebuild automatique
+
+Crontab `omar` — toutes les 30 min :
+
+```
+*/30 * * * * /usr/bin/python3 /home/omar/23-Offre/actifs/omar-qg/scripts/build.py >> /home/omar/23-Offre/actifs/omar-qg/var/rebuild.log 2>&1
+```
+
+Logs : `tail -f var/rebuild.log`
+Rebuild manuel : `python3 scripts/build.py`
+
 ## Version
 
-`V0.1.0`
+`V0.2.0`
