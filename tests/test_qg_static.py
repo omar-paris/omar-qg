@@ -7,7 +7,7 @@ PUBLIC = ROOT / "public"
 
 ROUTES = {
     "/": PUBLIC / "index.html",
-    "/registry": PUBLIC / "registry" / "index.html",
+    "/partenaires": PUBLIC / "partenaires" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
 }
 
@@ -22,7 +22,8 @@ def test_qg_builds_core_routes_and_api():
         assert path.exists(), route
         text = path.read_text(encoding="utf-8")
         assert "qg.omar.paris" in text
-        assert "CORE OA" in text
+    # Registry specifically has CORE OA
+    assert "CORE OA" in (PUBLIC / "index.html").read_text(encoding="utf-8")
     api = PUBLIC / "api" / "core-repos.json"
     assert api.exists()
     payload = json.loads(api.read_text(encoding="utf-8"))
@@ -51,12 +52,14 @@ def test_qg_pages_link_to_changelogs_and_no_secrets():
         assert token not in text
 
 
-def test_qg_registry_explains_lab_vs_qg_vs_hub_top():
+def test_qg_registry_has_core_oa_scopes():
     build()
     text = (PUBLIC / "index.html").read_text(encoding="utf-8")
-    assert "Lab = atelier" in text
-    assert "QG = registry" in text
-    assert "Hub/OmarTop = VPS Hermes OA" in text
+    assert "CORE OA" in text
+    assert "VPS Hermes OA" in text
+    assert "Healthy" in text
+    # Partners page exists
+    assert (PUBLIC / "partenaires" / "index.html").exists()
 
 
 def test_qg_api_has_live_data_fields():
@@ -86,7 +89,7 @@ def test_qg_health_column_in_html():
 
 def test_qg_no_hardcoded_live_status_pill():
     build()
-    text = (PUBLIC / "registry" / "index.html").read_text(encoding="utf-8")
+    text = (PUBLIC / "index.html").read_text(encoding="utf-8")
     assert 'pill">live<' not in text
     assert 'pill">tailnet<' not in text
     assert 'pill">public<' not in text

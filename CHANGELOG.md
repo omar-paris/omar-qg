@@ -1,5 +1,14 @@
 # Changelog
 
+## V0.3.0 — 2026-06-09
+
+- UI refonte : sidebar Hub-style (Tailwind + Inter), plus de hero plein écran.
+- Accueil et registry fusionnés en une seule page compacte.
+- Page Partenaires : Hetzner, OVH, Infomaniak — offres, prix, statut API.
+- VPS clients placeholder (connecté API quand les droits OVH seront validés).
+- Navigation sidebar : Registry / Partenaires / Changelog.
+- Timestamp rebuild dans la sidebar.
+
 ## V0.2.0 — 2026-06-09
 
 - Données live : GitHub API issues et PRs ouverts par repo (closes #2).
