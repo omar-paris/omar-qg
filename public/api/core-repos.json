@@ -1,7 +1,7 @@
 {
-  "version": "V0.4.0",
+  "version": "V0.5.0",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-09T04:36:51Z",
+  "built_at": "2026-06-09T04:52:48Z",
   "items": [
     {
       "id": "landing",
@@ -29,7 +29,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 16
+        "latency_ms": 22
       }
     },
     {
@@ -93,7 +93,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 20
+        "latency_ms": 18
       }
     },
     {
@@ -122,7 +122,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 19
+        "latency_ms": 18
       }
     },
     {
@@ -138,7 +138,7 @@
       "next": "Rebuild cron actif 30 min.",
       "git": {
         "exists": true,
-        "branch": "feat/qg-v4-catalog-by-type",
+        "branch": "feat/qg-v5-live-provider-status",
         "dirty": true,
         "head": "current qg build",
         "status_short": [
@@ -152,9 +152,9 @@
         "open_issues": 2,
         "open_prs": 0,
         "last_merged_pr": {
-          "title": "feat(qg): V0.3.0 — UI Hub-style + page Partenaires",
-          "number": 7,
-          "merged_at": "2026-06-09T04:04:38Z"
+          "title": "feat(qg): V0.4.0 — catalogue par type + Telnyx + OVH live",
+          "number": 8,
+          "merged_at": "2026-06-09T04:38:14Z"
         }
       },
       "health": {
@@ -193,7 +193,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 21
+        "latency_ms": 17
       }
     },
     {
@@ -226,7 +226,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 27
+        "latency_ms": 18
       }
     }
   ],
@@ -495,7 +495,7 @@
       "color": "#d50c2d",
       "url": "https://www.hetzner.com",
       "vault_key": "secret/integrations/hetzner",
-      "api_status": "key_pending"
+      "api_status": "key_missing"
     },
     "ovh": {
       "name": "OVH",
@@ -511,7 +511,7 @@
       "color": "#00b04f",
       "url": "https://www.infomaniak.com/fr",
       "vault_key": "secret/integrations/infomaniak",
-      "api_status": "key_pending"
+      "api_status": "key_missing"
     },
     "telnyx": {
       "name": "Telnyx",
@@ -519,7 +519,7 @@
       "color": "#00c89c",
       "url": "https://telnyx.com",
       "vault_key": "secret/integrations/telnyx",
-      "api_status": "key_pending"
+      "api_status": "ok"
     }
   },
   "live": {
