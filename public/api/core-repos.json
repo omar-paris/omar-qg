@@ -1,7 +1,7 @@
 {
-  "version": "V0.5.0",
+  "version": "V0.6.0",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-09T04:52:48Z",
+  "built_at": "2026-06-09T05:32:06Z",
   "items": [
     {
       "id": "landing",
@@ -29,7 +29,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 22
+        "latency_ms": 18
       }
     },
     {
@@ -76,14 +76,14 @@
       "next": "Enrichir recommandations.",
       "git": {
         "exists": true,
-        "branch": "main",
+        "branch": "feat/appstore-ui-v2",
         "dirty": false,
-        "head": "7f3671f docs: record catalogue public publish status",
+        "head": "835e272 feat(catalogue): App Store V2 — Top5 catégories, 187 items, fiches, design",
         "status_short": []
       },
       "github": {
-        "open_issues": 1,
-        "open_prs": 2,
+        "open_issues": 7,
+        "open_prs": 3,
         "last_merged_pr": {
           "title": "feat(catalogue): export potential graph contract",
           "number": 10,
@@ -122,7 +122,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 24
       }
     },
     {
@@ -138,7 +138,7 @@
       "next": "Rebuild cron actif 30 min.",
       "git": {
         "exists": true,
-        "branch": "feat/qg-v5-live-provider-status",
+        "branch": "feat/qg-v6-clients-page",
         "dirty": true,
         "head": "current qg build",
         "status_short": [
@@ -152,15 +152,15 @@
         "open_issues": 2,
         "open_prs": 0,
         "last_merged_pr": {
-          "title": "feat(qg): V0.4.0 — catalogue par type + Telnyx + OVH live",
-          "number": 8,
-          "merged_at": "2026-06-09T04:38:14Z"
+          "title": "feat(qg): V0.5.0 — statut API fournisseurs temps réel",
+          "number": 9,
+          "merged_at": "2026-06-09T04:53:23Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 18
       }
     },
     {
@@ -193,7 +193,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 18
       }
     },
     {
@@ -210,12 +210,21 @@
       "git": {
         "exists": true,
         "branch": "main",
-        "dirty": false,
+        "dirty": true,
         "head": "83b6c04 feat: map OA promise to OmarTop standards (#41)",
-        "status_short": []
+        "status_short": [
+          "?? checks/automation/",
+          "?? checks/biz_brand/",
+          "?? checks/biz_clients/",
+          "?? checks/biz_finance/",
+          "?? checks/biz_manifest/",
+          "?? checks/biz_offre/",
+          "?? checks/canaux/",
+          "?? checks/memoire/"
+        ]
       },
       "github": {
-        "open_issues": 36,
+        "open_issues": 37,
         "open_prs": 0,
         "last_merged_pr": {
           "title": "feat: map OA promise to OmarTop standards",
@@ -226,7 +235,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 17
       }
     }
   ],
@@ -235,8 +244,8 @@
     "core": 5,
     "vps": 2,
     "healthy": 7,
-    "open_issues_total": 71,
-    "open_prs_total": 10
+    "open_issues_total": 78,
+    "open_prs_total": 11
   },
   "catalog": [
     {
@@ -495,7 +504,7 @@
       "color": "#d50c2d",
       "url": "https://www.hetzner.com",
       "vault_key": "secret/integrations/hetzner",
-      "api_status": "key_missing"
+      "api_status": "ok"
     },
     "ovh": {
       "name": "OVH",
@@ -511,7 +520,7 @@
       "color": "#00b04f",
       "url": "https://www.infomaniak.com/fr",
       "vault_key": "secret/integrations/infomaniak",
-      "api_status": "key_missing"
+      "api_status": "ok"
     },
     "telnyx": {
       "name": "Telnyx",
@@ -573,5 +582,169 @@
         }
       ]
     }
-  }
+  },
+  "fleet": [
+    {
+      "name": "ubuntu-16gb-omar",
+      "label": "VPS-Omar",
+      "role": "CORE OA",
+      "role_color": "#0050d7",
+      "owner": "OA / Alex",
+      "purpose": "Infra centrale : agents Hermes, Caddy, Vault, sites CORE OA, QG.",
+      "links": [
+        {
+          "kind": "hub",
+          "label": "Hub local",
+          "url": "https://hub.omar.paris/",
+          "status": "live"
+        },
+        {
+          "kind": "hermesui",
+          "label": "Hermes UI",
+          "url": "http://100.79.68.6:9119/",
+          "status": "live"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Glances",
+          "url": "http://100.79.68.6:61208/",
+          "status": "live"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Dashy",
+          "url": "http://100.79.68.6:8084/",
+          "status": "tailnet"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Console Hetzner",
+          "url": "https://console.hetzner.cloud/",
+          "status": "live"
+        }
+      ],
+      "tailnet": "100.79.68.6",
+      "id": 124825569,
+      "status": "running",
+      "type": "ccx23",
+      "vcpu": 4,
+      "ram_gb": 16,
+      "disk_gb": 160,
+      "ip": "195.201.20.17",
+      "datacenter": "nbg1-dc3",
+      "location": "Nuremberg, DE",
+      "os": "ubuntu-24.04",
+      "created": "2026-03-24",
+      "price_eur": 37.79,
+      "backups": "on",
+      "traffic_out_gb": 14.5,
+      "traffic_inc_tb": 22.0
+    },
+    {
+      "name": "ubuntu-8gb-pan",
+      "label": "VPS-Pantheos",
+      "role": "STUDIO",
+      "role_color": "#7c3aed",
+      "owner": "OA / Alex",
+      "purpose": "Studio Pantheos : editing.alexgo.eu. Cible : H-Aurel + apps L1.",
+      "links": [
+        {
+          "kind": "site",
+          "label": "editing.alexgo.eu",
+          "url": "https://editing.alexgo.eu/",
+          "status": "live"
+        },
+        {
+          "kind": "hub",
+          "label": "Hub local",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "hermesui",
+          "label": "Hermes UI",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Glances",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Console Hetzner",
+          "url": "https://console.hetzner.cloud/",
+          "status": "live"
+        }
+      ],
+      "tailnet": "",
+      "id": 118906691,
+      "status": "running",
+      "type": "ccx23",
+      "vcpu": 4,
+      "ram_gb": 16,
+      "disk_gb": 160,
+      "ip": "78.46.201.97",
+      "datacenter": "nbg1-dc3",
+      "location": "Nuremberg, DE",
+      "os": "ubuntu-24.04",
+      "created": "2026-01-29",
+      "price_eur": 37.79,
+      "backups": "on",
+      "traffic_out_gb": 1.1,
+      "traffic_inc_tb": 22.0
+    },
+    {
+      "name": "ubuntu-4gb-jab",
+      "label": "VPS-JAB",
+      "role": "CLIENT",
+      "role_color": "#16a34a",
+      "owner": "Client JAB",
+      "purpose": "Stack client JAB : facturation PennyLane, Maryse, Google MyBusiness.",
+      "links": [
+        {
+          "kind": "hub",
+          "label": "Hub local",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "hermesui",
+          "label": "Hermes UI",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Glances",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Console Hetzner",
+          "url": "https://console.hetzner.cloud/",
+          "status": "live"
+        }
+      ],
+      "tailnet": "",
+      "id": 127265089,
+      "status": "running",
+      "type": "cpx22",
+      "vcpu": 2,
+      "ram_gb": 4,
+      "disk_gb": 80,
+      "ip": "168.119.172.126",
+      "datacenter": "nbg1-dc3",
+      "location": "Nuremberg, DE",
+      "os": "ubuntu-24.04",
+      "created": "2026-04-17",
+      "price_eur": 9.59,
+      "backups": "on",
+      "traffic_out_gb": 5.9,
+      "traffic_inc_tb": 22.0
+    }
+  ]
 }
