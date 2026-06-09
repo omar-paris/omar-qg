@@ -57,6 +57,58 @@ PROVIDERS = {
     "telnyx":      {"name": "Telnyx",      "logo": "T", "color": "#00c89c", "url": "https://telnyx.com",            "vault_key": "secret/integrations/telnyx"},
 }
 
+# ── VPS metadata ──────────────────────────────────────────────────────────────
+# Keyed by substring matched against the Hetzner server name.
+# Live data (specs, IP, status, cost…) comes from the Hetzner API at build.
+# Static metadata (role, owner, monitoring + local page links) defined here.
+
+VPS_META = {
+    "omar": {
+        "label": "VPS-Omar",
+        "role": "CORE OA",
+        "role_color": "#0050d7",
+        "owner": "OA / Alex",
+        "purpose": "Infra centrale : agents Hermes, Caddy, Vault, sites CORE OA, QG.",
+        "tailnet": "100.79.68.6",
+        "links": [
+            {"kind": "hub",       "label": "Hub local",      "url": "https://hub.omar.paris/",          "status": "live"},
+            {"kind": "hermesui",  "label": "Hermes UI",      "url": "http://100.79.68.6:9119/",         "status": "live"},
+            {"kind": "monitoring","label": "Glances",        "url": "http://100.79.68.6:61208/",        "status": "live"},
+            {"kind": "monitoring","label": "Dashy",          "url": "http://100.79.68.6:8084/",         "status": "tailnet"},
+            {"kind": "monitoring","label": "Console Hetzner","url": "https://console.hetzner.cloud/",   "status": "live"},
+        ],
+    },
+    "pan": {
+        "label": "VPS-Pantheos",
+        "role": "STUDIO",
+        "role_color": "#7c3aed",
+        "owner": "OA / Alex",
+        "purpose": "Studio Pantheos : editing.alexgo.eu. Cible : H-Aurel + apps L1.",
+        "tailnet": "",
+        "links": [
+            {"kind": "site",      "label": "editing.alexgo.eu", "url": "https://editing.alexgo.eu/",     "status": "live"},
+            {"kind": "hub",       "label": "Hub local",         "url": "",                               "status": "todo"},
+            {"kind": "hermesui",  "label": "Hermes UI",         "url": "",                               "status": "todo"},
+            {"kind": "monitoring","label": "Glances",           "url": "",                               "status": "todo"},
+            {"kind": "monitoring","label": "Console Hetzner",   "url": "https://console.hetzner.cloud/", "status": "live"},
+        ],
+    },
+    "jab": {
+        "label": "VPS-JAB",
+        "role": "CLIENT",
+        "role_color": "#16a34a",
+        "owner": "Client JAB",
+        "purpose": "Stack client JAB : facturation PennyLane, Maryse, Google MyBusiness.",
+        "tailnet": "",
+        "links": [
+            {"kind": "hub",       "label": "Hub local",       "url": "",                               "status": "todo"},
+            {"kind": "hermesui",  "label": "Hermes UI",       "url": "",                               "status": "todo"},
+            {"kind": "monitoring","label": "Glances",         "url": "",                               "status": "todo"},
+            {"kind": "monitoring","label": "Console Hetzner", "url": "https://console.hetzner.cloud/", "status": "live"},
+        ],
+    },
+}
+
 # ── Catalog by type ───────────────────────────────────────────────────────────
 # Each type has options ordered best-first; default=True marks the OA standard choice.
 
@@ -319,6 +371,77 @@ def probe_all_providers() -> dict:
     return out
 
 
+def hetzner_fleet() -> list:
+    """Live VPS fleet from Hetzner API, merged with VPS_META. No tokens, build-time."""
+    creds = _vault_read("secret/integrations/hetzner")
+    key = creds.get("HCLOUD_TOKEN") or creds.get("HETZNER_API_TOKEN") or creds.get("HETZNER_TOKEN", "")
+    if not key:
+        return []
+    req = urllib.request.Request(
+        "https://api.hetzner.cloud/v1/servers",
+        headers={"Authorization": f"Bearer {key}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read())
+    except Exception:
+        return []
+
+    fleet = []
+    for s in data.get("servers", []):
+        name = s.get("name", "")
+        st = s.get("server_type", {}) or {}
+        dc = s.get("datacenter", {}) or {}
+        loc = dc.get("location", {}) or {}
+        img = s.get("image") or {}
+        pn = (s.get("public_net", {}) or {}).get("ipv4", {}) or {}
+        # match metadata by substring
+        meta = {}
+        for kkey, m in VPS_META.items():
+            if kkey in name:
+                meta = m
+                break
+        # monthly price for this server's location
+        price = None
+        for p in st.get("prices", []):
+            if p.get("location") == loc.get("name"):
+                try:
+                    price = round(float(p.get("price_monthly", {}).get("gross", 0)), 2)
+                except Exception:
+                    price = None
+        out_traffic = s.get("outgoing_traffic") or 0
+        inc_traffic = s.get("included_traffic") or 0
+        fleet.append({
+            "name": name,
+            "label": meta.get("label", name),
+            "role": meta.get("role", "—"),
+            "role_color": meta.get("role_color", "#6b7280"),
+            "owner": meta.get("owner", "—"),
+            "purpose": meta.get("purpose", ""),
+            "links": meta.get("links", []),
+            "tailnet": meta.get("tailnet", ""),
+            "id": s.get("id"),
+            "status": s.get("status", "?"),
+            "type": st.get("name", "?"),
+            "vcpu": st.get("cores"),
+            "ram_gb": int(st.get("memory", 0)) if st.get("memory") else None,
+            "disk_gb": st.get("disk"),
+            "ip": pn.get("ip", ""),
+            "datacenter": dc.get("name", ""),
+            "location": f'{loc.get("city","")}, {loc.get("country","")}'.strip(", "),
+            "os": img.get("name") or img.get("description") or "?",
+            "created": (s.get("created") or "")[:10],
+            "price_eur": price,
+            "backups": "on" if s.get("backup_window") else "off",
+            "traffic_out_gb": round(out_traffic / 1e9, 1),
+            "traffic_inc_tb": round(inc_traffic / 1e12, 1),
+        })
+    # order: CORE, STUDIO, CLIENT, then others
+    order = {"CORE OA": 0, "STUDIO": 1, "CLIENT": 2}
+    fleet.sort(key=lambda v: order.get(v["role"], 9))
+    return fleet
+
+
 def payload(built_at: str) -> dict:
     items = []
     for item in ITEMS:
@@ -349,10 +472,12 @@ def payload(built_at: str) -> dict:
     else:
         live["ovh"] = {"domains": [], "email_domains_with_accounts": []}
 
+    fleet = hetzner_fleet()
     return {
         "version": VERSION, "domain": DOMAIN, "built_at": built_at,
         "items": items, "counts": counts,
         "catalog": CATALOG, "providers": providers, "live": live,
+        "fleet": fleet,
     }
 
 
@@ -362,9 +487,10 @@ TAILWIND = "https://cdn.tailwindcss.com"
 FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
 
 NAV_ITEMS = [
-    ("/",             "registry", "Registry",    '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z"/>'),
-    ("/partenaires/", "partenaires", "Partenaires", '<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.015M3.75 9.349a3 3 0 0 0 3.75.616m-3.75-.616a3.001 3.001 0 0 1-.75-1.99V6h17.25v1.36a3 3 0 0 1-.75 1.99m0 0a2.993 2.993 0 0 1-2.25 1.016"/>'),
-    ("/changelog/",   "changelog",  "Changelog",   '<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>'),
+    ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
+    ("/clients/",     "clients",     "Clients",     'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z'),
+    ("/partenaires/", "partenaires", "Partenaires", 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.015M3.75 9.349a3 3 0 0 0 3.75.616m-3.75-.616a3.001 3.001 0 0 1-.75-1.99V6h17.25v1.36a3 3 0 0 1-.75 1.99m0 0a2.993 2.993 0 0 1-2.25 1.016'),
+    ("/changelog/",   "changelog",   "Changelog",   'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'),
 ]
 
 
@@ -620,6 +746,93 @@ def page_partenaires(data: dict) -> str:
     return html
 
 
+def _link_status_dot(status: str) -> str:
+    colors = {"live": "#22c55e", "tailnet": "#3b82f6", "todo": "#d1d5db"}
+    return colors.get(status, "#d1d5db")
+
+
+def page_clients(data: dict) -> str:
+    fleet = data.get("fleet", [])
+    html = (
+        '<div class="flex items-center justify-between mb-6">'
+        '<div><h1 class="text-xl font-bold text-gray-900">Clients & VPS</h1>'
+        '<p class="text-sm text-gray-500 mt-0.5">Flotte live Hetzner. Données rafraîchies au rebuild (30 min).</p></div>'
+        '</div>'
+    )
+
+    if not fleet:
+        return html + '<div class="bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 text-sm text-yellow-700">Flotte Hetzner indisponible — clef API absente ou en erreur.</div>'
+
+    # Fleet summary bar
+    total_cost = sum(v["price_eur"] or 0 for v in fleet)
+    running = sum(1 for v in fleet if v["status"] == "running")
+    html += (
+        f'<div class="grid grid-cols-3 gap-3 mb-6">'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{len(fleet)}</div><div class="text-xs text-gray-500 mt-0.5">VPS</div></div>'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{running}<span class="text-gray-400 text-sm font-normal">/{len(fleet)}</span></div><div class="text-xs text-gray-500 mt-0.5">Running</div></div>'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{total_cost:.0f}<span class="text-gray-400 text-sm font-normal"> €/mois</span></div><div class="text-xs text-gray-500 mt-0.5">Coût flotte</div></div>'
+        f'</div>'
+    )
+
+    # 2-column gallery
+    html += '<div class="grid md:grid-cols-2 gap-4">'
+    for v in fleet:
+        status_dot = "#22c55e" if v["status"] == "running" else "#ef4444"
+        # 10 info rows
+        infos = [
+            ("Rôle", f'<span class="rounded px-1.5 py-0.5 text-xs font-semibold text-white" style="background:{v["role_color"]}">{escape(v["role"])}</span>'),
+            ("Owner", escape(v["owner"])),
+            ("IP publique", f'<span class="font-mono text-xs">{escape(v["ip"])}</span>'),
+            ("Type", f'{escape(v["type"])} · {v["vcpu"]} vCPU / {v["ram_gb"]} Go'),
+            ("Disque", f'{v["disk_gb"]} Go'),
+            ("Datacenter", escape(v["location"])),
+            ("OS", escape(v["os"])),
+            ("Créé le", escape(v["created"])),
+            ("Coût", f'{v["price_eur"]:.2f} €/mois' if v["price_eur"] else "—"),
+            ("Backups", f'<span class="{"text-green-600" if v["backups"]=="on" else "text-gray-400"}">{v["backups"]}</span>'),
+            ("Trafic sortant", f'{v["traffic_out_gb"]} Go / {v["traffic_inc_tb"]} To inclus'),
+        ]
+        infos_html = "".join(
+            f'<div class="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">'
+            f'<span class="text-xs text-gray-400">{escape(label)}</span>'
+            f'<span class="text-sm text-gray-700 text-right">{val}</span></div>'
+            for label, val in infos
+        )
+
+        # links: hub, hermesui, monitoring
+        links_html = ""
+        for lk in v.get("links", []):
+            dot = _link_status_dot(lk["status"])
+            if lk["status"] == "todo" or not lk["url"]:
+                links_html += (
+                    f'<span class="inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 rounded-lg px-2.5 py-1.5 border border-gray-100">'
+                    f'<span class="w-1.5 h-1.5 rounded-full" style="background:{dot}"></span>{escape(lk["label"])} <span class="text-gray-300">à installer</span></span>'
+                )
+            else:
+                links_html += (
+                    f'<a href="{escape(lk["url"])}" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-gray-700 hover:text-blue-600 bg-white rounded-lg px-2.5 py-1.5 border border-gray-200 hover:border-blue-300">'
+                    f'<span class="w-1.5 h-1.5 rounded-full" style="background:{dot}"></span>{escape(lk["label"])}</a>'
+                )
+
+        html += (
+            f'<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">'
+            f'<div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">'
+            f'<div class="flex items-center gap-2">'
+            f'<span class="w-2.5 h-2.5 rounded-full" style="background:{status_dot}"></span>'
+            f'<div><div class="text-sm font-bold text-gray-900">{escape(v["label"])}</div>'
+            f'<div class="text-xs text-gray-400 font-mono">{escape(v["name"])}</div></div>'
+            f'</div>'
+            f'<span class="text-xs text-gray-400">{escape(v["status"])}</span>'
+            f'</div>'
+            f'<div class="px-5 py-2.5 text-xs text-gray-500 border-b border-gray-50">{escape(v["purpose"])}</div>'
+            f'<div class="px-5 py-2">{infos_html}</div>'
+            f'<div class="px-5 py-3 border-t border-gray-100 flex flex-wrap gap-2">{links_html}</div>'
+            f'</div>'
+        )
+    html += '</div>'
+    return html
+
+
 def page_changelog() -> str:
     cl = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     lines = cl.splitlines()
@@ -656,6 +869,7 @@ def main() -> None:
 
     pages = [
         ("/",             "registry",    "Registry CORE OA",        page_registry(data)),
+        ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/partenaires/", "partenaires", "Partenaires",              page_partenaires(data)),
         ("/changelog/",   "changelog",   "Changelog",                page_changelog()),
     ]

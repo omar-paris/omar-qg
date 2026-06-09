@@ -1,5 +1,14 @@
 # Changelog
 
+## V0.6.0 — 2026-06-09
+
+- Nouvelle page Clients & VPS sous Registry : galerie 2 colonnes.
+- Flotte Hetzner live : 3 VPS (Omar CORE, Pantheos STUDIO, JAB CLIENT).
+- 11 infos par VPS : rôle, owner, IP, type, specs, disque, datacenter, OS, créé, coût, backups, trafic.
+- Liens par VPS : Hub local, Hermes UI, monitoring (Glances, Dashy, Console Hetzner).
+- Liens "à installer" marqués pour Pantheos et JAB (Hub/HermesUI/Glances à venir).
+- Stats flotte : nb VPS, running, coût mensuel total.
+
 ## V0.5.0 — 2026-06-09
 
 - Statut API fournisseurs en temps réel : probe live de chaque provider au build.
