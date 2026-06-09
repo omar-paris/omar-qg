@@ -1,6 +1,7 @@
 {
-  "version": "V0.1.0",
+  "version": "V0.2.0",
   "domain": "qg.omar.paris",
+  "built_at": "2026-06-09T03:26:52Z",
   "items": [
     {
       "id": "landing",
@@ -12,14 +13,23 @@
       "role": "Vitrine publique. Explique et convainc. CTA cible : AppOmar.",
       "version": "V0.2.0",
       "changelog": "https://landing.omar.paris/changelog/",
-      "live": "live",
       "next": "Harmoniser contrat/version et CTA vers app.omar.paris.",
       "git": {
         "exists": true,
         "branch": "feat/conversion-june-cta",
         "dirty": false,
-        "head": "955ee68 feat: add June conversion CTA landing",
+        "head": "68e1594 feat: refine landing page content architecture",
         "status_short": []
+      },
+      "github": {
+        "open_issues": 15,
+        "open_prs": 1,
+        "last_merged_pr": null
+      },
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 18
       }
     },
     {
@@ -30,16 +40,27 @@
       "path": "omar-app",
       "scope": "CORE OA",
       "role": "Portail client/prospect : onboarding, config, buy, SAV, factures, compte.",
-      "version": "V0.1.0",
+      "version": "V0.3.0",
       "changelog": "https://app.omar.paris/changelog/",
-      "live": "public",
       "next": "Persister Caddy public/DNS puis rendre onboarding/config interactifs.",
       "git": {
         "exists": true,
         "branch": "main",
-        "dirty": false,
-        "head": "0c013d0 fix: align AppOmar naming",
-        "status_short": []
+        "dirty": true,
+        "head": "c94ad70 feat: store AppOmar proposals v0.3",
+        "status_short": [
+          "M scripts/build.py"
+        ]
+      },
+      "github": {
+        "open_issues": 12,
+        "open_prs": 0,
+        "last_merged_pr": null
+      },
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 17
       }
     },
     {
@@ -52,34 +73,56 @@
       "role": "Recommandations, Apps, Agents, Tools, Skills, MCP, Bundles.",
       "version": "V0.7.3",
       "changelog": "https://catalogue.omar.paris/changelog/",
-      "live": "tailnet",
-      "next": "Persister Caddy Tailnet-only ; enrichir recommandations ; Hub garde seulement un lien.",
+      "next": "Persister Caddy Tailnet-only ; enrichir recommandations.",
       "git": {
         "exists": true,
         "branch": "main",
         "dirty": false,
         "head": "7f3671f docs: record catalogue public publish status",
         "status_short": []
+      },
+      "github": {
+        "open_issues": 1,
+        "open_prs": 2,
+        "last_merged_pr": {
+          "title": "feat(catalogue): export potential graph contract",
+          "number": 10,
+          "merged_at": "2026-06-05T23:11:44Z"
+        }
+      },
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 19
       }
     },
     {
       "id": "lab",
       "name": "lab",
       "domain": "lab.omar.paris",
-      "repo": "Plane upstream / oa-lab-plane local",
+      "repo": "",
       "path": "oa-lab-plane",
       "scope": "CORE OA",
       "role": "Atelier Plane : projets, work items, cycles, modules.",
       "version": "Plane",
       "changelog": "https://lab.omar.paris/",
-      "live": "live",
-      "next": "Poursuivre consolidation anciens projets vers CORE/VPS/DIVERS/ARCHIVE.",
+      "next": "Consolider anciens projets vers CORE/VPS/DIVERS/ARCHIVE.",
       "git": {
         "exists": true,
         "branch": "no-git",
         "dirty": false,
         "head": "",
         "status_short": []
+      },
+      "github": {
+        "open_issues": null,
+        "open_prs": null,
+        "last_merged_pr": null
+      },
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 20
       }
     },
     {
@@ -89,20 +132,31 @@
       "repo": "omar-paris/omar-qg",
       "path": "omar-qg",
       "scope": "CORE OA",
-      "role": "Registry opérationnel : versions, état repos, liens, dettes.",
-      "version": "V0.1.0",
+      "role": "Registry opérationnel : versions, état repos, issues, PRs, health.",
+      "version": "V0.2.0",
       "changelog": "https://qg.omar.paris/changelog/",
-      "live": "tailnet",
-      "next": "Persister Caddy Tailnet-only ; connecter à données dynamiques plus tard ; ne pas copier Lab/Hub/Top.",
+      "next": "Rebuild cron automatique (issue #5).",
       "git": {
         "exists": true,
-        "branch": "main",
+        "branch": "feat/qg-v1-live-data",
         "dirty": true,
         "head": "current qg build",
         "status_short": [
-          "M scripts/build.py",
+          "M CHANGELOG.md",
+          " M VERSION",
+          " M scripts/build.py",
           " M tests/test_qg_static.py"
         ]
+      },
+      "github": {
+        "open_issues": 5,
+        "open_prs": 0,
+        "last_merged_pr": null
+      },
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 17
       }
     },
     {
@@ -113,18 +167,29 @@
       "path": "omar-hub",
       "scope": "VPS Hermes OA",
       "role": "Cockpit local VPS ; Hub / Catalogue devient lien vers catalogue dédié.",
-      "version": "V0.8.5 public / VERSION stale 0.2.0",
+      "version": "V0.8.5",
       "changelog": "https://hub.omar.paris/changelog/",
-      "live": "live",
       "next": "Harmoniser VERSION ; commit/traiter public/api/omartop.json dirty.",
       "git": {
         "exists": true,
-        "branch": "feat/hub-home-omartop-boussole",
-        "dirty": true,
-        "head": "1b8671e feat: point hub catalogue to dedicated catalogue site",
-        "status_short": [
-          "M public/api/omartop.json"
-        ]
+        "branch": "feat/hub-apps-status-collector",
+        "dirty": false,
+        "head": "9f8d56d feat: Home Apps OS smartphone + page /systeme V0.9.1",
+        "status_short": []
+      },
+      "github": {
+        "open_issues": 5,
+        "open_prs": 8,
+        "last_merged_pr": {
+          "title": "feat: Home Apps OS smartphone + page /systeme V0.9.1",
+          "number": 39,
+          "merged_at": "2026-06-09T03:13:59Z"
+        }
+      },
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 18
       }
     },
     {
@@ -137,14 +202,27 @@
       "role": "Référence Stack VPS Hermes OA : standards, maturité, contrôles, Apps L1.",
       "version": "0.3.0-rc1",
       "changelog": "https://top.omar.paris/changelog/",
-      "live": "live",
       "next": "Ajouter /changelog/ visible ; stabiliser rc1.",
       "git": {
         "exists": true,
-        "branch": "feat/omartop-bible-ui",
+        "branch": "main",
         "dirty": false,
-        "head": "4f20095 docs: surface Bible UI on OmarTop home",
+        "head": "83b6c04 feat: map OA promise to OmarTop standards (#41)",
         "status_short": []
+      },
+      "github": {
+        "open_issues": 36,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "feat: map OA promise to OmarTop standards",
+          "number": 41,
+          "merged_at": "2026-06-09T02:27:15Z"
+        }
+      },
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 19
       }
     }
   ],
@@ -152,6 +230,8 @@
     "total": 7,
     "core": 5,
     "vps": 2,
-    "runtime_or_live": 4
+    "healthy": 7,
+    "open_issues_total": 74,
+    "open_prs_total": 11
   }
 }
