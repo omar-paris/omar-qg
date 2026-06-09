@@ -1,5 +1,16 @@
 # Changelog
 
+## V0.4.0 — 2026-06-09
+
+- Catalogue réorganisé par type : Infrastructure, Domaine, Email, Suite, Backup, Téléphonie.
+- Option par défaut (★) définie pour chaque type.
+- Fournisseurs : Hetzner (VPS), OVH (domaines + email), Infomaniak (kSuite), Telnyx (téléphonie).
+- OVH focus : domaines et email pro uniquement, VPS retiré.
+- Infomaniak focus : kSuite 1 (défaut) et kSuite 2.
+- Telnyx ajouté : numéro local FR + SMS pay-as-you-go, clef Vault confirmée.
+- Live OVH : 24 domaines + comptes email actifs affichés au build depuis l'API.
+- Statut API par fournisseur visible dans la sidebar partenaires.
+
 ## V0.3.0 — 2026-06-09
 
 - UI refonte : sidebar Hub-style (Tailwind + Inter), plus de hero plein écran.

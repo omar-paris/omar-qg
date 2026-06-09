@@ -1,7 +1,7 @@
 {
-  "version": "V0.3.0",
+  "version": "V0.4.0",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-09T04:04:06Z",
+  "built_at": "2026-06-09T04:36:51Z",
   "items": [
     {
       "id": "landing",
@@ -29,7 +29,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 16
       }
     },
     {
@@ -60,7 +60,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 13
+        "latency_ms": 18
       }
     },
     {
@@ -93,7 +93,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 19
+        "latency_ms": 20
       }
     },
     {
@@ -122,7 +122,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 19
       }
     },
     {
@@ -138,14 +138,13 @@
       "next": "Rebuild cron actif 30 min.",
       "git": {
         "exists": true,
-        "branch": "feat/qg-v2-hub-ui",
+        "branch": "feat/qg-v4-catalog-by-type",
         "dirty": true,
         "head": "current qg build",
         "status_short": [
           "M CHANGELOG.md",
           " M VERSION",
           " M scripts/build.py",
-          " M tests/test_qg_static.py",
           "?? var/"
         ]
       },
@@ -153,9 +152,9 @@
         "open_issues": 2,
         "open_prs": 0,
         "last_merged_pr": {
-          "title": "feat(qg): V0.2.0 — données live GitHub API + health probes HTTP",
-          "number": 6,
-          "merged_at": "2026-06-09T03:29:19Z"
+          "title": "feat(qg): V0.3.0 — UI Hub-style + page Partenaires",
+          "number": 7,
+          "merged_at": "2026-06-09T04:04:38Z"
         }
       },
       "health": {
@@ -194,7 +193,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 21
       }
     },
     {
@@ -227,7 +226,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 27
       }
     }
   ],
@@ -239,202 +238,340 @@
     "open_issues_total": 71,
     "open_prs_total": 10
   },
-  "partners": [
+  "catalog": [
     {
-      "id": "hetzner",
-      "name": "Hetzner",
-      "url": "https://www.hetzner.com",
-      "logo": "H",
-      "color": "#d50c2d",
-      "role": "VPS et serveurs dédiés clients",
-      "vault_key": "secret/integrations/hetzner",
-      "api_status": "key_pending",
-      "offers": [
+      "id": "infra",
+      "name": "Infrastructure VPS",
+      "icon": "server",
+      "description": "Serveur dédié pour chaque client. Un VPS par client, isolé.",
+      "options": [
         {
-          "ref": "CAX11",
-          "name": "CAX11 ARM",
-          "vcpu": 2,
-          "ram_gb": 4,
-          "disk_gb": 40,
-          "price_eur": 3.79,
-          "type": "VPS ARM",
-          "note": "Entrée de gamme ARM — client solo"
-        },
-        {
+          "provider": "hetzner",
           "ref": "CAX21",
-          "name": "CAX21 ARM",
-          "vcpu": 4,
-          "ram_gb": 8,
-          "disk_gb": 80,
+          "name": "Hetzner CAX21 ARM",
+          "default": true,
           "price_eur": 7.49,
-          "type": "VPS ARM",
-          "note": "Pack standard client"
+          "unit": "mois",
+          "specs": "4 vCPU · 8 Go RAM · 80 Go NVMe",
+          "note": "Standard OA — ARM, bon rapport perf/prix"
         },
         {
+          "provider": "hetzner",
+          "ref": "CAX11",
+          "name": "Hetzner CAX11 ARM",
+          "default": false,
+          "price_eur": 3.79,
+          "unit": "mois",
+          "specs": "2 vCPU · 4 Go RAM · 40 Go NVMe",
+          "note": "Entrée de gamme — client solo léger"
+        },
+        {
+          "provider": "hetzner",
           "ref": "CAX31",
-          "name": "CAX31 ARM",
-          "vcpu": 8,
-          "ram_gb": 16,
-          "disk_gb": 160,
+          "name": "Hetzner CAX31 ARM",
+          "default": false,
           "price_eur": 14.99,
-          "type": "VPS ARM",
-          "note": "Pack Pro client"
+          "unit": "mois",
+          "specs": "8 vCPU · 16 Go RAM · 160 Go NVMe",
+          "note": "Pack Pro — charge élevée"
         },
         {
-          "ref": "CPX11",
-          "name": "CPX11 Intel",
-          "vcpu": 2,
-          "ram_gb": 2,
-          "disk_gb": 40,
-          "price_eur": 4.15,
-          "type": "VPS Intel",
-          "note": "Alternative x86"
-        },
-        {
+          "provider": "hetzner",
           "ref": "CPX21",
-          "name": "CPX21 Intel",
-          "vcpu": 3,
-          "ram_gb": 4,
-          "disk_gb": 80,
+          "name": "Hetzner CPX21 Intel",
+          "default": false,
           "price_eur": 6.39,
-          "type": "VPS Intel",
-          "note": "Alternative x86 standard"
-        },
-        {
-          "ref": "backup",
-          "name": "Backup 50 GB",
-          "vcpu": null,
-          "ram_gb": null,
-          "disk_gb": 50,
-          "price_eur": 1.19,
-          "type": "Backup",
-          "note": "Backup volume S3-compatible"
+          "unit": "mois",
+          "specs": "3 vCPU · 4 Go RAM · 80 Go NVMe",
+          "note": "Alternative x86 si ARM incompatible"
         }
       ]
     },
     {
-      "id": "ovh",
-      "name": "OVH",
-      "url": "https://www.ovh.com/fr/",
-      "logo": "O",
-      "color": "#0050d7",
-      "role": "Domaines, DNS, email, VPS complémentaires",
-      "vault_key": "secret/integrations/ovh",
-      "api_status": "key_ok_rights_pending",
-      "offers": [
+      "id": "domaine",
+      "name": "Domaine & DNS",
+      "icon": "globe",
+      "description": "Enregistrement du nom de domaine client + gestion DNS.",
+      "options": [
         {
-          "ref": "vps-starter",
-          "name": "VPS Starter",
-          "vcpu": 1,
-          "ram_gb": 2,
-          "disk_gb": 20,
-          "price_eur": 3.5,
-          "type": "VPS",
-          "note": "Entrée de gamme"
-        },
-        {
-          "ref": "vps-value",
-          "name": "VPS Value",
-          "vcpu": 1,
-          "ram_gb": 2,
-          "disk_gb": 40,
-          "price_eur": 6.0,
-          "type": "VPS",
-          "note": "Standard"
-        },
-        {
+          "provider": "ovh",
           "ref": "domain-fr",
-          "name": "Domaine .fr",
-          "vcpu": null,
-          "ram_gb": null,
-          "disk_gb": null,
+          "name": "OVH .fr",
+          "default": true,
           "price_eur": 6.99,
-          "type": "Domaine",
-          "note": "Annuel"
+          "unit": "an",
+          "specs": null,
+          "note": "Standard — clients France"
         },
         {
+          "provider": "ovh",
           "ref": "domain-com",
-          "name": "Domaine .com",
-          "vcpu": null,
-          "ram_gb": null,
-          "disk_gb": null,
+          "name": "OVH .com",
+          "default": false,
           "price_eur": 9.99,
-          "type": "Domaine",
-          "note": "Annuel"
+          "unit": "an",
+          "specs": null,
+          "note": "Pour artisans avec ambition internationale"
         },
         {
-          "ref": "mx-starter",
-          "name": "MX Plan Starter",
-          "vcpu": null,
-          "ram_gb": null,
-          "disk_gb": 1,
-          "price_eur": 0.0,
-          "type": "Email",
-          "note": "Gratuit / inclus domaine"
+          "provider": "ovh",
+          "ref": "domain-paris",
+          "name": "OVH .paris",
+          "default": false,
+          "price_eur": 14.99,
+          "unit": "an",
+          "specs": null,
+          "note": "Prestige Paris"
+        },
+        {
+          "provider": "ovh",
+          "ref": "domain-eu",
+          "name": "OVH .eu",
+          "default": false,
+          "price_eur": 7.99,
+          "unit": "an",
+          "specs": null,
+          "note": "Clients UE hors France"
+        },
+        {
+          "provider": "infomaniak",
+          "ref": "domain-ch",
+          "name": "Infomaniak .ch",
+          "default": false,
+          "price_eur": 9.5,
+          "unit": "an",
+          "specs": null,
+          "note": "Clients suisses uniquement"
         }
       ]
     },
     {
-      "id": "infomaniak",
-      "name": "Infomaniak",
-      "url": "https://www.infomaniak.com/fr",
-      "logo": "I",
-      "color": "#00b04f",
-      "role": "Email pro, DNS suisse, kDrive, backup",
-      "vault_key": "secret/integrations/infomaniak",
-      "api_status": "key_pending",
-      "offers": [
+      "id": "email",
+      "name": "Email professionnel",
+      "icon": "mail",
+      "description": "Boîte mail @domaine-client.fr. Option légère sans suite collaborative.",
+      "options": [
         {
-          "ref": "mail-1",
-          "name": "Mail 1 boîte",
-          "vcpu": null,
-          "ram_gb": null,
-          "disk_gb": 25,
+          "provider": "ovh",
+          "ref": "email-pro",
+          "name": "OVH Email Pro",
+          "default": true,
+          "price_eur": 2.99,
+          "unit": "user/mois",
+          "specs": "50 Go · IMAP/SMTP · calendrier basique",
+          "note": "Standard — simple et fiable"
+        },
+        {
+          "provider": "ovh",
+          "ref": "mx-starter",
+          "name": "OVH MX Starter",
+          "default": false,
+          "price_eur": 0.0,
+          "unit": "mois",
+          "specs": "1 Go · inclus avec domaine OVH",
+          "note": "Gratuit — test ou usage minimal"
+        },
+        {
+          "provider": "ovh",
+          "ref": "mx-pro-50",
+          "name": "OVH MX Plan Pro",
+          "default": false,
+          "price_eur": 1.99,
+          "unit": "mois",
+          "specs": "50 Go · IMAP/SMTP",
+          "note": "Budget serré sans suite"
+        },
+        {
+          "provider": "infomaniak",
+          "ref": "mail-ik",
+          "name": "Infomaniak Mail",
+          "default": false,
           "price_eur": 1.25,
-          "type": "Email",
-          "note": "Par boîte/mois"
+          "unit": "user/mois",
+          "specs": "25 Go · full IMAP · suisse",
+          "note": "Si client sensible à l'hébergement suisse"
+        }
+      ]
+    },
+    {
+      "id": "suite",
+      "name": "Suite collaborative (kSuite)",
+      "icon": "apps",
+      "description": "Email + Drive + Calendar + Meet + Docs + Chat. Tout-en-un Infomaniak.",
+      "options": [
+        {
+          "provider": "infomaniak",
+          "ref": "ksuite-1",
+          "name": "kSuite 1",
+          "default": true,
+          "price_eur": 4.17,
+          "unit": "user/mois",
+          "specs": "kMail 25 Go · kDrive 3 To · kMeet · kChat · kDocs · kBoard",
+          "note": "Standard OA — facturation annuelle"
         },
         {
-          "ref": "mail-5",
-          "name": "Mail 5 boîtes",
-          "vcpu": null,
-          "ram_gb": null,
-          "disk_gb": 25,
+          "provider": "infomaniak",
+          "ref": "ksuite-2",
+          "name": "kSuite 2",
+          "default": false,
+          "price_eur": 9.17,
+          "unit": "user/mois",
+          "specs": "kMail 50 Go · kDrive 6 To · tout kSuite 1 + admin avancé",
+          "note": "Pour équipes > 5 ou besoins stockage élevés"
+        }
+      ]
+    },
+    {
+      "id": "backup",
+      "name": "Backup",
+      "icon": "shield",
+      "description": "Sauvegarde automatique du VPS client.",
+      "options": [
+        {
+          "provider": "hetzner",
+          "ref": "bkp-50",
+          "name": "Hetzner Volume 50 Go",
+          "default": true,
+          "price_eur": 1.19,
+          "unit": "mois",
+          "specs": "50 Go NVMe · S3-compatible",
+          "note": "Standard — co-localisé avec le VPS"
+        },
+        {
+          "provider": "infomaniak",
+          "ref": "swiss-s",
+          "name": "Infomaniak Swiss Backup S",
+          "default": false,
           "price_eur": 4.99,
-          "type": "Email",
-          "note": "Pack 5 boîtes"
+          "unit": "mois",
+          "specs": "200 Go · chiffré · data center CH",
+          "note": "Option conformité / RGPD renforcé"
+        }
+      ]
+    },
+    {
+      "id": "telephonie",
+      "name": "Téléphonie",
+      "icon": "phone",
+      "description": "Numéro virtuel + SMS + voix pour le client. Full API, pas de contrat.",
+      "options": [
+        {
+          "provider": "telnyx",
+          "ref": "tel-local-fr",
+          "name": "Telnyx n° local FR",
+          "default": true,
+          "price_eur": 0.92,
+          "unit": "mois",
+          "specs": "Numéro local France · SMS inclus",
+          "note": "Standard — achat + config 100% API"
         },
         {
-          "ref": "kdrive-15",
-          "name": "kDrive 15 Go",
-          "vcpu": null,
-          "ram_gb": null,
-          "disk_gb": 15,
-          "price_eur": 3.99,
-          "type": "Stockage",
-          "note": "Cloud suisse"
+          "provider": "telnyx",
+          "ref": "tel-sms",
+          "name": "Telnyx SMS",
+          "default": true,
+          "price_eur": 0.004,
+          "unit": "SMS",
+          "specs": "Entrant + sortant · ~0.004$/msg",
+          "note": "Pay-as-you-go · pas de minimum"
         },
         {
-          "ref": "swiss-bkp",
-          "name": "Swiss Backup S",
-          "vcpu": null,
-          "ram_gb": null,
-          "disk_gb": 200,
-          "price_eur": 4.99,
-          "type": "Backup",
-          "note": "Sauvegarde chiffrée CH"
-        },
-        {
-          "ref": "domain-ch",
-          "name": "Domaine .ch",
-          "vcpu": null,
-          "ram_gb": null,
-          "disk_gb": null,
-          "price_eur": 9.5,
-          "type": "Domaine",
-          "note": "Annuel"
+          "provider": "telnyx",
+          "ref": "tel-tollfree",
+          "name": "Telnyx n° vert (800)",
+          "default": false,
+          "price_eur": 37.0,
+          "unit": "mois",
+          "specs": "TFN 800 · 12 mois engagement",
+          "note": "Option premium — artisans établis"
         }
       ]
     }
-  ]
+  ],
+  "providers": {
+    "hetzner": {
+      "name": "Hetzner",
+      "logo": "H",
+      "color": "#d50c2d",
+      "url": "https://www.hetzner.com",
+      "vault_key": "secret/integrations/hetzner",
+      "api_status": "key_pending"
+    },
+    "ovh": {
+      "name": "OVH",
+      "logo": "O",
+      "color": "#0050d7",
+      "url": "https://www.ovh.com/fr/",
+      "vault_key": "secret/integrations/ovh",
+      "api_status": "ok"
+    },
+    "infomaniak": {
+      "name": "Infomaniak",
+      "logo": "I",
+      "color": "#00b04f",
+      "url": "https://www.infomaniak.com/fr",
+      "vault_key": "secret/integrations/infomaniak",
+      "api_status": "key_pending"
+    },
+    "telnyx": {
+      "name": "Telnyx",
+      "logo": "T",
+      "color": "#00c89c",
+      "url": "https://telnyx.com",
+      "vault_key": "secret/integrations/telnyx",
+      "api_status": "key_pending"
+    }
+  },
+  "live": {
+    "ovh": {
+      "domains": [
+        "alexgo.eu",
+        "alexgo.fr",
+        "break-free-now.net",
+        "buildwithclaw.fr",
+        "buildwithclaw.paris",
+        "deployclaw.fr",
+        "edugame.fr",
+        "lobsterbuilders.com",
+        "omar-alex.fr",
+        "omar-alex.paris",
+        "omar.paris",
+        "omaralex.fr",
+        "omaralex.paris",
+        "omaretalex.fr",
+        "omaretalex.paris",
+        "omarparis.com",
+        "omarparis.fr",
+        "openclawfieldbook.com",
+        "openclawfieldplaybook.com",
+        "openclawforbuilders.com",
+        "rebelia.fr",
+        "rebellia.fr",
+        "thelobstercrew.com",
+        "willemetz.xyz"
+      ],
+      "email_domains_with_accounts": [
+        {
+          "domain": "alexgo.eu",
+          "count": 1
+        },
+        {
+          "domain": "joel.paris",
+          "count": 4
+        },
+        {
+          "domain": "ladb.fr",
+          "count": 13
+        },
+        {
+          "domain": "ladb.paris",
+          "count": 4
+        },
+        {
+          "domain": "laprincesse.paris",
+          "count": 1
+        }
+      ]
+    }
+  }
 }
