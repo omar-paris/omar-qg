@@ -1,0 +1,310 @@
+{
+  "date": "2026-06-09",
+  "generated_at": "2026-06-09T19:47:50Z",
+  "version": "V0.7.0",
+  "sessions": {
+    "hermes": {
+      "sessions": 21,
+      "messages": 4073,
+      "tool_calls": 2105,
+      "api_calls": 1020,
+      "by_source": {
+        "cli": 1,
+        "cron": 1,
+        "tui": 19
+      },
+      "db": "/home/omar/.hermes/state.db",
+      "error": null
+    },
+    "ccusage": {
+      "sessions_by_agent": {},
+      "daily": {
+        "total_cost_usd": 0.0,
+        "total_tokens": 0,
+        "agents": [],
+        "models_used": []
+      },
+      "error": null
+    }
+  },
+  "github_totals": {
+    "issues_created": 77,
+    "issues_closed": 3,
+    "prs_created": 12,
+    "prs_merged": 13,
+    "build_runs": 0,
+    "build_success": 0,
+    "build_failed": 0,
+    "unknown_fields": 7,
+    "local_build_records": 2
+  },
+  "local_builds": {
+    "path": "/home/omar/11-Pilotage/ledgers/builds/2026-06-09.jsonl",
+    "count": 2,
+    "success": 2,
+    "failure": 0,
+    "blocked": 0,
+    "recent": [
+      {
+        "command": "python3 -m pytest -q",
+        "http_code": null,
+        "notes": "QG V0.7 daily ops ledger tests pass",
+        "pr": "",
+        "repo": "omar-paris/omar-qg",
+        "status": "success",
+        "timestamp": "2026-06-09T19:40:55Z",
+        "url": "",
+        "version": "V0.7.0"
+      },
+      {
+        "command": "python3 scripts/build.py",
+        "http_code": null,
+        "notes": "Rebuild after tracking issue #16",
+        "pr": "",
+        "repo": "omar-paris/omar-qg",
+        "status": "success",
+        "timestamp": "2026-06-09T19:47:49Z",
+        "url": "",
+        "version": "V0.7.0"
+      }
+    ]
+  },
+  "repos": [
+    {
+      "id": "landing",
+      "name": "Landing",
+      "repo": "omar-paris/omar-landing",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 17
+      },
+      "git": {
+        "exists": true,
+        "branch": "feat/conversion-june-cta",
+        "dirty": false,
+        "head": "68e1594 feat: refine landing page content architecture",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 29,
+        "open_prs": 1,
+        "last_merged_pr": null
+      },
+      "activity": {
+        "issues_created": 14,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "app",
+      "name": "AppOmar",
+      "repo": "omar-paris/omar-app",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 17
+      },
+      "git": {
+        "exists": true,
+        "branch": "main",
+        "dirty": true,
+        "head": "c94ad70 feat: store AppOmar proposals v0.3",
+        "status_short": [
+          "M scripts/build.py"
+        ]
+      },
+      "github_open": {
+        "open_issues": 17,
+        "open_prs": 0,
+        "last_merged_pr": null
+      },
+      "activity": {
+        "issues_created": 10,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "catalogue",
+      "name": "Catalogue",
+      "repo": "omar-paris/omar-catalogue",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 18
+      },
+      "git": {
+        "exists": true,
+        "branch": "feat/appstore-ui-v2",
+        "dirty": false,
+        "head": "835e272 feat(catalogue): App Store V2 — Top5 catégories, 187 items, fiches, design",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 7,
+        "open_prs": 3,
+        "last_merged_pr": {
+          "title": "feat(catalogue): export potential graph contract",
+          "number": 10,
+          "merged_at": "2026-06-05T23:11:44Z"
+        }
+      },
+      "activity": {
+        "issues_created": 6,
+        "issues_closed": 0,
+        "prs_created": 1,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "lab",
+      "name": "Lab",
+      "repo": "",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 17
+      },
+      "git": {
+        "exists": true,
+        "branch": "no-git",
+        "dirty": false,
+        "head": "",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": null,
+        "open_prs": null,
+        "last_merged_pr": null
+      },
+      "activity": {}
+    },
+    {
+      "id": "qg",
+      "name": "QG",
+      "repo": "omar-paris/omar-qg",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 17
+      },
+      "git": {
+        "exists": true,
+        "branch": "main",
+        "dirty": true,
+        "head": "current qg build",
+        "status_short": [
+          "?? var/"
+        ]
+      },
+      "github_open": {
+        "open_issues": 8,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "feat(qg): V0.6.0 — page Clients & VPS (galerie flotte Hetzner)",
+          "number": 10,
+          "merged_at": "2026-06-09T05:32:36Z"
+        }
+      },
+      "activity": {
+        "issues_created": 11,
+        "issues_closed": 3,
+        "prs_created": 5,
+        "prs_merged": 5,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "hub",
+      "name": "Hub",
+      "repo": "omar-paris/omar-hub",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 18
+      },
+      "git": {
+        "exists": true,
+        "branch": "feat/home-grid-groups-v2",
+        "dirty": false,
+        "head": "16ed4ca feat: Home multi-select filtres + groupement type/statut + toolbar compact V1.0.0",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 10,
+        "open_prs": 7,
+        "last_merged_pr": {
+          "title": "feat: Home V1.0 — multi-select filtres + groupement type/statut + toolbar compact",
+          "number": 42,
+          "merged_at": "2026-06-09T04:02:21Z"
+        }
+      },
+      "activity": {
+        "issues_created": 5,
+        "issues_closed": 0,
+        "prs_created": 4,
+        "prs_merged": 4,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "omartop",
+      "name": "OmarTop",
+      "repo": "omar-paris/omar-top",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 17
+      },
+      "git": {
+        "exists": true,
+        "branch": "feat/omartop-pillars-bc-night",
+        "dirty": false,
+        "head": "f57347f feat(omartop): grave piliers B (agent capable) + C (entreprise connue)",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 37,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "feat: map OA promise to OmarTop standards",
+          "number": 41,
+          "merged_at": "2026-06-09T02:27:15Z"
+        }
+      },
+      "activity": {
+        "issues_created": 31,
+        "issues_closed": 0,
+        "prs_created": 2,
+        "prs_merged": 4,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "level": "warning",
+      "code": "DIRTY_REPOS",
+      "message": "2 repo(s) locaux dirty dans le registry."
+    }
+  ]
+}
