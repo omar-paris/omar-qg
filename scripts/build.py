@@ -51,10 +51,10 @@ ITEMS = [
 # ── Providers ─────────────────────────────────────────────────────────────────
 
 PROVIDERS = {
-    "hetzner":     {"name": "Hetzner",     "logo": "H", "color": "#d50c2d", "url": "https://www.hetzner.com",              "vault_key": "secret/integrations/hetzner",     "api_status": "key_pending"},
-    "ovh":         {"name": "OVH",         "logo": "O", "color": "#0050d7", "url": "https://www.ovh.com/fr/",              "vault_key": "secret/integrations/ovh",         "api_status": "ok"},
-    "infomaniak":  {"name": "Infomaniak",  "logo": "I", "color": "#00b04f", "url": "https://www.infomaniak.com/fr",        "vault_key": "secret/integrations/infomaniak",  "api_status": "key_pending"},
-    "telnyx":      {"name": "Telnyx",      "logo": "T", "color": "#00c89c", "url": "https://telnyx.com",                   "vault_key": "secret/integrations/telnyx",      "api_status": "key_pending"},
+    "hetzner":     {"name": "Hetzner",     "logo": "H", "color": "#d50c2d", "url": "https://www.hetzner.com",       "vault_key": "secret/integrations/hetzner"},
+    "ovh":         {"name": "OVH",         "logo": "O", "color": "#0050d7", "url": "https://www.ovh.com/fr/",       "vault_key": "secret/integrations/ovh"},
+    "infomaniak":  {"name": "Infomaniak",  "logo": "I", "color": "#00b04f", "url": "https://www.infomaniak.com/fr", "vault_key": "secret/integrations/infomaniak"},
+    "telnyx":      {"name": "Telnyx",      "logo": "T", "color": "#00c89c", "url": "https://telnyx.com",            "vault_key": "secret/integrations/telnyx"},
 }
 
 # ── Catalog by type ───────────────────────────────────────────────────────────
@@ -249,6 +249,76 @@ def ovh_live(creds: dict) -> dict:
     }
 
 
+# ── Provider API probes ───────────────────────────────────────────────────────
+# Each probe reads its key from Vault and hits a lightweight read-only endpoint.
+# Runs at build time only (cron, no LLM tokens, invisible). Returns:
+#   "ok"          — key present and API responds
+#   "key_missing" — no key in Vault yet
+#   "error"       — key present but API rejects / unreachable
+
+def _http_status(url: str, headers: dict, timeout: int = 6) -> int | None:
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=_SSL) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        return e.code
+    except Exception:
+        return None
+
+
+def probe_ovh() -> str:
+    creds = _vault_read("secret/integrations/ovh")
+    if not creds.get("OVH_CONSUMER_KEY"):
+        return "key_missing"
+    return "ok" if _ovh_get("/me", creds) else "error"
+
+
+def probe_telnyx() -> str:
+    creds = _vault_read("secret/integrations/telnyx")
+    key = creds.get("TELNYX_API_KEY", "")
+    if not key:
+        return "key_missing"
+    code = _http_status("https://api.telnyx.com/v2/balance", {"Authorization": f"Bearer {key}"})
+    return "ok" if code == 200 else "error"
+
+
+def probe_hetzner() -> str:
+    creds = _vault_read("secret/integrations/hetzner")
+    key = creds.get("HETZNER_API_TOKEN") or creds.get("HETZNER_TOKEN") or creds.get("HCLOUD_TOKEN", "")
+    if not key:
+        return "key_missing"
+    code = _http_status("https://api.hetzner.cloud/v1/servers?per_page=1", {"Authorization": f"Bearer {key}"})
+    return "ok" if code == 200 else "error"
+
+
+def probe_infomaniak() -> str:
+    creds = _vault_read("secret/integrations/infomaniak")
+    key = creds.get("INFOMANIAK_API_TOKEN") or creds.get("INFOMANIAK_TOKEN") or creds.get("IK_TOKEN", "")
+    if not key:
+        return "key_missing"
+    code = _http_status("https://api.infomaniak.com/1/profile", {"Authorization": f"Bearer {key}"})
+    return "ok" if code == 200 else "error"
+
+
+PROVIDER_PROBES = {
+    "ovh": probe_ovh,
+    "telnyx": probe_telnyx,
+    "hetzner": probe_hetzner,
+    "infomaniak": probe_infomaniak,
+}
+
+
+def probe_all_providers() -> dict:
+    out = {}
+    for pid, fn in PROVIDER_PROBES.items():
+        try:
+            out[pid] = fn()
+        except Exception:
+            out[pid] = "error"
+    return out
+
+
 def payload(built_at: str) -> dict:
     items = []
     for item in ITEMS:
@@ -266,12 +336,23 @@ def payload(built_at: str) -> dict:
         "open_issues_total": sum(i["github"]["open_issues"] or 0 for i in items),
         "open_prs_total": sum(i["github"]["open_prs"] or 0 for i in items),
     }
-    ovh_creds = _vault_read("secret/integrations/ovh")
-    live = {"ovh": ovh_live(ovh_creds)}
+    # Live provider API status — probed at build time (cron, no tokens, invisible)
+    statuses = probe_all_providers()
+    providers = {}
+    for pid, p in PROVIDERS.items():
+        providers[pid] = {**p, "api_status": statuses.get(pid, "error")}
+
+    # OVH live data only if its API is reachable
+    live = {}
+    if statuses.get("ovh") == "ok":
+        live["ovh"] = ovh_live(_vault_read("secret/integrations/ovh"))
+    else:
+        live["ovh"] = {"domains": [], "email_domains_with_accounts": []}
+
     return {
         "version": VERSION, "domain": DOMAIN, "built_at": built_at,
         "items": items, "counts": counts,
-        "catalog": CATALOG, "providers": PROVIDERS, "live": live,
+        "catalog": CATALOG, "providers": providers, "live": live,
     }
 
 
@@ -428,9 +509,8 @@ def page_registry(data: dict) -> str:
 def _api_badge(status: str) -> str:
     labels = {
         "ok":          ("bg-green-50 text-green-700 border border-green-200",   "API OK"),
-        "key_pending": ("bg-gray-100 text-gray-500 border border-gray-200",     "Clef à ajouter"),
-        "key_missing": ("bg-red-50 text-red-600 border border-red-200",         "Clef manquante"),
-        "error":       ("bg-red-50 text-red-700 border border-red-200",         "Erreur"),
+        "key_missing": ("bg-gray-100 text-gray-500 border border-gray-200",     "Clef à ajouter"),
+        "error":       ("bg-red-50 text-red-700 border border-red-200",         "Erreur API"),
     }
     cls, label = labels.get(status, ("bg-gray-100 text-gray-500","?"))
     return f'<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {cls}">{escape(label)}</span>'

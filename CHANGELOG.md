@@ -1,5 +1,14 @@
 # Changelog
 
+## V0.5.0 — 2026-06-09
+
+- Statut API fournisseurs en temps réel : probe live de chaque provider au build.
+- OVH (GET /me signé), Telnyx (GET /balance), Hetzner (GET /servers), Infomaniak (GET /profile).
+- Lit la clef depuis Vault ; "API OK" / "Clef à ajouter" / "Erreur API" automatiques.
+- Dès qu'une clef est ajoutée dans Vault, le statut passe à OK au rebuild suivant.
+- Zéro token, zéro intervention : tourne via le cron 30 min existant.
+- OVH live data n'est chargée que si son API répond.
+
 ## V0.4.0 — 2026-06-09
 
 - Catalogue réorganisé par type : Infrastructure, Domaine, Email, Suite, Backup, Téléphonie.
