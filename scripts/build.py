@@ -735,6 +735,7 @@ NAV_ITEMS = [
     ("/ops/",         "ops",         "Ops",         'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125C16.5 3.504 17.004 3 17.625 3h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z'),
     ("/clients/",     "clients",     "Clients",     'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z'),
     ("/partenaires/", "partenaires", "Partenaires", 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.015M3.75 9.349a3 3 0 0 0 3.75.616m-3.75-.616a3.001 3.001 0 0 1-.75-1.99V6h17.25v1.36a3 3 0 0 1-.75 1.99m0 0a2.993 2.993 0 0 1-2.25 1.016'),
+    ("/decisions/",   "decisions",   "Décisions",   'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z'),
     ("/changelog/",   "changelog",   "Changelog",   'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'),
 ]
 
@@ -1191,6 +1192,59 @@ def page_ops(ledger: dict) -> str:
     return html
 
 
+def page_decisions(decisions: list) -> str:
+    """Boîte de décisions Alex (qg#27) — réponse = bouton → qg-api → déblocage kanban/issue."""
+    api = "http://100.79.68.6:8097/api/decisions/answer"
+    ouvertes = [q for q in decisions if q.get("statut") == "ouverte"]
+    repondues = [q for q in decisions if q.get("statut") == "répondue"][-5:]
+    html = (
+        '<div class="flex items-center justify-between mb-6">'
+        '<div><h1 class="text-xl font-bold text-gray-900">Décisions en attente</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{len(ouvertes)} question(s) ouverte(s) — une réponse débloque le processus qui attend.</p></div></div>'
+    )
+    if not ouvertes:
+        html += '<div class="bg-green-50 border border-green-200 rounded-xl px-5 py-4 text-sm text-green-700">Rien en attente — le système avance seul.</div>'
+    groupes: dict = {}
+    for q in ouvertes:
+        groupes.setdefault(q.get("groupe", "divers"), []).append(q)
+    for groupe, qs in groupes.items():
+        html += f'<h2 class="text-sm font-semibold text-gray-700 mt-6 mb-2 uppercase tracking-wide">{escape(groupe)}</h2>'
+        for q in qs:
+            qid = escape(q["id"])
+            html += '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-3" id="card-' + qid + '">'
+            html += f'<div class="text-sm font-medium text-gray-900 mb-1">{escape(q["texte"])}</div>'
+            if q.get("contexte"):
+                html += f'<div class="text-xs text-gray-500 mb-2">{escape(q["contexte"])}</div>'
+            if q.get("blocked_ref"):
+                html += f'<div class="text-xs text-amber-600 mb-2">⏸ bloque : {escape(q["blocked_ref"])}</div>'
+            if q.get("type") == "fermée":
+                html += '<div class="flex gap-2 flex-wrap">'
+                for opt in q.get("options", []):
+                    html += (f'<button onclick="answer(\'{qid}\', \'{escape(opt)}\')" '
+                             'class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700">'
+                             f'{escape(opt)}</button>')
+                html += '</div>'
+            else:
+                html += (f'<div class="flex gap-2"><input id="in-{qid}" type="text" placeholder="Ta réponse…" '
+                         'class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm">'
+                         f'<button onclick="answer(\'{qid}\', document.getElementById(\'in-{qid}\').value)" '
+                         'class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700">Envoyer</button></div>')
+            html += '</div>'
+    if repondues:
+        html += '<h2 class="text-sm font-semibold text-gray-400 mt-8 mb-2">Dernières réponses</h2>'
+        for q in reversed(repondues):
+            html += (f'<div class="text-xs text-gray-500 mb-1">✓ <span class="text-gray-700">{escape(q["texte"])}</span>'
+                     f' → <span class="font-medium text-gray-900">{escape(str(q.get("reponse")))}</span>'
+                     f' <span class="text-gray-400">({escape(q.get("deblocage", ""))})</span></div>')
+    html += ('<script>async function answer(id, val){ if(!val||!val.trim()){return;} '
+             f'const r = await fetch("{api}", {{method:"POST", headers:{{"content-type":"application/json"}}, '
+             'body: JSON.stringify({id:id, answer:val})}); '
+             'const c = document.getElementById("card-"+id); '
+             'if(r.ok){ c.innerHTML = \'<div class="text-sm text-green-700">✓ Réponse envoyée — \' + val + \' (processus débloqué)</div>\'; }'
+             'else{ c.innerHTML += \'<div class="text-xs text-red-600 mt-2">Erreur — réessaie ou réponds en session.</div>\'; } }</script>')
+    return html
+
+
 def page_changelog() -> str:
     cl = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     lines = cl.splitlines()
@@ -1226,7 +1280,7 @@ def main() -> None:
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build)
-    for var_name in ("triage.json", "vps.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json"):
         src = ROOT / "var" / var_name
         if src.exists():
             (tmp / "api" / var_name).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
@@ -1239,10 +1293,16 @@ def main() -> None:
         json.dumps({"latest": f"/api/daily-ledger/{ledger['date']}.json", "items": [ledger]}, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    decisions = []
+    try:
+        decisions = json.loads((ROOT / "var" / "decisions.json").read_text(encoding="utf-8"))
+    except Exception:
+        pass
     pages = [
         ("/",             "registry",    "Registry CORE OA",        page_registry(data)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
+        ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),
         ("/partenaires/", "partenaires", "Partenaires",              page_partenaires(data)),
         ("/changelog/",   "changelog",   "Changelog",                page_changelog()),
     ]

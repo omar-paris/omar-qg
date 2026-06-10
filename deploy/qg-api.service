@@ -1,0 +1,15 @@
+[Unit]
+Description=QG Decisions API (boite de decisions Alex, qg#27)
+After=network.target
+
+[Service]
+WorkingDirectory=/home/omar/23-Offre/actifs/omar-qg
+Environment="PATH=/home/omar/.local/bin:/home/omar/.npm-global/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/python3 /home/omar/23-Offre/actifs/omar-qg/scripts/qg_api.py
+Restart=on-failure
+RestartSec=3
+MemoryMax=128M
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
