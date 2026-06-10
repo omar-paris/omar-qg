@@ -683,6 +683,13 @@ def payload(built_at: str) -> dict:
         if t and t.get("next"):
             enriched["next"] = t["next"]
             enriched["triage"] = {k: t.get(k) for k in ("p0", "p1", "p2")}
+        # Version réelle = fichier VERSION du repo (le hardcodé n'est qu'un fallback)
+        try:
+            v = (Path("/home/omar/23-Offre/actifs") / item["path"] / "VERSION").read_text().strip()
+            if v:
+                enriched["version"] = v if v[:1].upper() in ("V", "P") else f"V{v}"
+        except Exception:
+            pass
         items.append(enriched)
     healthy = sum(1 for i in items if i["health"]["status"] == "ok")
     counts = {
@@ -832,13 +839,17 @@ def page_registry(data: dict) -> str:
         iss = gh.get("open_issues")
         prs = gh.get("open_prs")
         if iss is not None and repo:
-            gh_html = f'<a href="https://github.com/{escape(repo)}/issues" class="text-xs text-gray-500 hover:text-blue-600">{iss} issues</a>'
+            gh_html = f'<a href="https://github.com/{escape(repo)}/issues" class="text-xs text-gray-500 hover:text-blue-600">{iss} ouvertes</a>'
         elif iss is not None:
-            gh_html = f'<span class="text-xs text-gray-500">{iss} issues</span>'
+            gh_html = f'<span class="text-xs text-gray-500">{iss} ouvertes</span>'
         else:
             gh_html = '<span class="text-xs text-gray-300">—</span>'
         if prs is not None and repo:
             gh_html += f' <a href="https://github.com/{escape(repo)}/pulls" class="text-xs text-gray-500 hover:text-blue-600">{prs} PRs</a>'
+        tri = item.get("triage")
+        if tri and ((tri.get("p0") or 0) + (tri.get("p1") or 0)) > 0:
+            gh_html += (f'<span class="text-xs"><span class="text-red-600 font-semibold">P0 {tri.get("p0", 0)}</span>'
+                        f' · <span class="text-amber-600">P1 {tri.get("p1", 0)}</span></span>')
 
         # Git dirty
         dirty = git.get("dirty", False)
