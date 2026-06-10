@@ -1016,7 +1016,7 @@ def page_clients(data: dict) -> str:
         html += '<h2 class="text-sm font-semibold text-gray-700 mb-3">Alignement standard VPS Hermes OA <span class="text-xs text-gray-400 font-normal">(oa-doctor quotidien · OmarTop P0→P6)</span></h2>'
         html += '<div class="grid md:grid-cols-3 gap-4 mb-8">'
         for v in vps_data["vps"]:
-            if v.get("status") == "measured":
+            if str(v.get("status", "")).startswith("measured"):
                 sysd = v.get("system", {})
                 doctor = v.get("doctor", {})
                 alerts = sysd.get("alerts") or []

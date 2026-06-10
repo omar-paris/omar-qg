@@ -92,6 +92,44 @@ def system_health() -> dict:
     }
 
 
+def pantheos_remote() -> dict:
+    """Mesure read-only de VPS-Pantheos via SSH tailnet (pré-install OA-L1)."""
+    base = {"id": "vps-pantheos", "name": "VPS-Pantheos (perso Alex)"}
+    script = (
+        "df --output=pcent / | tail -1; "
+        "free -m | awk '/^Swap/{print ($2>0)? int(100*$3/$2) : -1}'; "
+        "for s in nginx docker tailscaled; do systemctl is-active $s; done; "
+        "systemctl is-active openclaw-gateway pantheos-os 2>/dev/null | tr '\\n' ' '; echo; "
+        "test -d ~/.hermes && echo hermes-present || echo hermes-absent"
+    )
+    out = run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
+               "aurel@vps-pantheos", script], timeout=30)
+    lines = [l.strip() for l in out.splitlines() if l.strip()]
+    if len(lines) < 5:
+        return {**base, "status": "pending",
+                "note": "SSH indisponible — install OA-L1 post-META (~22 juin)."}
+    disk, swap = lines[0], lines[1]
+    services = {"nginx": lines[2], "docker": lines[3], "tailscaled": lines[4]}
+    hermes = "present" if "hermes-present" in out else "absent"
+    alerts = []
+    if swap == "-1":
+        alerts.append("aucun swap configuré — risque OOM (cf. incident VPS-Omar 9 juin)")
+    try:
+        if int(disk.strip().rstrip("%")) > 70:
+            alerts.append(f"disque {disk.strip()} (>70%)")
+    except ValueError:
+        pass
+    if hermes == "absent":
+        alerts.append("Hermes runtime absent — install prévue avec OA-L1")
+    for name, state in services.items():
+        if state != "active":
+            alerts.append(f"service {name}: {state}")
+    return {**base, "status": "measured (read-only, pré-install)",
+            "doctor": {"available": False, "note": "oa-doctor sera installé avec OA-L1 (~22 juin)"},
+            "system": {"disk_root": disk.strip(), "swap_pct": None if swap == "-1" else int(swap),
+                       "hermes": hermes, "services": services, "alerts": alerts}}
+
+
 def main() -> None:
     omar = {
         "id": "vps-omar",
@@ -107,8 +145,7 @@ def main() -> None:
             omar,
             {"id": "vps-jab", "name": "VPS-JAB (Bouboutou)", "status": "pending",
              "note": "Branchement QG read-only via tailnet — couloir agent JAB (qg#15)."},
-            {"id": "vps-pantheos", "name": "VPS-Pantheos (perso Alex)", "status": "pending",
-             "note": "Install OA-L1 via checklist hub#34 post-META (~22 juin), audit read-only d'abord."},
+            pantheos_remote(),
         ],
     }
     OUT.parent.mkdir(exist_ok=True)
