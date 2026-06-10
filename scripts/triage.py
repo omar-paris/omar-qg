@@ -49,18 +49,22 @@ P0_LABELS = {"security", "p0", "critical", "urgent"}
 P1_LABELS = {"bug", "p1", "client", "ops"}
 
 
-def gh_issues(slug: str) -> list[dict]:
-    try:
-        raw = subprocess.run(
-            ["gh", "issue", "list", "--repo", slug, "--state", "open",
-             "--json", "number,title,labels,updatedAt", "--limit", "100"],
-            capture_output=True, text=True, timeout=60,
-        )
-        if raw.returncode != 0:
-            return []
-        return json.loads(raw.stdout or "[]")
-    except Exception:
-        return []
+def gh_issues(slug: str) -> list[dict] | None:
+    """3 tentatives avec backoff. None = échec (à distinguer de « 0 issue ») —
+    jamais de troncature silencieuse : un échec doit se voir, pas ressembler à zéro."""
+    for attempt in range(3):
+        try:
+            raw = subprocess.run(
+                ["gh", "issue", "list", "--repo", slug, "--state", "open",
+                 "--json", "number,title,labels,updatedAt", "--limit", "200"],
+                capture_output=True, text=True, timeout=60,
+            )
+            if raw.returncode == 0:
+                return json.loads(raw.stdout or "[]")
+        except Exception:
+            pass
+        time.sleep(5 * (attempt + 1))
+    return None
 
 
 def score(issue: dict) -> str:
@@ -113,9 +117,22 @@ def llm_refine(apps: dict) -> tuple[dict, bool]:
 
 def main() -> None:
     use_llm = "--llm" in sys.argv
+    previous = {}
+    try:
+        previous = json.loads(OUT.read_text(encoding="utf-8")).get("apps", {})
+    except Exception:
+        pass
+    fetch_errors: list[str] = []
     apps: dict = {}
     for app_id, slug in REPOS.items():
         issues = gh_issues(slug)
+        if issues is None:
+            # Échec gh : on garde les données du run précédent, marquées stale
+            fetch_errors.append(app_id)
+            stale = dict(previous.get(app_id) or {"p0": 0, "p1": 0, "p2": 0, "top": []})
+            stale["stale"] = True
+            apps[app_id] = stale
+            continue
         scored = [
             {"number": i["number"], "title": i["title"], "prio": score(i),
              "url": f"https://github.com/{slug}/issues/{i['number']}"}
@@ -141,19 +158,23 @@ def main() -> None:
             f'{d["top"][0]["prio"]} · #{d["top"][0]["number"]} — {d["top"][0]["title"]}'
             if d["top"] else "Rien d'ouvert — RAS."
         )
+        if d.get("stale"):
+            d["next"] = "⚠ données du run précédent (gh en échec) · " + d["next"]
 
     every = [dict(it, app=a) for a, d in apps.items() for it in d["top"]]
     every.sort(key=lambda x: ({"P0": 0, "P1": 1, "P2": 2}[x["prio"]], -x["number"]))
     out = {
         "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "llm_used": llm_used,
+        "fetch_errors": fetch_errors,
         "apps": apps,
         "top3": every[:3],
     }
     VAR.mkdir(exist_ok=True)
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
     total = sum(d["p0"] + d["p1"] + d["p2"] for d in apps.values())
-    print(f"triage: {total} issues · top3={[t['app'] + '#' + str(t['number']) for t in out['top3']]} · llm={llm_used}")
+    err = f" · ÉCHECS GH: {fetch_errors}" if fetch_errors else ""
+    print(f"triage: {total} issues · top3={[t['app'] + '#' + str(t['number']) for t in out['top3']]} · llm={llm_used}{err}")
 
 
 if __name__ == "__main__":
