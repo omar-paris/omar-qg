@@ -231,7 +231,15 @@ def health_probe(domain: str) -> dict:
     url = f"https://{domain}/"
     t0 = time.monotonic()
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "OA-QG-probe/1.0"})
+        _tok = ""
+        try:
+            _tok = (Path.home() / ".config/oa-hub/machine-token").read_text().strip()
+        except Exception:
+            pass
+        _hdrs = {"User-Agent": "OA-QG-probe/1.0"}
+        if _tok and domain.endswith(".omar.paris"):
+            _hdrs["X-OA-Token"] = _tok
+        req = urllib.request.Request(url, headers=_hdrs)
         with urllib.request.urlopen(req, timeout=8, context=_SSL) as r:
             latency_ms = int((time.monotonic() - t0) * 1000)
             return {"status": "ok", "http_code": r.status, "latency_ms": latency_ms}
