@@ -661,13 +661,28 @@ def hetzner_fleet() -> list:
     return fleet
 
 
+def _read_var_json(name: str) -> dict:
+    try:
+        return json.loads((ROOT / "var" / name).read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def payload(built_at: str) -> dict:
+    # Boucle d'auto-amélioration (10 juin 2026) : le triage quotidien remplace
+    # le `next` codé en dur ; vps.json alimente la vue alignement VPS Hermes OA.
+    triage = _read_var_json("triage.json")
+    vps = _read_var_json("vps.json")
     items = []
     for item in ITEMS:
         enriched = dict(item)
         enriched["git"] = git_state(item["path"])
         enriched["github"] = github_state(item.get("repo", ""))
         enriched["health"] = health_probe(item["domain"])
+        t = (triage.get("apps") or {}).get(item["id"])
+        if t and t.get("next"):
+            enriched["next"] = t["next"]
+            enriched["triage"] = {k: t.get(k) for k in ("p0", "p1", "p2")}
         items.append(enriched)
     healthy = sum(1 for i in items if i["health"]["status"] == "ok")
     counts = {
@@ -697,6 +712,9 @@ def payload(built_at: str) -> dict:
         "items": items, "counts": counts,
         "catalog": CATALOG, "providers": providers, "live": live,
         "fleet": fleet,
+        "vps": vps,
+        "triage": {"built_at": triage.get("built_at"), "llm_used": triage.get("llm_used"),
+                   "top3": triage.get("top3", [])},
     }
 
 
@@ -833,10 +851,11 @@ def page_registry(data: dict) -> str:
             f'<div class="grid md:grid-cols-[1fr_100px_110px_100px_100px] gap-2 px-4 py-3.5 border-b border-gray-100 last:border-0 items-start hover:bg-gray-50">'
             f'<div><div class="flex items-center gap-2 mb-0.5">'
             f'<span class="text-sm font-semibold text-gray-900">{escape(item["name"])}</span>'
-            f'<span class="text-xs rounded px-1.5 py-0.5 {scope_cls}">{escape(item["scope"])}</span>'
+            f'<span class="text-xs rounded px-1.5 py-0.5 {scope_cls}">{escape("Référentiel VPS Hermes OA" if item["scope"] == "VPS Hermes OA" else item["scope"])}</span>'
             f'</div>'
             f'<div class="text-xs text-gray-500 mb-1.5">{escape(item["role"])}</div>'
-            f'<div class="flex gap-2 flex-wrap">'
+            + (f'<div class="text-xs font-medium text-amber-700 mb-1.5">→ {escape(item["next"])}</div>' if item.get("next") else '')
+            + f'<div class="flex gap-2 flex-wrap">'
             f'<a href="https://{escape(item["domain"])}/" class="text-xs text-blue-500 hover:underline">{escape(item["domain"])}</a>'
             + (f' <a href="https://github.com/{escape(repo)}" class="text-xs text-gray-400 hover:text-gray-600">GitHub</a>' if repo else '')
             + f'</div></div>'
@@ -979,6 +998,36 @@ def page_clients(data: dict) -> str:
         '<p class="text-sm text-gray-500 mt-0.5">Flotte live Hetzner. Données rafraîchies au rebuild (30 min).</p></div>'
         '</div>'
     )
+
+    # Alignement des 3 VPS sur le standard VPS Hermes OA (vps-doctor quotidien)
+    vps_data = data.get("vps") or {}
+    if vps_data.get("vps"):
+        html += '<h2 class="text-sm font-semibold text-gray-700 mb-3">Alignement standard VPS Hermes OA <span class="text-xs text-gray-400 font-normal">(oa-doctor quotidien · OmarTop P0→P6)</span></h2>'
+        html += '<div class="grid md:grid-cols-3 gap-4 mb-8">'
+        for v in vps_data["vps"]:
+            if v.get("status") == "measured":
+                sysd = v.get("system", {})
+                doctor = v.get("doctor", {})
+                alerts = sysd.get("alerts") or []
+                score = f'{doctor.get("score_pct")}%' if doctor.get("score_pct") is not None else "—"
+                pill = (f'<span class="pill-warn rounded-full px-2 py-0.5 text-xs font-medium">{len(alerts)} alerte(s)</span>'
+                        if alerts else '<span class="pill-ok rounded-full px-2 py-0.5 text-xs font-medium">sain</span>')
+                detail = escape("; ".join(alerts[:2])) if alerts else f'disque {escape(str(sysd.get("disk_root") or "?"))} · swap {escape(str(sysd.get("swap_pct")))}%'
+                html += (
+                    f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3">'
+                    f'<div class="flex items-center justify-between mb-1"><span class="text-sm font-semibold text-gray-900">{escape(v["name"])}</span>{pill}</div>'
+                    f'<div class="text-2xl font-bold text-gray-900">{escape(score)}<span class="text-xs text-gray-400 font-normal"> oa-doctor</span></div>'
+                    f'<div class="text-xs text-gray-500 mt-1">{detail}</div>'
+                    f'</div>'
+                )
+            else:
+                html += (
+                    f'<div class="bg-gray-50 rounded-xl border border-dashed border-gray-300 px-4 py-3">'
+                    f'<div class="text-sm font-semibold text-gray-500 mb-1">{escape(v["name"])}</div>'
+                    f'<div class="text-xs text-gray-400">{escape(v.get("note", "pending"))}</div>'
+                    f'</div>'
+                )
+        html += '</div>'
 
     if not fleet:
         return html + '<div class="bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 text-sm text-yellow-700">Flotte Hetzner indisponible — clef API absente ou en erreur.</div>'
@@ -1165,6 +1214,11 @@ def main() -> None:
     (tmp / "api" / "core-repos.json").write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build)
+    for var_name in ("triage.json", "vps.json"):
+        src = ROOT / "var" / var_name
+        if src.exists():
+            (tmp / "api" / var_name).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
     ledger_dir = tmp / "api" / "daily-ledger"
     ledger_dir.mkdir(parents=True, exist_ok=True)
     (ledger_dir / f"{ledger['date']}.json").write_text(
