@@ -1218,12 +1218,15 @@ def page_decisions(decisions: list) -> str:
             if q.get("blocked_ref"):
                 html += f'<div class="text-xs text-amber-600 mb-2">⏸ bloque : {escape(q["blocked_ref"])}</div>'
             if q.get("type") == "fermée":
-                html += '<div class="flex gap-2 flex-wrap">'
+                # Feedback Alex 10 juin : possibilité d'ajouter un complément à une réponse fermée
+                html += '<div class="flex gap-2 flex-wrap mb-2">'
                 for opt in q.get("options", []):
-                    html += (f'<button onclick="answer(\'{qid}\', \'{escape(opt)}\')" '
+                    html += (f'<button onclick="answerClosed(\'{qid}\', \'{escape(opt)}\')" '
                              'class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700">'
                              f'{escape(opt)}</button>')
                 html += '</div>'
+                html += (f'<input id="compl-{qid}" type="text" placeholder="Complément optionnel (token, précision…) — ajouté à ta réponse" '
+                         'class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600">')
             else:
                 html += (f'<div class="flex gap-2"><input id="in-{qid}" type="text" placeholder="Ta réponse…" '
                          'class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm">'
@@ -1236,7 +1239,9 @@ def page_decisions(decisions: list) -> str:
             html += (f'<div class="text-xs text-gray-500 mb-1">✓ <span class="text-gray-700">{escape(q["texte"])}</span>'
                      f' → <span class="font-medium text-gray-900">{escape(str(q.get("reponse")))}</span>'
                      f' <span class="text-gray-400">({escape(q.get("deblocage", ""))})</span></div>')
-    html += ('<script>async function answer(id, val){ if(!val||!val.trim()){return;} '
+    html += ('<script>function answerClosed(id, opt){ const c = document.getElementById("compl-"+id); '
+             'answer(id, opt + (c && c.value.trim() ? " — " + c.value.trim() : "")); } '
+             'async function answer(id, val){ if(!val||!val.trim()){return;} '
              f'const r = await fetch("{api}", {{method:"POST", headers:{{"content-type":"application/json"}}, '
              'body: JSON.stringify({id:id, answer:val})}); '
              'const c = document.getElementById("card-"+id); '
