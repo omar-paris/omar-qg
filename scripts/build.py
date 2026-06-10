@@ -476,7 +476,7 @@ def git_state(path_slug: str) -> dict:
 def _vault_read(path: str) -> dict:
     try:
         raw = subprocess.check_output(
-            ["vault", "kv", "get", "-format=json", path],
+            ["/usr/bin/vault", "kv", "get", "-format=json", path],
             text=True, stderr=subprocess.DEVNULL,
             env={**os.environ, "VAULT_ADDR": "http://127.0.0.1:8202"},
         )
