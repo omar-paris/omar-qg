@@ -46,6 +46,24 @@ def collect() -> dict[str, str]:
                 a[f"vps-{v['id']}-{al[:24]}"] = f"{v['id']} : {al}"
     except Exception:
         pass
+    # Solde OpenRouter (leçon 10 juin : H-Aurel muet, compte à sec découvert à la main)
+    try:
+        env = (Path.home() / ".hermes/.env").read_text()
+        key = next(l.split("=", 1)[1].strip() for l in env.splitlines()
+                   if l.startswith("OPENROUTER_API_KEY="))
+        import urllib.request
+        req = urllib.request.Request("https://openrouter.ai/api/v1/credits",
+                                     headers={"Authorization": f"Bearer {key}"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            d = json.loads(r.read())["data"]
+        solde = d["total_credits"] - d["total_usage"]
+        if solde < 2:
+            a["openrouter-credits"] = (f"Solde OpenRouter : {solde:.2f}$ (<2$) — "
+                                       "les agents (H-Aurel…) deviennent muets. Recharger.")
+    except StopIteration:
+        pass
+    except Exception:
+        a["openrouter-injoignable"] = "API OpenRouter injoignable — solde invérifiable"
     return a
 
 
