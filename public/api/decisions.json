@@ -1,0 +1,85 @@
+[
+  {
+    "id": "1dc783491f",
+    "groupe": "pantheos-install",
+    "type": "fermée",
+    "texte": "Quel canal Telegram pour H-Aurel ?",
+    "options": [
+      "bot-dédié (je crée un token)",
+      "bot-openclaw (on le retire d'OpenClaw)",
+      "plus-tard (Agora seulement)"
+    ],
+    "contexte": "Bloque l'install H-Aurel — les deux ne peuvent pas écouter le même bot.",
+    "blocked_ref": "",
+    "posee_par": "fable-main",
+    "posee_le": "2026-06-10T17:13:32Z",
+    "statut": "répondue",
+    "reponse": "bot-dédié (je crée un token)",
+    "repondue_le": "2026-06-10T17:50:21Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "7eb872e881",
+    "groupe": "pantheos-install",
+    "type": "ouverte",
+    "texte": "Périmètre H-Aurel : quels répertoires/services en liste blanche (lecture/écriture) ?",
+    "options": [],
+    "contexte": "Défaut = tout interdit, finances/famille exclus. Ex: ~/editing-dashboard lecture, ~/projets écriture.",
+    "blocked_ref": "",
+    "posee_par": "fable-main",
+    "posee_le": "2026-06-10T17:13:32Z",
+    "statut": "répondue",
+    "reponse": "Aurel a vocation à être MON miroir. Le vsp Pantheos a vocation a gérer toute ma vie personnelle. Omar est mon associé. Omar&Alex est ma grande entrerprise.",
+    "repondue_le": "2026-06-10T17:51:26Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "62b651f90c",
+    "groupe": "test",
+    "type": "fermée",
+    "texte": "Question de test ?",
+    "options": [
+      "oui",
+      "non"
+    ],
+    "contexte": "",
+    "blocked_ref": "t_37c8ba1a",
+    "posee_par": "test",
+    "posee_le": "2026-06-10T17:14:00Z",
+    "statut": "répondue",
+    "reponse": "oui",
+    "repondue_le": "2026-06-10T17:17:58Z",
+    "deblocage": "kanban_unblocked"
+  },
+  {
+    "id": "ea8e360b43",
+    "groupe": "pantheos-install",
+    "type": "ouverte",
+    "texte": "Clef API OpenRouter (compte Omar, gestion clients) — colle-la ici pour débloquer le modèle de H-Aurel",
+    "options": [],
+    "contexte": "Nemotron/Nous exige une connexion dédiée par machine (constat 10 juin). OpenRouter = la voie simple : forfaits clients + recharges auto 10€+. La clef ira dans ~/.oa-secrets sur Pantheos, jamais en clair ailleurs.",
+    "blocked_ref": "",
+    "posee_par": "fable-main",
+    "posee_le": "2026-06-10T21:36:20Z",
+    "statut": "répondue",
+    "reponse": "Actuellement H-Aurel va fonctionner sur MON openrouter. ET j'attend surtout que tu créé Hermes UI avec hermes.alexgo.eu ET que tu fasse hub.alexgo.eu et les autres sites nécessaire",
+    "repondue_le": "2026-06-10T21:53:07Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "af0bcf1da4",
+    "groupe": "hub-sprint",
+    "type": "fermée",
+    "texte": "Hub Pantheos (alexgo.eu) : qui déploie ?",
+    "options": [
+      "A) la session Fable Pantheos (caddy y est inactive",
+      "il faut root) | B) Alex me donne un NOPASSWD ciblé sur vps-pantheos | C) on attend après la visite JA"
+    ],
+    "contexte": "Sprint hub 11/06 : omar.paris api déployée (10 apps cliquables), front gate sudo deploy.sh ; JAB 100% déployé ; Pantheos bloqué : caddy inactive + pas de sudo passwordless pour omar. Mapping vps-pantheos déjà prêt dans vhost-urls.json (alexgo.eu).",
+    "blocked_ref": "",
+    "posee_par": "CCC2",
+    "posee_le": "2026-06-11T00:28:49Z",
+    "statut": "ouverte",
+    "reponse": null
+  }
+]

@@ -1,0 +1,1164 @@
+{
+  "generated_at": "2026-06-12T03:00:27Z",
+  "today": "2026-06-12",
+  "window_days": 7,
+  "totals": {
+    "today": 6,
+    "window": 119,
+    "repos_today": 4,
+    "repos_total": 7
+  },
+  "today_by_repo": [
+    {
+      "repo": "omar-qg",
+      "name": "QG",
+      "count": 2,
+      "commits": [
+        {
+          "hash": "abc3fff",
+          "author": "Claude-Cockpit [bot]",
+          "date": "2026-06-12 00:18",
+          "day": "2026-06-12",
+          "message": "feat(observe): envoi matinal Telegram conversationnel + cron 6h (go Alex 12/06)"
+        },
+        {
+          "hash": "5c0b780",
+          "author": "Claude-Cockpit [bot]",
+          "date": "2026-06-12 00:09",
+          "day": "2026-06-12",
+          "message": "feat(observe): oa-observe — observateur proactif de la flotte OA"
+        }
+      ]
+    },
+    {
+      "repo": "omar-top",
+      "name": "OmarTop",
+      "count": 2,
+      "commits": [
+        {
+          "hash": "70249ee",
+          "author": "cc-manager",
+          "date": "2026-06-12 02:50",
+          "day": "2026-06-12",
+          "message": "docs: SYSTÈME OA 1-page — la boucle canonique (devis→onboarding→catalogue→install→hub→agent→doctor→observateur→QG→feedback) + standard recette + anti-orphelins (grave Alex 12/06)"
+        },
+        {
+          "hash": "fa7a1c4",
+          "author": "cc-manager",
+          "date": "2026-06-12 00:02",
+          "day": "2026-06-12",
+          "message": "docs: glossaire OA canonique (SoT vocabulaire) + lien dans index doctrine"
+        }
+      ]
+    },
+    {
+      "repo": "omar-catalogue",
+      "name": "Catalogue",
+      "count": 1,
+      "commits": [
+        {
+          "hash": "4d4ef0f",
+          "author": "cc-manager",
+          "date": "2026-06-12 02:56",
+          "day": "2026-06-12",
+          "message": "feat: standard recette d'app + pilote Listmonk + installeur oa-install (dry-run OK)"
+        }
+      ]
+    },
+    {
+      "repo": "omar-landing",
+      "name": "Landing",
+      "count": 1,
+      "commits": [
+        {
+          "hash": "931e2cd",
+          "author": "Claude-Cockpit [bot]",
+          "date": "2026-06-12 01:30",
+          "day": "2026-06-12",
+          "message": "feat(landing): 3 variantes comparatives v1/v2/v3 (preuve en direct / artisan / éditorial) — design Alex 12/06"
+        }
+      ]
+    }
+  ],
+  "days": [
+    {
+      "date": "2026-06-12",
+      "count": 6,
+      "repos": [
+        {
+          "repo": "omar-qg",
+          "name": "QG",
+          "commits": [
+            {
+              "hash": "abc3fff",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-12 00:18",
+              "day": "2026-06-12",
+              "message": "feat(observe): envoi matinal Telegram conversationnel + cron 6h (go Alex 12/06)"
+            },
+            {
+              "hash": "5c0b780",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-12 00:09",
+              "day": "2026-06-12",
+              "message": "feat(observe): oa-observe — observateur proactif de la flotte OA"
+            }
+          ]
+        },
+        {
+          "repo": "omar-top",
+          "name": "OmarTop",
+          "commits": [
+            {
+              "hash": "70249ee",
+              "author": "cc-manager",
+              "date": "2026-06-12 02:50",
+              "day": "2026-06-12",
+              "message": "docs: SYSTÈME OA 1-page — la boucle canonique (devis→onboarding→catalogue→install→hub→agent→doctor→observateur→QG→feedback) + standard recette + anti-orphelins (grave Alex 12/06)"
+            },
+            {
+              "hash": "fa7a1c4",
+              "author": "cc-manager",
+              "date": "2026-06-12 00:02",
+              "day": "2026-06-12",
+              "message": "docs: glossaire OA canonique (SoT vocabulaire) + lien dans index doctrine"
+            }
+          ]
+        },
+        {
+          "repo": "omar-catalogue",
+          "name": "Catalogue",
+          "commits": [
+            {
+              "hash": "4d4ef0f",
+              "author": "cc-manager",
+              "date": "2026-06-12 02:56",
+              "day": "2026-06-12",
+              "message": "feat: standard recette d'app + pilote Listmonk + installeur oa-install (dry-run OK)"
+            }
+          ]
+        },
+        {
+          "repo": "omar-landing",
+          "name": "Landing",
+          "commits": [
+            {
+              "hash": "931e2cd",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-12 01:30",
+              "day": "2026-06-12",
+              "message": "feat(landing): 3 variantes comparatives v1/v2/v3 (preuve en direct / artisan / éditorial) — design Alex 12/06"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-06-11",
+      "count": 16,
+      "repos": [
+        {
+          "repo": "omar-app",
+          "name": "AppOmar",
+          "commits": [
+            {
+              "hash": "d4ae1d3",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 04:28",
+              "day": "2026-06-11",
+              "message": "feat: portail unifié OA App — UN seul build servi par le serveur (home/devis/onboarding/sav/compte/aide/changelog/admin)"
+            },
+            {
+              "hash": "828cb56",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 03:09",
+              "day": "2026-06-11",
+              "message": "feat: pages app (devis+admin) servies par le serveur, hors public/ — survivent au build.py. Devis: sauvegarde continue + reprise depuis lien (?id=). Vhost route /devis /admin/catalog → OAuth+serveur."
+            },
+            {
+              "hash": "d67e55e",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 02:50",
+              "day": "2026-06-11",
+              "message": "kit visite: +3 décisions spec CRM V0.2 (agenda, périmètre Edilia, rôles parties)"
+            },
+            {
+              "hash": "c1137fc",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 02:49",
+              "day": "2026-06-11",
+              "message": "feat: admin catalogue /admin/catalog/ — éditer prix/produits/packs (OAuth, email admin), pack initial vs option. catalog.json source éditable."
+            },
+            {
+              "hash": "462b339",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 02:42",
+              "day": "2026-06-11",
+              "message": "fix(vhost): /api/* routé AVANT le bypass machine (sinon webhook/catalog tombent dans file_server → 404)"
+            },
+            {
+              "hash": "c30d1cd",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 02:34",
+              "day": "2026-06-11",
+              "message": "feat(stripe): vérification signature webhook obligatoire (HMAC-SHA256, anti-falsification) + whsec depuis Vault"
+            },
+            {
+              "hash": "2d5aa25",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 02:16",
+              "day": "2026-06-11",
+              "message": "feat(jab): kit visite intégré à la page /jab (section kit_visite du yaml) — simplification Alex 11/06"
+            },
+            {
+              "hash": "99b007a",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 01:58",
+              "day": "2026-06-11",
+              "message": "feat(onboarding): boutons d'en-tête — acheter une solution / onboarding déjà réalisé / SAV (spec Alex)"
+            },
+            {
+              "hash": "d61114a",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 01:50",
+              "day": "2026-06-11",
+              "message": "feat: intégration Stripe — checkout (subscription+payment), webhook, lecture clef Vault (test par défaut, live explicite). Vhost /api/* générique."
+            },
+            {
+              "hash": "d4f5fa5",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 00:47",
+              "day": "2026-06-11",
+              "message": "feat: e-commerce v1 — catalogue de vente + API /catalog /devis /checkout + page /devis/"
+            },
+            {
+              "hash": "6b27da8",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-11 00:06",
+              "day": "2026-06-11",
+              "message": "fix(oauth): handle_response 401→redir /oauth2/start (réplique vhost actif JAB) — sans ça, 401 au lieu de la page Google"
+            }
+          ]
+        },
+        {
+          "repo": "omar-hub",
+          "name": "Hub",
+          "commits": [
+            {
+              "hash": "3a95b4c",
+              "author": "cc-superadjoint",
+              "date": "2026-06-11 00:17",
+              "day": "2026-06-11",
+              "message": "feat(data): url canonique par VPS via scripts/data/vhost-urls.json (hub#50)"
+            },
+            {
+              "hash": "3278e0a",
+              "author": "cc-superadjoint",
+              "date": "2026-06-11 00:13",
+              "day": "2026-06-11",
+              "message": "feat(nav): Catalogue = lien direct externe + icône (hub#49) ; drop apps-catalogue.json mort (hub#46)"
+            },
+            {
+              "hash": "156a72d",
+              "author": "cc-superadjoint",
+              "date": "2026-06-11 00:08",
+              "day": "2026-06-11",
+              "message": "fix(securite): vault-scanner --redact — compteurs seuls hors OA-master (hub#43)"
+            }
+          ]
+        },
+        {
+          "repo": "omar-top",
+          "name": "OmarTop",
+          "commits": [
+            {
+              "hash": "6e5040c",
+              "author": "cc-manager",
+              "date": "2026-06-11 03:31",
+              "day": "2026-06-11",
+              "message": "feat: STANDARD secrets par client — Infisical + Nango du CLIENT sur SON VPS au paiement, jamais central. Bundle VPS Hermes OA en 7 étapes."
+            },
+            {
+              "hash": "d997b9f",
+              "author": "cc-manager",
+              "date": "2026-06-11 00:52",
+              "day": "2026-06-11",
+              "message": "fix(evaluate): timeout 20s + stdin DEVNULL par check — un verif muet ne bloque plus deploy.sh (incident 11/06)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-06-10",
+      "count": 22,
+      "repos": [
+        {
+          "repo": "omar-qg",
+          "name": "QG",
+          "commits": [
+            {
+              "hash": "3e1f815",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 23:56",
+              "day": "2026-06-10",
+              "message": "feat(qg): sondes health envoient X-OA-Token sur *.omar.paris (bypass OAuth, préserve 7/7 healthy au rollout)"
+            },
+            {
+              "hash": "62d2bbc",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 22:17",
+              "day": "2026-06-10",
+              "message": "feat(alerts): solde OpenRouter surveillé (alerte <2$) — plus d'agent muet découvert à la main"
+            },
+            {
+              "hash": "a9029c0",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 21:37",
+              "day": "2026-06-10",
+              "message": "feat: oa-alerts — anomalies (health, fleet, triage stale, vps) → carte Kanban idempotente + Telegram, auto-résolution (demande Alex : plus de pannes découvertes à l'œil)"
+            },
+            {
+              "hash": "ec9aacc",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 21:34",
+              "day": "2026-06-10",
+              "message": "fix: vault en chemin absolu — le cron (PATH minimal) perdait la flotte Hetzner ('clef absente' sur /clients/)"
+            },
+            {
+              "hash": "f8baa2a",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 17:57",
+              "day": "2026-06-10",
+              "message": "feat(decisions): complément optionnel sur les questions fermées (feedback Alex — ex: coller un token avec la réponse)"
+            },
+            {
+              "hash": "c3d6668",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 17:25",
+              "day": "2026-06-10",
+              "message": "feat: boîte de décisions (qg#27) — page /decisions/, qg-api tailnet :8097, oa-ask CLI, déblocage kanban/issue automatique"
+            },
+            {
+              "hash": "676de39",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 16:57",
+              "day": "2026-06-10",
+              "message": "feat: agentok-bridge — top issue agent-ok → carte Kanban oa-builder (WIP=1, cron 22h)"
+            },
+            {
+              "hash": "174d544",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 16:05",
+              "day": "2026-06-10",
+              "message": "fix: triage anti-troncature — retry gh x3, report données précédentes marquées stale, fetch_errors visibles"
+            },
+            {
+              "hash": "1e23835",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 03:17",
+              "day": "2026-06-10",
+              "message": "feat: vps-doctor mesure Pantheos à distance (read-only, pré-install OA-L1)"
+            },
+            {
+              "hash": "0ff5581",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 02:52",
+              "day": "2026-06-10",
+              "message": "fix: QG dit la vérité — versions lues des fichiers VERSION, issues 'ouvertes' + chips P0/P1 triage, var/ gitignored"
+            },
+            {
+              "hash": "589ecc1",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 02:32",
+              "day": "2026-06-10",
+              "message": "feat: boucle auto-amélioration — triage quotidien des issues + vps-doctor"
+            }
+          ]
+        },
+        {
+          "repo": "omar-app",
+          "name": "AppOmar",
+          "commits": [
+            {
+              "hash": "fbbac80",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 23:56",
+              "day": "2026-06-10",
+              "message": "feat: vhost app.omar.paris OAuth Google (machine bypass + forward_auth, basic_auth abandonné)"
+            },
+            {
+              "hash": "7c08d88",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 22:30",
+              "day": "2026-06-10",
+              "message": "feat: /onboarding v1 — stepper + conversation scriptée sur le schéma, POST /api/onboarding → var/clients/ (app#22)"
+            },
+            {
+              "hash": "210ee09",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 21:39",
+              "day": "2026-06-10",
+              "message": "feat(onboarding): étape connexion providers obligatoire (connexions dédiées Nous/Codex, OpenRouter compte Omar, vérif message-test) + SAV = mêmes étapes que l'onboarding"
+            },
+            {
+              "hash": "2ba7daf",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 21:36",
+              "day": "2026-06-10",
+              "message": "plan-jab: canal Edilia Telegram→WhatsApp (JA n'a pas Telegram)"
+            },
+            {
+              "hash": "5dccd29",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 21:34",
+              "day": "2026-06-10",
+              "message": "plan-jab: maj RDV 11 juin (purge factures, DNS OVH via JA, callback clients., checklist)"
+            },
+            {
+              "hash": "2a981f6",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 04:18",
+              "day": "2026-06-10",
+              "message": "feat(app): page /jab Plan d'actions (4 couloirs Omar/Edilia/JA/Alex) + vhost app public+basicauth (M4)"
+            },
+            {
+              "hash": "2fcccd6",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 03:52",
+              "day": "2026-06-10",
+              "message": "feat: schéma onboarding client v0.1 (cible PC/VPS-neuf/VPS-existant, compat, ressources, matériel, équipe, périmètre agent) — client #0 = Pantheos"
+            },
+            {
+              "hash": "0d5d10f",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-10 01:31",
+              "day": "2026-06-10",
+              "message": "fix: secure proposals API — auth Bearer token, UUID ids, tailnet_only, systemd unit"
+            }
+          ]
+        },
+        {
+          "repo": "omar-hub",
+          "name": "Hub",
+          "commits": [
+            {
+              "hash": "cd89473",
+              "author": "cc-superadjoint",
+              "date": "2026-06-10 01:38",
+              "day": "2026-06-10",
+              "message": "chore: unify Hub version to 1.0.0 (was 0.2.0/0.1.0/1.0.0 selon la source) — audit 9 juin"
+            }
+          ]
+        },
+        {
+          "repo": "omar-landing",
+          "name": "Landing",
+          "commits": [
+            {
+              "hash": "b347171",
+              "author": "alexwill87",
+              "date": "2026-06-10 01:38",
+              "day": "2026-06-10",
+              "message": "Merge pull request #16 from omar-paris/feat/conversion-june-cta"
+            }
+          ]
+        },
+        {
+          "repo": "omar-top",
+          "name": "OmarTop",
+          "commits": [
+            {
+              "hash": "3f4801e",
+              "author": "cc-manager",
+              "date": "2026-06-10 15:39",
+              "day": "2026-06-10",
+              "message": "feat: STANDARD-OAUTH-OA v1 — doctrine accès unifié (oauth2-proxy + forward_auth, exemptions, bypass machines, suivi par user)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-06-09",
+      "count": 28,
+      "repos": [
+        {
+          "repo": "omar-hub",
+          "name": "Hub",
+          "commits": [
+            {
+              "hash": "1a423f8",
+              "author": "alexwill87",
+              "date": "2026-06-09 04:02",
+              "day": "2026-06-09",
+              "message": "feat: Home V1.0 — multi-select filtres + groupement type/statut"
+            },
+            {
+              "hash": "16ed4ca",
+              "author": "cc-superadjoint",
+              "date": "2026-06-09 04:01",
+              "day": "2026-06-09",
+              "message": "feat: Home multi-select filtres + groupement type/statut + toolbar compact V1.0.0"
+            },
+            {
+              "hash": "ad31bc9",
+              "author": "alexwill87",
+              "date": "2026-06-09 03:30",
+              "day": "2026-06-09",
+              "message": "feat: collecteur statut apps live + timer systemd 5 min V0.9.2"
+            },
+            {
+              "hash": "5f311d3",
+              "author": "alexwill87",
+              "date": "2026-06-09 03:30",
+              "day": "2026-06-09",
+              "message": "docs: ADR stratégie mise à jour données Hub"
+            },
+            {
+              "hash": "85fa78e",
+              "author": "cc-superadjoint",
+              "date": "2026-06-09 03:30",
+              "day": "2026-06-09",
+              "message": "feat: collecteur statut apps live + timer systemd 5 min V0.9.2"
+            },
+            {
+              "hash": "e4e33c2",
+              "author": "cc-superadjoint",
+              "date": "2026-06-09 03:26",
+              "day": "2026-06-09",
+              "message": "docs: ADR stratégie mise à jour données Hub (approche A retenue)"
+            },
+            {
+              "hash": "9f8d56d",
+              "author": "alexwill87",
+              "date": "2026-06-09 03:13",
+              "day": "2026-06-09",
+              "message": "feat: Home Apps OS smartphone + page /systeme V0.9.1"
+            },
+            {
+              "hash": "4ee4fe0",
+              "author": "cc-superadjoint",
+              "date": "2026-06-09 03:13",
+              "day": "2026-06-09",
+              "message": "feat(home): masquer apps système par défaut + page /systeme dédiée V0.9.1"
+            }
+          ]
+        },
+        {
+          "repo": "omar-qg",
+          "name": "QG",
+          "commits": [
+            {
+              "hash": "2c31f7d",
+              "author": "alexwill87",
+              "date": "2026-06-09 20:04",
+              "day": "2026-06-09",
+              "message": "feat(qg): daily ops ledger sessions/issues/PR/builds (#17)"
+            },
+            {
+              "hash": "78c5cd0",
+              "author": "alexwill87",
+              "date": "2026-06-09 05:32",
+              "day": "2026-06-09",
+              "message": "feat(qg): V0.6.0 — page Clients & VPS (galerie flotte Hetzner live) (#10)"
+            },
+            {
+              "hash": "b7f5dc5",
+              "author": "alexwill87",
+              "date": "2026-06-09 04:53",
+              "day": "2026-06-09",
+              "message": "feat(qg): V0.5.0 — statut API fournisseurs temps réel (#9)"
+            },
+            {
+              "hash": "7cde948",
+              "author": "alexwill87",
+              "date": "2026-06-09 04:38",
+              "day": "2026-06-09",
+              "message": "feat(qg): V0.4.0 — catalogue par type + Telnyx + OVH live (#8)"
+            },
+            {
+              "hash": "f637040",
+              "author": "alexwill87",
+              "date": "2026-06-09 04:04",
+              "day": "2026-06-09",
+              "message": "feat(qg): V0.3.0 — UI Hub-style + page Partenaires (#7)"
+            },
+            {
+              "hash": "49a44e8",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-09 03:33",
+              "day": "2026-06-09",
+              "message": "chore(qg): cron rebuild 30min + contract V0.2.0"
+            },
+            {
+              "hash": "deddd4d",
+              "author": "alexwill87",
+              "date": "2026-06-09 03:29",
+              "day": "2026-06-09",
+              "message": "feat(qg): V0.2.0 — données live GitHub API + health probes HTTP (#6)"
+            }
+          ]
+        },
+        {
+          "repo": "omar-landing",
+          "name": "Landing",
+          "commits": [
+            {
+              "hash": "68e1594",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-09 01:47",
+              "day": "2026-06-09",
+              "message": "feat: refine landing page content architecture"
+            },
+            {
+              "hash": "eaf058d",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-09 01:34",
+              "day": "2026-06-09",
+              "message": "fix: hide lead honeypot and document api route"
+            },
+            {
+              "hash": "bcf3e4e",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-09 01:23",
+              "day": "2026-06-09",
+              "message": "feat: add landing lead capture server"
+            },
+            {
+              "hash": "d80a4da",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-09 01:23",
+              "day": "2026-06-09",
+              "message": "fix: render changelog as single-column history"
+            }
+          ]
+        },
+        {
+          "repo": "omar-top",
+          "name": "OmarTop",
+          "commits": [
+            {
+              "hash": "f57347f",
+              "author": "cc-manager",
+              "date": "2026-06-09 05:49",
+              "day": "2026-06-09",
+              "message": "feat(omartop): grave piliers B (agent capable) + C (entreprise connue)"
+            },
+            {
+              "hash": "83b6c04",
+              "author": "alexwill87",
+              "date": "2026-06-09 02:27",
+              "day": "2026-06-09",
+              "message": "feat: map OA promise to OmarTop standards (#41)"
+            },
+            {
+              "hash": "2eddfef",
+              "author": "alexwill87",
+              "date": "2026-06-09 01:25",
+              "day": "2026-06-09",
+              "message": "fix: avoid false deploy smoke negatives (#10)"
+            },
+            {
+              "hash": "e2a3e0f",
+              "author": "alexwill87",
+              "date": "2026-06-09 00:43",
+              "day": "2026-06-09",
+              "message": "feat: add OmarTop governance milestones (#7)"
+            }
+          ]
+        },
+        {
+          "repo": "omar-catalogue",
+          "name": "Catalogue",
+          "commits": [
+            {
+              "hash": "3da7056",
+              "author": "cc-manager",
+              "date": "2026-06-09 21:04",
+              "day": "2026-06-09",
+              "message": "fix(catalogue): labels discrets, skills retirés, 3 colonnes stats, Graphify ajouté"
+            },
+            {
+              "hash": "7fd4565",
+              "author": "alexwill87",
+              "date": "2026-06-09 20:03",
+              "day": "2026-06-09",
+              "message": "Merge pull request #19 from omar-paris/feat/appstore-ui-v2"
+            },
+            {
+              "hash": "835e272",
+              "author": "cc-manager",
+              "date": "2026-06-09 05:13",
+              "day": "2026-06-09",
+              "message": "feat(catalogue): App Store V2 — Top5 catégories, 187 items, fiches, design"
+            }
+          ]
+        },
+        {
+          "repo": "omar-app",
+          "name": "AppOmar",
+          "commits": [
+            {
+              "hash": "c94ad70",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-09 02:33",
+              "day": "2026-06-09",
+              "message": "feat: store AppOmar proposals v0.3"
+            },
+            {
+              "hash": "7833751",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-09 02:23",
+              "day": "2026-06-09",
+              "message": "feat: add AppOmar config wizard v0.2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-06-08",
+      "count": 25,
+      "repos": [
+        {
+          "repo": "omar-hub",
+          "name": "Hub",
+          "commits": [
+            {
+              "hash": "1b8671e",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 23:25",
+              "day": "2026-06-08",
+              "message": "feat: point hub catalogue to dedicated catalogue site"
+            },
+            {
+              "hash": "18d4da6",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 06:29",
+              "day": "2026-06-08",
+              "message": "feat: expose observability maturity controls"
+            },
+            {
+              "hash": "e0a7019",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 06:19",
+              "day": "2026-06-08",
+              "message": "feat: expose network maturity controls"
+            },
+            {
+              "hash": "4dad16f",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 06:04",
+              "day": "2026-06-08",
+              "message": "feat: clarify maturity evidence"
+            },
+            {
+              "hash": "84817ac",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 05:42",
+              "day": "2026-06-08",
+              "message": "feat: compact maturity control evidence"
+            },
+            {
+              "hash": "e27ae39",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 03:55",
+              "day": "2026-06-08",
+              "message": "feat: source maturity L1 from OmarTop export"
+            },
+            {
+              "hash": "4699f82",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 03:42",
+              "day": "2026-06-08",
+              "message": "feat: refactor home as VPS gallery"
+            },
+            {
+              "hash": "3c56f9a",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 02:57",
+              "day": "2026-06-08",
+              "message": "feat: consume maturity L1 contract"
+            },
+            {
+              "hash": "c255179",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 02:39",
+              "day": "2026-06-08",
+              "message": "feat: expose L1 maturity pillars"
+            },
+            {
+              "hash": "f8f6f1e",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 02:11",
+              "day": "2026-06-08",
+              "message": "feat: reorganize maturity around surfaces"
+            },
+            {
+              "hash": "ea68a0b",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 01:55",
+              "day": "2026-06-08",
+              "message": "feat: surface OmarTop items in Hub 0.7.1"
+            },
+            {
+              "hash": "70764e8",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 01:31",
+              "day": "2026-06-08",
+              "message": "fix: hide legacy phases on milestone maturity"
+            },
+            {
+              "hash": "b9e1052",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 01:29",
+              "day": "2026-06-08",
+              "message": "feat: align Hub with OmarTop maturity"
+            }
+          ]
+        },
+        {
+          "repo": "omar-qg",
+          "name": "QG",
+          "commits": [
+            {
+              "hash": "97e6d6d",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 23:50",
+              "day": "2026-06-08",
+              "message": "fix: align qg access policy and AppOmar naming"
+            },
+            {
+              "hash": "6635f14",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 23:38",
+              "day": "2026-06-08",
+              "message": "chore: refresh qg registry after stabilization"
+            },
+            {
+              "hash": "1b84c3b",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 23:38",
+              "day": "2026-06-08",
+              "message": "fix: stabilize qg self registry build"
+            },
+            {
+              "hash": "4925008",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 23:36",
+              "day": "2026-06-08",
+              "message": "feat: create qg v0 core registry"
+            }
+          ]
+        },
+        {
+          "repo": "omar-app",
+          "name": "AppOmar",
+          "commits": [
+            {
+              "hash": "0c013d0",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 23:49",
+              "day": "2026-06-08",
+              "message": "fix: align AppOmar naming"
+            },
+            {
+              "hash": "dca5615",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 23:18",
+              "day": "2026-06-08",
+              "message": "chore: ignore generated caches and document admin-app naming"
+            },
+            {
+              "hash": "b7ce705",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 23:18",
+              "day": "2026-06-08",
+              "message": "feat: create admin-app v0.1 skeleton"
+            }
+          ]
+        },
+        {
+          "repo": "omar-landing",
+          "name": "Landing",
+          "commits": [
+            {
+              "hash": "955ee68",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 04:59",
+              "day": "2026-06-08",
+              "message": "feat: add June conversion CTA landing"
+            },
+            {
+              "hash": "6a8012d",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 04:25",
+              "day": "2026-06-08",
+              "message": "chore: add Caddy runtime route for landing domain"
+            },
+            {
+              "hash": "52e8895",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-08 04:23",
+              "day": "2026-06-08",
+              "message": "feat: create Omar & Alex landing V0"
+            }
+          ]
+        },
+        {
+          "repo": "omar-catalogue",
+          "name": "Catalogue",
+          "commits": [
+            {
+              "hash": "7f3671f",
+              "author": "cc-manager",
+              "date": "2026-06-08 23:26",
+              "day": "2026-06-08",
+              "message": "docs: record catalogue public publish status"
+            },
+            {
+              "hash": "733a9ab",
+              "author": "cc-manager",
+              "date": "2026-06-08 23:25",
+              "day": "2026-06-08",
+              "message": "feat: add public catalogue site"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-06-07",
+      "count": 2,
+      "repos": [
+        {
+          "repo": "omar-top",
+          "name": "OmarTop",
+          "commits": [
+            {
+              "hash": "59fceab",
+              "author": "alexwill87",
+              "date": "2026-06-07 21:57",
+              "day": "2026-06-07",
+              "message": "feat: define OmarTop core VPS model (#6)"
+            }
+          ]
+        },
+        {
+          "repo": "omar-top-site",
+          "name": "OmarTop-site",
+          "commits": [
+            {
+              "hash": "6c5f079",
+              "author": "alexwill87",
+              "date": "2026-06-07 21:58",
+              "day": "2026-06-07",
+              "message": "docs: publish OmarTop VPS model site (#2)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-06-06",
+      "count": 8,
+      "repos": [
+        {
+          "repo": "omar-hub",
+          "name": "Hub",
+          "commits": [
+            {
+              "hash": "0afcbb3",
+              "author": "alexwill87",
+              "date": "2026-06-06 03:38",
+              "day": "2026-06-06",
+              "message": "fix(deploy): keep source tree clean during staging"
+            },
+            {
+              "hash": "9e3ea0a",
+              "author": "alexwill87",
+              "date": "2026-06-06 03:07",
+              "day": "2026-06-06",
+              "message": "feat(home): add local cockpit federation view"
+            },
+            {
+              "hash": "3d287b0",
+              "author": "alexwill87",
+              "date": "2026-06-06 02:57",
+              "day": "2026-06-06",
+              "message": "docs: define Hub local and QG fleet model"
+            },
+            {
+              "hash": "2421110",
+              "author": "alexwill87",
+              "date": "2026-06-06 01:52",
+              "day": "2026-06-06",
+              "message": "fix(activity): keep collector publishes web-readable (#27)"
+            },
+            {
+              "hash": "facf1ad",
+              "author": "alexwill87",
+              "date": "2026-06-06 01:42",
+              "day": "2026-06-06",
+              "message": "feat(activity): add local dynamic collector (#26)"
+            },
+            {
+              "hash": "24eefe4",
+              "author": "alexwill87",
+              "date": "2026-06-06 01:12",
+              "day": "2026-06-06",
+              "message": "fix(activity): consolidate read-only sessions and logs fixtures (#25)"
+            },
+            {
+              "hash": "cff407b",
+              "author": "alexwill87",
+              "date": "2026-06-06 00:30",
+              "day": "2026-06-06",
+              "message": "feat: expose changelog in Hub (#24)"
+            },
+            {
+              "hash": "202b908",
+              "author": "alexwill87",
+              "date": "2026-06-06 00:12",
+              "day": "2026-06-06",
+              "message": "feat: consolidate catalogue v1 skills observability (#23)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-06-05",
+      "count": 12,
+      "repos": [
+        {
+          "repo": "omar-catalogue",
+          "name": "Catalogue",
+          "commits": [
+            {
+              "hash": "932474b",
+              "author": "alexwill87",
+              "date": "2026-06-05 23:11",
+              "day": "2026-06-05",
+              "message": "feat(catalogue): export potential graph contract (#10)"
+            },
+            {
+              "hash": "df3871a",
+              "author": "alexwill87",
+              "date": "2026-06-05 23:03",
+              "day": "2026-06-05",
+              "message": "feat(catalogue): add C1 structured relations (#9)"
+            },
+            {
+              "hash": "563101a",
+              "author": "alexwill87",
+              "date": "2026-06-05 21:46",
+              "day": "2026-06-05",
+              "message": "docs(catalogue): define living capacity relations strategy (#8)"
+            },
+            {
+              "hash": "795f60b",
+              "author": "alexwill87",
+              "date": "2026-06-05 21:25",
+              "day": "2026-06-05",
+              "message": "feat(catalogue): enrich c1 priority capabilities (#7)"
+            },
+            {
+              "hash": "86a2749",
+              "author": "alexwill87",
+              "date": "2026-06-05 21:18",
+              "day": "2026-06-05",
+              "message": "docs: align catalogue capabilities and vps state (#6)"
+            },
+            {
+              "hash": "7a47a8c",
+              "author": "alexwill87",
+              "date": "2026-06-05 16:13",
+              "day": "2026-06-05",
+              "message": "fix: enforce settings-first catalogue contract"
+            }
+          ]
+        },
+        {
+          "repo": "omar-hub",
+          "name": "Hub",
+          "commits": [
+            {
+              "hash": "c3e6274",
+              "author": "alexwill87",
+              "date": "2026-06-05 22:15",
+              "day": "2026-06-05",
+              "message": "feat(hub): close V1 cockpit gaps (#22)"
+            },
+            {
+              "hash": "75edc74",
+              "author": "alexwill87",
+              "date": "2026-06-05 15:51",
+              "day": "2026-06-05",
+              "message": "feat(agents): add permissions matrix page (#19)"
+            },
+            {
+              "hash": "218e274",
+              "author": "alexwill87",
+              "date": "2026-06-05 15:39",
+              "day": "2026-06-05",
+              "message": "docs(logs): add OmarHub observability brief (#18)"
+            },
+            {
+              "hash": "f132cf0",
+              "author": "alexwill87",
+              "date": "2026-06-05 15:39",
+              "day": "2026-06-05",
+              "message": "docs(connexions): add Nango product brief (#17)"
+            },
+            {
+              "hash": "d206459",
+              "author": "alexwill87",
+              "date": "2026-06-05 03:49",
+              "day": "2026-06-05",
+              "message": "feat(capacites): introduce typed capability directory"
+            },
+            {
+              "hash": "0f8b99f",
+              "author": "alexwill87",
+              "date": "2026-06-05 03:01",
+              "day": "2026-06-05",
+              "message": "docs(connexions): define Nango activation contract"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "deploys": [
+    {
+      "path": "changelog/index.html",
+      "mtime": "2026-06-12 03:00"
+    },
+    {
+      "path": "partenaires/index.html",
+      "mtime": "2026-06-12 03:00"
+    },
+    {
+      "path": "decisions/index.html",
+      "mtime": "2026-06-12 03:00"
+    },
+    {
+      "path": "builds/index.html",
+      "mtime": "2026-06-12 03:00"
+    },
+    {
+      "path": "clients/index.html",
+      "mtime": "2026-06-12 03:00"
+    },
+    {
+      "path": "ops/index.html",
+      "mtime": "2026-06-12 03:00"
+    },
+    {
+      "path": "index.html",
+      "mtime": "2026-06-12 03:00"
+    }
+  ]
+}

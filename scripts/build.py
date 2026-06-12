@@ -17,6 +17,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
 ACTIFS = Path("/home/omar/23-Offre/actifs")
+
+
+def _load_build_ledger():
+    """Importe scripts/build-ledger.py (nom à tiret → importlib)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "build_ledger", Path(__file__).resolve().parent / "build-ledger.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 VERSION = "V" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 DOMAIN = "qg.omar.paris"
 STATE_DB = Path("/home/omar/.hermes/state.db")
@@ -744,6 +757,7 @@ NAV_ITEMS = [
     ("/clients/",     "clients",     "Clients",     'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z'),
     ("/partenaires/", "partenaires", "Partenaires", 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.015M3.75 9.349a3 3 0 0 0 3.75.616m-3.75-.616a3.001 3.001 0 0 1-.75-1.99V6h17.25v1.36a3 3 0 0 1-.75 1.99m0 0a2.993 2.993 0 0 1-2.25 1.016'),
     ("/decisions/",   "decisions",   "Décisions",   'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z'),
+    ("/builds/",      "builds",      "Builds",      'M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0 4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0-5.571 3-5.571-3'),
     ("/changelog/",   "changelog",   "Changelog",   'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'),
 ]
 
@@ -808,9 +822,24 @@ def layout(active: str, title: str, built_at: str, body: str) -> str:
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
-def page_registry(data: dict) -> str:
+def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0) -> str:
     items = data["items"]
     counts = data["counts"]
+
+    # Tuiles d'action : décisions à trancher + builds du jour (liens dédiés)
+    dec_accent = "text-amber-600" if pending_decisions else "text-gray-900"
+    tiles = (
+        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">'
+        f'<a href="/decisions/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}">{pending_decisions}</div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">Décisions en attente</div></div>'
+        f'<span class="text-xs text-blue-500">Trancher →</span></div></a>'
+        f'<a href="/builds/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold text-gray-900">{builds_today}</div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">Builds aujourd’hui</div></div>'
+        f'<span class="text-xs text-blue-500">Voir →</span></div></a>'
+        '</div>'
+    )
 
     # Stats bar
     stats = (
@@ -888,7 +917,7 @@ def page_registry(data: dict) -> str:
     rows += '</div>'
 
     header = '<div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold text-gray-900">Registry CORE OA</h1><span class="text-xs text-gray-400">Rebuild auto · 30 min</span></div>'
-    return header + stats + rows
+    return header + tiles + stats + rows
 
 
 def _api_badge(status: str) -> str:
@@ -1276,6 +1305,92 @@ def page_changelog() -> str:
     return html
 
 
+_FR_MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."]
+
+
+def _fr_day(iso: str) -> str:
+    try:
+        y, m, d = (int(x) for x in iso.split("-"))
+        return f"{d} {_FR_MONTHS[m - 1]} {y}"
+    except Exception:
+        return iso
+
+
+def page_builds(builds: dict) -> str:
+    t = builds.get("totals", {}) or {}
+    today = builds.get("today", "")
+    days = builds.get("days", []) or []
+
+    html = (
+        '<div class="flex items-center justify-between mb-6">'
+        '<div><h1 class="text-xl font-bold text-gray-900">Builds du jour</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">Commits collectés sur les repos CORE OA — {escape(_fr_day(today))} et 7 derniers jours.</p></div>'
+        '<a href="/api/builds.json" class="text-xs text-blue-500 hover:underline">API builds</a>'
+        '</div>'
+    )
+
+    # Compteurs
+    html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">'
+    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{t.get("today", 0)}</div><div class="text-xs text-gray-500 mt-0.5">Builds aujourd’hui</div></div>'
+    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{t.get("repos_today", 0)}<span class="text-gray-400 text-sm font-normal">/{t.get("repos_total", 0)}</span></div><div class="text-xs text-gray-500 mt-0.5">Repos actifs</div></div>'
+    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{t.get("window", 0)}</div><div class="text-xs text-gray-500 mt-0.5">Builds / 7 jours</div></div>'
+    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{len(builds.get("deploys", []))}</div><div class="text-xs text-gray-500 mt-0.5">Déploiements récents</div></div>'
+    html += '</div>'
+
+    if not days:
+        html += '<div class="bg-white rounded-xl border border-gray-200 px-6 py-5 text-sm text-gray-500">Aucun commit détecté sur les 7 derniers jours.</div>'
+        return html
+
+    # Timeline par jour
+    for day in days:
+        is_today = day.get("date") == today
+        badge = '<span class="text-xs rounded px-1.5 py-0.5 bg-blue-50 text-blue-700 ml-2">aujourd’hui</span>' if is_today else ""
+        html += '<div class="mb-6">'
+        html += (
+            '<div class="flex items-baseline gap-2 mb-2">'
+            f'<h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">{escape(_fr_day(day.get("date", "")))}</h2>'
+            f'{badge}'
+            f'<span class="text-xs text-gray-400">{day.get("count", 0)} build(s)</span>'
+            '</div>'
+        )
+        html += '<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">'
+        for repo in day.get("repos", []):
+            html += (
+                '<div class="px-4 py-3 border-b border-gray-100 last:border-0">'
+                '<div class="flex items-center gap-2 mb-2">'
+                f'<span class="text-sm font-semibold text-gray-900">{escape(repo.get("name", ""))}</span>'
+                f'<span class="text-xs text-gray-400 font-mono">{escape(repo.get("repo", ""))}</span>'
+                f'<span class="text-xs text-gray-400">· {len(repo.get("commits", []))} commit(s)</span>'
+                '</div>'
+            )
+            for c in repo.get("commits", []):
+                t_str = (c.get("date", "") or "")[11:16]
+                html += (
+                    '<div class="flex gap-3 items-start py-1 text-sm">'
+                    f'<span class="text-xs font-mono text-gray-400 shrink-0 w-10 pt-0.5">{escape(t_str)}</span>'
+                    f'<span class="text-xs font-mono bg-gray-100 rounded px-1.5 py-0.5 text-gray-600 shrink-0">{escape(c.get("hash", ""))}</span>'
+                    f'<span class="text-gray-700 min-w-0 break-words">{escape(c.get("message", ""))} <span class="text-xs text-gray-400">· {escape(c.get("author", ""))}</span></span>'
+                    '</div>'
+                )
+            html += '</div>'
+        html += '</div></div>'
+
+    deploys = builds.get("deploys", []) or []
+    if deploys:
+        html += '<div class="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-6">'
+        html += '<div class="text-sm font-bold text-gray-900 mb-2">Déploiements détectés (pages QG récentes)</div>'
+        for d in deploys:
+            html += (
+                '<div class="flex gap-3 items-center py-1 text-xs border-t border-gray-50 first:border-0">'
+                f'<span class="font-mono text-gray-400 shrink-0">{escape(d.get("mtime", ""))}</span>'
+                f'<span class="font-mono text-gray-600">{escape(d.get("path", ""))}</span>'
+                '</div>'
+            )
+        html += '</div>'
+
+    return html
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -1311,11 +1426,25 @@ def main() -> None:
         decisions = json.loads((ROOT / "var" / "decisions.json").read_text(encoding="utf-8"))
     except Exception:
         pass
+
+    # Builds du jour (commits par repo, 7 j) → public/api/builds.json
+    try:
+        builds = _load_build_ledger().collect_builds()
+    except Exception as exc:  # ne casse jamais le build du QG
+        builds = {"totals": {"today": 0, "window": 0, "repos_today": 0, "repos_total": 0}, "today": "", "days": [], "deploys": [], "error": str(exc)}
+    (tmp / "api" / "builds.json").write_text(
+        json.dumps(builds, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    pending_decisions = sum(1 for d in decisions if (d.get("statut") or "").lower() == "ouverte")
+    builds_today = (builds.get("totals", {}) or {}).get("today", 0)
+
     pages = [
-        ("/",             "registry",    "Registry CORE OA",        page_registry(data)),
+        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),
+        ("/builds/",      "builds",      "Builds du jour",           page_builds(builds)),
         ("/partenaires/", "partenaires", "Partenaires",              page_partenaires(data)),
         ("/changelog/",   "changelog",   "Changelog",                page_changelog()),
     ]

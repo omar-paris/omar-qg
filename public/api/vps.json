@@ -1,0 +1,126 @@
+{
+  "built_at": "2026-06-11T06:40:03Z",
+  "standard": "VPS Hermes OA (OmarTop phases-spec P0→P6)",
+  "vps": [
+    {
+      "id": "vps-omar",
+      "name": "VPS-Omar (amiral, CORE OA)",
+      "status": "measured",
+      "doctor": {
+        "available": true,
+        "pass": 12,
+        "fail": 25,
+        "skip": 23,
+        "total": 37,
+        "score_pct": 32,
+        "phases": [
+          {
+            "phase": "P0",
+            "name": "Commerce",
+            "pass": 1,
+            "fail": 2,
+            "skip": 1
+          },
+          {
+            "phase": "P1",
+            "name": "Provisioning",
+            "pass": 1,
+            "fail": 0,
+            "skip": 4
+          },
+          {
+            "phase": "P1.5",
+            "name": "Audit pre-bootstrap",
+            "pass": 0,
+            "fail": 6,
+            "skip": 0
+          },
+          {
+            "phase": "P2",
+            "name": "L0 stack",
+            "pass": 5,
+            "fail": 4,
+            "skip": 0
+          },
+          {
+            "phase": "P3",
+            "name": "L1 baseline",
+            "pass": 3,
+            "fail": 4,
+            "skip": 0
+          },
+          {
+            "phase": "P3.5",
+            "name": "Infisical setup",
+            "pass": 0,
+            "fail": 0,
+            "skip": 12
+          },
+          {
+            "phase": "P4",
+            "name": "Activation",
+            "pass": 1,
+            "fail": 1,
+            "skip": 2
+          },
+          {
+            "phase": "P5",
+            "name": "Maintenance",
+            "pass": 1,
+            "fail": 6,
+            "skip": 0
+          },
+          {
+            "phase": "P6",
+            "name": "Export",
+            "pass": 0,
+            "fail": 2,
+            "skip": 4
+          }
+        ]
+      },
+      "system": {
+        "disk_root": "76%",
+        "swap_pct": 82,
+        "claude_orphans": 1,
+        "services": {
+          "caddy": "active",
+          "docker": "active",
+          "tailscaled": "active",
+          "hermes-gateway (user)": "unknown",
+          "openclaw-gateway (user)": "unknown",
+          "oa-proposal-server (user)": "unknown"
+        },
+        "alerts": [
+          "swap 82% (>80) — risque OOM, cf. incident 9 juin"
+        ]
+      }
+    },
+    {
+      "id": "vps-jab",
+      "name": "VPS-JAB (Bouboutou)",
+      "status": "pending",
+      "note": "Branchement QG read-only via tailnet — couloir agent JAB (qg#15)."
+    },
+    {
+      "id": "vps-pantheos",
+      "name": "VPS-Pantheos (perso Alex)",
+      "status": "measured (read-only, pré-install)",
+      "doctor": {
+        "available": false,
+        "note": "oa-doctor sera installé avec OA-L1 (~22 juin)"
+      },
+      "system": {
+        "disk_root": "37%",
+        "swap_pct": 0,
+        "hermes": "present",
+        "services": {
+          "nginx": "active",
+          "docker": "active",
+          "tailscaled": "active"
+        },
+        "alerts": []
+      }
+    }
+  ]
+}

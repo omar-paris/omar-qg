@@ -1,20 +1,18 @@
 {
-  "latest": "/api/daily-ledger/2026-06-09.json",
+  "latest": "/api/daily-ledger/2026-06-12.json",
   "items": [
     {
-      "date": "2026-06-09",
-      "generated_at": "2026-06-09T20:03:04Z",
+      "date": "2026-06-12",
+      "generated_at": "2026-06-12T03:00:02Z",
       "version": "V0.7.0",
       "sessions": {
         "hermes": {
-          "sessions": 22,
-          "messages": 4122,
-          "tool_calls": 2131,
-          "api_calls": 1048,
+          "sessions": 1,
+          "messages": 34,
+          "tool_calls": 14,
+          "api_calls": 17,
           "by_source": {
-            "cli": 1,
-            "cron": 1,
-            "tui": 20
+            "tui": 1
           },
           "db": "/home/omar/.hermes/state.db",
           "error": null
@@ -22,55 +20,38 @@
         "ccusage": {
           "sessions_by_agent": {},
           "daily": {
-            "total_cost_usd": 0.0,
-            "total_tokens": 0,
-            "agents": [],
-            "models_used": []
+            "total_cost_usd": 48.6346,
+            "total_tokens": 41367814,
+            "agents": [
+              "claude"
+            ],
+            "models_used": [
+              "claude-fable-5",
+              "claude-haiku-4-5-20251001",
+              "claude-opus-4-8"
+            ]
           },
           "error": null
         }
       },
       "github_totals": {
-        "issues_created": 77,
-        "issues_closed": 4,
-        "prs_created": 13,
-        "prs_merged": 14,
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 0,
         "build_runs": 0,
         "build_success": 0,
         "build_failed": 0,
         "unknown_fields": 7,
-        "local_build_records": 2
+        "local_build_records": 0
       },
       "local_builds": {
-        "path": "/home/omar/11-Pilotage/ledgers/builds/2026-06-09.jsonl",
-        "count": 2,
-        "success": 2,
+        "path": "/home/omar/11-Pilotage/ledgers/builds/2026-06-12.jsonl",
+        "count": 0,
+        "success": 0,
         "failure": 0,
         "blocked": 0,
-        "recent": [
-          {
-            "command": "python3 -m pytest -q",
-            "http_code": null,
-            "notes": "QG V0.7 daily ops ledger tests pass",
-            "pr": "",
-            "repo": "omar-paris/omar-qg",
-            "status": "success",
-            "timestamp": "2026-06-09T19:40:55Z",
-            "url": "",
-            "version": "V0.7.0"
-          },
-          {
-            "command": "python3 scripts/build.py",
-            "http_code": null,
-            "notes": "Rebuild after tracking issue #16",
-            "pr": "",
-            "repo": "omar-paris/omar-qg",
-            "status": "success",
-            "timestamp": "2026-06-09T19:47:49Z",
-            "url": "",
-            "version": "V0.7.0"
-          }
-        ]
+        "recent": []
       },
       "repos": [
         {
@@ -80,22 +61,26 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 17
+            "latency_ms": 16
           },
           "git": {
             "exists": true,
-            "branch": "feat/conversion-june-cta",
+            "branch": "main",
             "dirty": false,
-            "head": "68e1594 feat: refine landing page content architecture",
+            "head": "931e2cd feat(landing): 3 variantes comparatives v1/v2/v3 (preuve en direct / artisan / éditorial) — design Alex 12/06",
             "status_short": []
           },
           "github_open": {
-            "open_issues": 29,
-            "open_prs": 1,
-            "last_merged_pr": null
+            "open_issues": 28,
+            "open_prs": 0,
+            "last_merged_pr": {
+              "title": "feat: add June conversion CTA landing",
+              "number": 16,
+              "merged_at": "2026-06-10T01:38:45Z"
+            }
           },
           "activity": {
-            "issues_created": 14,
+            "issues_created": 0,
             "issues_closed": 0,
             "prs_created": 0,
             "prs_merged": 0,
@@ -111,24 +96,24 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 17
+            "latency_ms": 18
           },
           "git": {
             "exists": true,
             "branch": "main",
             "dirty": true,
-            "head": "c94ad70 feat: store AppOmar proposals v0.3",
+            "head": "d4ae1d3 feat: portail unifié OA App — UN seul build servi par le serveur (home/devis/onboarding/sav/compte/aide/changelog/admin)",
             "status_short": [
-              "M scripts/build.py"
+              "?? var/devis/devis-20260611T030928Z-2131c52a.json"
             ]
           },
           "github_open": {
-            "open_issues": 17,
+            "open_issues": 40,
             "open_prs": 0,
             "last_merged_pr": null
           },
           "activity": {
-            "issues_created": 10,
+            "issues_created": 0,
             "issues_closed": 0,
             "prs_created": 0,
             "prs_merged": 0,
@@ -144,29 +129,29 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 21
+            "latency_ms": 12
           },
           "git": {
             "exists": true,
-            "branch": "feat/appstore-ui-v2",
+            "branch": "feat/recipe-listmonk",
             "dirty": false,
-            "head": "835e272 feat(catalogue): App Store V2 — Top5 catégories, 187 items, fiches, design",
+            "head": "4d4ef0f feat: standard recette d'app + pilote Listmonk + installeur oa-install (dry-run OK)",
             "status_short": []
           },
           "github_open": {
-            "open_issues": 7,
-            "open_prs": 3,
+            "open_issues": 11,
+            "open_prs": 2,
             "last_merged_pr": {
-              "title": "feat(catalogue): export potential graph contract",
-              "number": 10,
-              "merged_at": "2026-06-05T23:11:44Z"
+              "title": "feat(catalogue): App Store V2 — Top5, 187 items, 14 catégories, fiches",
+              "number": 19,
+              "merged_at": "2026-06-09T20:03:17Z"
             }
           },
           "activity": {
-            "issues_created": 6,
-            "issues_closed": 1,
-            "prs_created": 1,
-            "prs_merged": 1,
+            "issues_created": 0,
+            "issues_closed": 0,
+            "prs_created": 0,
+            "prs_merged": 0,
             "build_runs": 0,
             "build_success": 0,
             "build_failed": 0
@@ -179,7 +164,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 19
+            "latency_ms": 13
           },
           "git": {
             "exists": true,
@@ -202,7 +187,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 17
+            "latency_ms": 12
           },
           "git": {
             "exists": true,
@@ -210,23 +195,26 @@
             "dirty": true,
             "head": "current qg build",
             "status_short": [
-              "?? var/"
+              "M scripts/agentok_bridge.py",
+              " M scripts/build.py",
+              "?? scripts/README-builds.md",
+              "?? scripts/build-ledger.py"
             ]
           },
           "github_open": {
-            "open_issues": 8,
-            "open_prs": 1,
+            "open_issues": 22,
+            "open_prs": 0,
             "last_merged_pr": {
-              "title": "feat(qg): V0.6.0 — page Clients & VPS (galerie flotte Hetzner)",
-              "number": 10,
-              "merged_at": "2026-06-09T05:32:36Z"
+              "title": "feat(qg): daily ops ledger sessions/issues/PR/builds",
+              "number": 17,
+              "merged_at": "2026-06-09T20:04:09Z"
             }
           },
           "activity": {
-            "issues_created": 11,
-            "issues_closed": 3,
-            "prs_created": 6,
-            "prs_merged": 5,
+            "issues_created": 0,
+            "issues_closed": 0,
+            "prs_created": 0,
+            "prs_merged": 0,
             "build_runs": 0,
             "build_success": 0,
             "build_failed": 0
@@ -243,25 +231,21 @@
           },
           "git": {
             "exists": true,
-            "branch": "feat/home-grid-groups-v2",
+            "branch": "main",
             "dirty": false,
-            "head": "16ed4ca feat: Home multi-select filtres + groupement type/statut + toolbar compact V1.0.0",
+            "head": "3a95b4c feat(data): url canonique par VPS via scripts/data/vhost-urls.json (hub#50)",
             "status_short": []
           },
           "github_open": {
-            "open_issues": 10,
-            "open_prs": 7,
-            "last_merged_pr": {
-              "title": "feat: Home V1.0 — multi-select filtres + groupement type/statut + toolbar compact",
-              "number": 42,
-              "merged_at": "2026-06-09T04:02:21Z"
-            }
+            "open_issues": 15,
+            "open_prs": 1,
+            "last_merged_pr": null
           },
           "activity": {
-            "issues_created": 5,
+            "issues_created": 0,
             "issues_closed": 0,
-            "prs_created": 4,
-            "prs_merged": 4,
+            "prs_created": 0,
+            "prs_merged": 0,
             "build_runs": 0,
             "build_success": 0,
             "build_failed": 0
@@ -274,17 +258,17 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 20
+            "latency_ms": 15
           },
           "git": {
             "exists": true,
-            "branch": "feat/omartop-pillars-bc-night",
+            "branch": "main",
             "dirty": false,
-            "head": "f57347f feat(omartop): grave piliers B (agent capable) + C (entreprise connue)",
+            "head": "70249ee docs: SYSTÈME OA 1-page — la boucle canonique (devis→onboarding→catalogue→install→hub→agent→doctor→observateur→QG→feedback) + standard recette + anti-orphelins (grave Alex 12/06)",
             "status_short": []
           },
           "github_open": {
-            "open_issues": 37,
+            "open_issues": 44,
             "open_prs": 0,
             "last_merged_pr": {
               "title": "feat: map OA promise to OmarTop standards",
@@ -293,10 +277,10 @@
             }
           },
           "activity": {
-            "issues_created": 31,
+            "issues_created": 0,
             "issues_closed": 0,
-            "prs_created": 2,
-            "prs_merged": 4,
+            "prs_created": 0,
+            "prs_merged": 0,
             "build_runs": 0,
             "build_success": 0,
             "build_failed": 0
@@ -308,6 +292,11 @@
           "level": "warning",
           "code": "DIRTY_REPOS",
           "message": "2 repo(s) locaux dirty dans le registry."
+        },
+        {
+          "level": "warning",
+          "code": "NO_BUILDS_RECORDED",
+          "message": "Aucun build GitHub Actions ou ledger local détecté aujourd'hui."
         }
       ]
     }

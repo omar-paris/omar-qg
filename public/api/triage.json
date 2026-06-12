@@ -1,0 +1,438 @@
+{
+  "built_at": "2026-06-11T06:15:04Z",
+  "llm_used": false,
+  "fetch_errors": [],
+  "apps": {
+    "app": {
+      "p0": 5,
+      "p1": 23,
+      "p2": 11,
+      "top": [
+        {
+          "number": 38,
+          "title": "ops: durcir la gestion des secrets (Vault root token → policies/Infisical) avant prod",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-app/issues/38"
+        },
+        {
+          "number": 30,
+          "title": "feat: auto-ajout du domaine client à la config OAuth (redirect URIs + whitelist) au provisioning",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-app/issues/30"
+        },
+        {
+          "number": 28,
+          "title": "feat: OAuth Microsoft en parallèle de Google (multi-provider)",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-app/issues/28"
+        },
+        {
+          "number": 14,
+          "title": "[night][secu] IDs de proposition prévisibles + lecture non authentifiée = énumération de PII",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-app/issues/14"
+        },
+        {
+          "number": 13,
+          "title": "[night][secu][P0] Aucune authentification sur un portail client public exposant config/proposals/PII",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-app/issues/13"
+        },
+        {
+          "number": 40,
+          "title": "Endpoint support agents clients : Edilia (et futurs h-*) posent leurs questions, un agent OA répond",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-app/issues/40"
+        },
+        {
+          "number": 39,
+          "title": "feat: provisioning post-paiement — webhook 'acheté' déclenche le bundle VPS Hermes OA du client",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-app/issues/39"
+        },
+        {
+          "number": 37,
+          "title": "feat: vision financière — achats fournisseurs, coûts par client, marges + fiches clients consolidées",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-app/issues/37"
+        },
+        {
+          "number": 36,
+          "title": "feat: wizard achat fournisseurs RÉEL (Hetzner/OVH/Telnyx) — acheter les produits pour le client",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-app/issues/36"
+        },
+        {
+          "number": 35,
+          "title": "feat: onboarding persistant + reprise + mode simulation console (comme devis)",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-app/issues/35"
+        }
+      ],
+      "next": "P0 · #38 — ops: durcir la gestion des secrets (Vault root token → policies/Infisical) avant prod"
+    },
+    "landing": {
+      "p0": 1,
+      "p1": 3,
+      "p2": 24,
+      "top": [
+        {
+          "number": 13,
+          "title": "Conversion stack: RDV, analytics sobre, suivi leads et conformité RGPD",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-landing/issues/13"
+        },
+        {
+          "number": 31,
+          "title": "feat(landing): brancher email réel formulaire lead",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-landing/issues/31"
+        },
+        {
+          "number": 24,
+          "title": "[night][secu] Durcir lead_server.py : rate-limit, collision de slug, écriture outbox concurrente",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-landing/issues/24"
+        },
+        {
+          "number": 15,
+          "title": "Fonctionnalité optionnelle: calculateur ROI temps gagné / clients gagnés",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-landing/issues/15"
+        },
+        {
+          "number": 30,
+          "title": "Réassurance & garantie sobres : bandeau de faits honnêtes + bloc garantie visible (sans urgence factice ni chiffres gonflés)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-landing/issues/30"
+        },
+        {
+          "number": 29,
+          "title": "Refondre la FAQ autour des objections d'achat réelles (technique, temps, prix, données, dépendance, obsolescence)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-landing/issues/29"
+        },
+        {
+          "number": 28,
+          "title": "Section \"C'est pour vous / ce n'est pas (encore) pour vous\" : auto-qualification honnête du visiteur",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-landing/issues/28"
+        },
+        {
+          "number": 27,
+          "title": "[night][tech] Version dispersée en 3 endroits, fichier VERSION vide — établir une source unique",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-landing/issues/27"
+        },
+        {
+          "number": 26,
+          "title": "[night][coherence] Landing isolée : aucun lien sortant vers l'écosystème OA (app/catalogue)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-landing/issues/26"
+        },
+        {
+          "number": 25,
+          "title": "[night][coherence] Design system divergent du reste de la flotte OA (CSS maison vs Tailwind+Inter)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-landing/issues/25"
+        }
+      ],
+      "next": "P0 · #13 — Conversion stack: RDV, analytics sobre, suivi leads et conformité RGPD"
+    },
+    "hub": {
+      "p0": 2,
+      "p1": 0,
+      "p2": 12,
+      "top": [
+        {
+          "number": 44,
+          "title": "[night][secu] vault-scanner.py : le strip des valeurs de secrets Infisical n'a aucun test",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-hub/issues/44"
+        },
+        {
+          "number": 43,
+          "title": "[night][secu] public/api/vault.json publie l'inventaire des secrets hors-Vault (chemins SSH, .env, username GitHub)",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-hub/issues/43"
+        },
+        {
+          "number": 52,
+          "title": "Maturité dans le Hub : spec de fonctionnement bout-en-bout (oa-doctor → affichage par VPS)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-hub/issues/52"
+        },
+        {
+          "number": 51,
+          "title": "Home : zone Recommandations avec cycle proposée → suivie / écartée (1ère carte : Hermes Desktop)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-hub/issues/51"
+        },
+        {
+          "number": 50,
+          "title": "Cliquabilité des apps : contrat de données url/links.site + génération automatique par VPS",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-hub/issues/50"
+        },
+        {
+          "number": 49,
+          "title": "Menu : Catalogue = lien direct avec icône lien (supprimer la page hub/catalogue)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-hub/issues/49"
+        },
+        {
+          "number": 48,
+          "title": "vision: Hub Business Tech — modules business gamifiés, alter ego configurable (moyen terme)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-hub/issues/48"
+        },
+        {
+          "number": 47,
+          "title": "[night][tech] Chemins de déploiement incohérents : 3 racines documentées, aucune n'est la cible réelle",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-hub/issues/47"
+        },
+        {
+          "number": 46,
+          "title": "[night][coherence] apps-catalogue.json : duplicata mort (109 items) jamais consommé par l'UI",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-hub/issues/46"
+        },
+        {
+          "number": 38,
+          "title": "Hub consistency backlog: classify VPS mirror and Capacités-Catalogue gaps from nightly V4",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-hub/issues/38"
+        }
+      ],
+      "next": "P0 · #44 — [night][secu] vault-scanner.py : le strip des valeurs de secrets Infisical n'a aucun test"
+    },
+    "qg": {
+      "p0": 5,
+      "p1": 3,
+      "p2": 13,
+      "top": [
+        {
+          "number": 30,
+          "title": "Page Accès : collecter les logs oauth2-proxy → qui se connecte où (brique doctrine OAuth)",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-qg/issues/30"
+        },
+        {
+          "number": 29,
+          "title": "Probes : envoyer le header X-OA-Token — PRÉALABLE au rollout OAuth (sinon faux DOWN)",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-qg/issues/29"
+        },
+        {
+          "number": 24,
+          "title": "feat: page Accès — suivi des users par site (logs oauth2-proxy → QG)",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-qg/issues/24"
+        },
+        {
+          "number": 23,
+          "title": "ops: rollout oauth2-proxy + forward_auth sur *.omar.paris sauf exemptions (STANDARD-OAUTH-OA)",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-qg/issues/23"
+        },
+        {
+          "number": 13,
+          "title": "[night][secu] CERT_NONE désactive la vérification TLS sur des appels API porteurs de tokens (MITM)",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-qg/issues/13"
+        },
+        {
+          "number": 31,
+          "title": "Ledger VPS clients : RAM/swap + statut backup + santé agent (leçon OOM JAB 10/06)",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-qg/issues/31"
+        },
+        {
+          "number": 28,
+          "title": "feat: split onboarding en 2 — (1) DEVIS e-commerce, (2) CONFIGURATION VPS Hermes OA",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-qg/issues/28"
+        },
+        {
+          "number": 15,
+          "title": "[night][client] QG ne sert pas l'oversight client réel (santé services VPS-JAB, pas seulement specs)",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-qg/issues/15"
+        },
+        {
+          "number": 27,
+          "title": "feat: /decisions/ — boîte de décisions Alex (questions uniques, groupées, boutons, déblocage kanban)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-qg/issues/27"
+        },
+        {
+          "number": 26,
+          "title": "feat: fiche app /apps/<id>/ (V0.8) — triage du jour, historique builds 7j, contract",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-qg/issues/26"
+        }
+      ],
+      "next": "P0 · #30 — Page Accès : collecter les logs oauth2-proxy → qui se connecte où (brique doctrine OAuth)"
+    },
+    "top": {
+      "p0": 3,
+      "p1": 8,
+      "p2": 28,
+      "top": [
+        {
+          "number": 43,
+          "title": "doctrine: appliquer STANDARD-OAUTH-OA (doc publié docs/standards/oauth-oa.md)",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-top/issues/43"
+        },
+        {
+          "number": 42,
+          "title": "[O-Top] Standardiser les chemins secrets Vault puis préparer migration Infisical",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-top/issues/42"
+        },
+        {
+          "number": 20,
+          "title": "[O-Top] SEC-SECRET-ROTATION-01 — Rotation secrets",
+          "prio": "P0",
+          "url": "https://github.com/omar-paris/omar-top/issues/20"
+        },
+        {
+          "number": 38,
+          "title": "[O-Top] BIZ-CRM-01 — Source clients / CRM autorisée",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-top/issues/38"
+        },
+        {
+          "number": 37,
+          "title": "[O-Top] BIZ-SUCCESS-CRITERIA-01 — Critères de succès client",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-top/issues/37"
+        },
+        {
+          "number": 33,
+          "title": "[O-Top] BIZ-CLIENTS-01 — Typologie clients",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-top/issues/33"
+        },
+        {
+          "number": 23,
+          "title": "[O-Top] AGENT-RELANCE-01 — Relance client contrôlée",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-top/issues/23"
+        },
+        {
+          "number": 22,
+          "title": "[O-Top] AGENT-EMAIL-01 — Email lire/rédiger avec validation",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-top/issues/22"
+        },
+        {
+          "number": 21,
+          "title": "[O-Top] AGENT-CANAL-01 — Canal client principal",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-top/issues/21"
+        },
+        {
+          "number": 19,
+          "title": "[O-Top] DATA-EXPORT-01 — Export client",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-top/issues/19"
+        }
+      ],
+      "next": "P0 · #43 — doctrine: appliquer STANDARD-OAUTH-OA (doc publié docs/standards/oauth-oa.md)"
+    },
+    "catalogue": {
+      "p0": 0,
+      "p1": 2,
+      "p2": 9,
+      "top": [
+        {
+          "number": 21,
+          "title": "[Feature] Skill automatisé d'onboarding d'apps — ajouter, référencer, analyser, peupler les fiches",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/21"
+        },
+        {
+          "number": 11,
+          "title": "Relier le graph potentiel Omar Catalogue aux connexions/CRM JAB",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/11"
+        },
+        {
+          "number": 24,
+          "title": "feat: veille quotidienne — sources.yaml → candidates dans le digest (RSS d'abord)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/24"
+        },
+        {
+          "number": 23,
+          "title": "feat: oa-ref — une URL devient une fiche knowledge (références intégrées au Catalogue)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/23"
+        },
+        {
+          "number": 22,
+          "title": "[Infra] Sync nocturne auto du Catalogue — mise à jour valeurs GitHub (stars, license, releases, topics) depuis les apps",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/22"
+        },
+        {
+          "number": 20,
+          "title": "[Content] Intégrer Penpot, Polotno, Konva.js, Fabric.js comme apps Design dans le Catalogue",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/20"
+        },
+        {
+          "number": 18,
+          "title": "[Fix] Intégrer les 64 connexions/ dans le pipeline (exclusion commentée à lever)",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/18"
+        },
+        {
+          "number": 17,
+          "title": "[Content] Ajouter stubs pour catégories manquantes: Design, CMS, E-commerce, Media",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/17"
+        },
+        {
+          "number": 16,
+          "title": "[Feature] App Store UI — homepage + galerie + fiches /apps/{slug}/",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/16"
+        },
+        {
+          "number": 15,
+          "title": "[Feature] Sections Top 5 par catégorie sur la homepage",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-catalogue/issues/15"
+        }
+      ],
+      "next": "P1 · #21 — [Feature] Skill automatisé d'onboarding d'apps — ajouter, référencer, analyser, peupler les fiches"
+    }
+  },
+  "top3": [
+    {
+      "number": 44,
+      "title": "[night][secu] vault-scanner.py : le strip des valeurs de secrets Infisical n'a aucun test",
+      "prio": "P0",
+      "url": "https://github.com/omar-paris/omar-hub/issues/44",
+      "app": "hub"
+    },
+    {
+      "number": 43,
+      "title": "[night][secu] public/api/vault.json publie l'inventaire des secrets hors-Vault (chemins SSH, .env, username GitHub)",
+      "prio": "P0",
+      "url": "https://github.com/omar-paris/omar-hub/issues/43",
+      "app": "hub"
+    },
+    {
+      "number": 43,
+      "title": "doctrine: appliquer STANDARD-OAUTH-OA (doc publié docs/standards/oauth-oa.md)",
+      "prio": "P0",
+      "url": "https://github.com/omar-paris/omar-top/issues/43",
+      "app": "top"
+    }
+  ]
+}
