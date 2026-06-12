@@ -73,7 +73,7 @@ ITEMS = [
 # ── Providers ─────────────────────────────────────────────────────────────────
 
 PROVIDERS = {
-    "hetzner":     {"name": "Hetzner",     "logo": "H", "color": "#d50c2d", "url": "https://www.hetzner.com",       "vault_key": "secret/integrations/hetzner"},
+    "hetzner":     {"name": "Hetzner",     "logo": "H", "color": "#d50c2d", "url": "https://www.hetzner.com",       "vault_key": "secret/integrations/hetzner/prod"},
     "ovh":         {"name": "OVH",         "logo": "O", "color": "#0050d7", "url": "https://www.ovh.com/fr/",       "vault_key": "secret/integrations/ovh"},
     "infomaniak":  {"name": "Infomaniak",  "logo": "I", "color": "#00b04f", "url": "https://www.infomaniak.com/fr", "vault_key": "secret/integrations/infomaniak"},
     "telnyx":      {"name": "Telnyx",      "logo": "T", "color": "#00c89c", "url": "https://telnyx.com",            "vault_key": "secret/integrations/telnyx"},
@@ -576,7 +576,7 @@ def probe_telnyx() -> str:
 
 
 def probe_hetzner() -> str:
-    creds = _vault_read("secret/integrations/hetzner")
+    creds = _vault_read("secret/integrations/hetzner/test")
     key = creds.get("HETZNER_API_TOKEN") or creds.get("HETZNER_TOKEN") or creds.get("HCLOUD_TOKEN", "")
     if not key:
         return "key_missing"
@@ -613,7 +613,7 @@ def probe_all_providers() -> dict:
 
 def hetzner_fleet() -> list:
     """Live VPS fleet from Hetzner API, merged with VPS_META. No tokens, build-time."""
-    creds = _vault_read("secret/integrations/hetzner")
+    creds = _vault_read("secret/integrations/hetzner/test")
     key = creds.get("HCLOUD_TOKEN") or creds.get("HETZNER_API_TOKEN") or creds.get("HETZNER_TOKEN", "")
     if not key:
         return []
