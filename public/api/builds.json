@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-06-13T23:16:51Z",
+  "generated_at": "2026-06-13T23:47:37Z",
   "today": "2026-06-14",
   "window_days": 7,
   "totals": {
     "today": 0,
-    "window": 110,
+    "window": 111,
     "repos_today": 0,
     "repos_total": 7
   },
@@ -12,12 +12,19 @@
   "days": [
     {
       "date": "2026-06-13",
-      "count": 8,
+      "count": 9,
       "repos": [
         {
           "repo": "omar-qg",
           "name": "QG",
           "commits": [
+            {
+              "hash": "cfce338",
+              "author": "Omar",
+              "date": "2026-06-13 23:16",
+              "day": "2026-06-13",
+              "message": "feat(qg): afficher le dernier push réel (git, heure Paris) dans le footer — repère Alex"
+            },
             {
               "hash": "1d4a37b",
               "author": "Omar",
@@ -1000,31 +1007,31 @@
   "deploys": [
     {
       "path": "changelog/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "decisions/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "builds/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "clients/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "ops/index.html",
-      "mtime": "2026-06-13 23:13"
+      "mtime": "2026-06-13 23:47"
     },
     {
       "path": "partenaires/index.html",
-      "mtime": "2026-06-13 23:13"
+      "mtime": "2026-06-13 23:47"
+    },
+    {
+      "path": "builds/index.html",
+      "mtime": "2026-06-13 23:47"
+    },
+    {
+      "path": "decisions/index.html",
+      "mtime": "2026-06-13 23:47"
+    },
+    {
+      "path": "clients/index.html",
+      "mtime": "2026-06-13 23:47"
+    },
+    {
+      "path": "ops/index.html",
+      "mtime": "2026-06-13 23:47"
     },
     {
       "path": "index.html",
-      "mtime": "2026-06-13 23:13"
+      "mtime": "2026-06-13 23:47"
     }
   ]
 }
