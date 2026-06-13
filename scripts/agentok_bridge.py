@@ -21,7 +21,7 @@ def run(cmd: list[str], timeout: int = 60) -> subprocess.CompletedProcess:
 
 
 def builder_busy() -> bool:
-    txt = run(["hermes", "kanban", "list", "--assignee", "oa-builder"]).stdout
+    txt = run(["/home/omar/.local/bin/hermes", "kanban", "list", "--assignee", "oa-builder"]).stdout
     return any(s in txt for s in ("ready", "running", "claimed", "todo"))
 
 
@@ -31,7 +31,7 @@ def main() -> None:
         return
     cands = []
     for repo in REPOS:
-        r = run(["gh", "issue", "list", "-R", f"omar-paris/{repo}", "--label", "agent-ok",
+        r = run(["/usr/bin/gh", "issue", "list", "-R", f"omar-paris/{repo}", "--label", "agent-ok",
                  "--state", "open", "--json", "number,title,body"])
         if r.returncode != 0:
             print(f"gh KO pour {repo} — ignoré ce passage")
@@ -72,7 +72,7 @@ INTERDIT : merge, force-push, fichiers hors périmètre, secrets, suppression.
 
 {(c['body'] or '')[:4000]}
 """
-    res = run(["hermes", "kanban", "create",
+    res = run(["/home/omar/.local/bin/hermes", "kanban", "create",
                f"build: {c['repo']}#{c['number']} {c['title'][:60]}",
                "--assignee", "oa-builder",
                "--workspace", f"dir:/home/omar/23-Offre/actifs/{c['repo']}",
