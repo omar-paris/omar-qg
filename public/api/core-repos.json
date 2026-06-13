@@ -1,7 +1,7 @@
 {
   "version": "V0.7.0",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-13T22:30:01Z",
+  "built_at": "2026-06-13T23:01:19Z",
   "items": [
     {
       "id": "landing",
@@ -33,7 +33,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 15
       },
       "triage": {
         "p0": 1,
@@ -55,12 +55,9 @@
       "git": {
         "exists": true,
         "branch": "main",
-        "dirty": true,
-        "head": "82df60c fix: hetzner secret → integrations/hetzner/test (réorg prod/test 12/06)",
-        "status_short": [
-          "?? var/devis/devis-20260611T030928Z-2131c52a.json",
-          "?? var/devis/devis-20260613T025607Z-1f974aaf.json"
-        ]
+        "dirty": false,
+        "head": "a67ebcd chore(app): consolidation état courant (page /jab, données)",
+        "status_short": []
       },
       "github": {
         "open_issues": 40,
@@ -70,7 +67,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 30
+        "latency_ms": 20
       },
       "triage": {
         "p0": 5,
@@ -91,12 +88,10 @@
       "next": "P1 · #21 — [Feature] Skill automatisé d'onboarding d'apps — ajouter, référencer, analyser, peupler les fiches",
       "git": {
         "exists": true,
-        "branch": "feat/litellm-gateway",
-        "dirty": true,
-        "head": "2b0c166 feat(llm-ops): Langfuse v2 (observabilité légère) déployé + callback LiteLLM→Langfuse prouvé",
-        "status_short": [
-          "M apps/llm-observability-langfuse/docker-compose.yml"
-        ]
+        "branch": "main",
+        "dirty": false,
+        "head": "88de012 fix(langfuse): env Google SSO + init headless (observ.omar.paris)",
+        "status_short": []
       },
       "github": {
         "open_issues": 11,
@@ -144,7 +139,7 @@
       "health": {
         "status": "error",
         "http_code": 502,
-        "latency_ms": 18
+        "latency_ms": 17
       }
     },
     {
@@ -160,12 +155,11 @@
       "next": "P0 · #30 — Page Accès : collecter les logs oauth2-proxy → qui se connecte où (brique doctrine OAuth)",
       "git": {
         "exists": true,
-        "branch": "feat/qg-builds",
+        "branch": "main",
         "dirty": true,
         "head": "current qg build",
         "status_short": [
-          "M scripts/agentok_bridge.py",
-          " M scripts/qg_api.py"
+          "M scripts/build.py"
         ]
       },
       "github": {
@@ -180,7 +174,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 20
       },
       "triage": {
         "p0": 5,
@@ -194,8 +188,8 @@
       "domain": "hub.omar.paris",
       "repo": "omar-paris/omar-hub",
       "path": "omar-hub",
-      "scope": "VPS Hermes OA",
-      "role": "Cockpit local VPS.",
+      "scope": "CORE OA",
+      "role": "App N°1 : relie chaque VPS à OA. Répliquée sur tout VPS (L0/L1). Vue = version installée ici.",
       "version": "V1.0.0",
       "changelog": "https://hub.omar.paris/changelog/",
       "next": "P0 · #44 — [night][secu] vault-scanner.py : le strip des valeurs de secrets Infisical n'a aucun test",
@@ -214,7 +208,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 16
+        "latency_ms": 18
       },
       "triage": {
         "p0": 2,
@@ -228,8 +222,8 @@
       "domain": "top.omar.paris",
       "repo": "omar-paris/omar-top",
       "path": "omar-top",
-      "scope": "VPS Hermes OA",
-      "role": "Référence stack VPS Hermes OA : standards, maturité, contrôles.",
+      "scope": "CORE OA",
+      "role": "Référence/doctrine : standards, maturité, contrôles (L0→L3 par VPS).",
       "version": "V0.3.0-rc1",
       "changelog": "https://top.omar.paris/changelog/",
       "next": "Stabiliser rc1.",
@@ -252,14 +246,14 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 10
+        "latency_ms": 17
       }
     }
   ],
   "counts": {
     "total": 7,
-    "core": 5,
-    "vps": 2,
+    "core": 7,
+    "vps": 0,
     "healthy": 6,
     "open_issues_total": 160,
     "open_prs_total": 3
@@ -521,7 +515,7 @@
       "color": "#d50c2d",
       "url": "https://www.hetzner.com",
       "vault_key": "secret/integrations/hetzner/prod",
-      "api_status": "key_missing"
+      "api_status": "ok"
     },
     "ovh": {
       "name": "OVH",
@@ -529,7 +523,7 @@
       "color": "#0050d7",
       "url": "https://www.ovh.com/fr/",
       "vault_key": "secret/integrations/ovh",
-      "api_status": "key_missing"
+      "api_status": "ok"
     },
     "infomaniak": {
       "name": "Infomaniak",
@@ -537,7 +531,7 @@
       "color": "#00b04f",
       "url": "https://www.infomaniak.com/fr",
       "vault_key": "secret/integrations/infomaniak",
-      "api_status": "key_missing"
+      "api_status": "ok"
     },
     "telnyx": {
       "name": "Telnyx",
@@ -545,16 +539,225 @@
       "color": "#00c89c",
       "url": "https://telnyx.com",
       "vault_key": "secret/integrations/telnyx",
-      "api_status": "key_missing"
+      "api_status": "ok"
     }
   },
   "live": {
     "ovh": {
-      "domains": [],
-      "email_domains_with_accounts": []
+      "domains": [
+        "alexgo.eu",
+        "alexgo.fr",
+        "break-free-now.net",
+        "buildwithclaw.fr",
+        "buildwithclaw.paris",
+        "deployclaw.fr",
+        "edugame.fr",
+        "lobsterbuilders.com",
+        "omar-alex.fr",
+        "omar-alex.paris",
+        "omar.paris",
+        "omaralex.fr",
+        "omaralex.paris",
+        "omaretalex.fr",
+        "omaretalex.paris",
+        "omarparis.com",
+        "omarparis.fr",
+        "openclawfieldbook.com",
+        "openclawfieldplaybook.com",
+        "openclawforbuilders.com",
+        "rebelia.fr",
+        "rebellia.fr",
+        "thelobstercrew.com",
+        "willemetz.xyz"
+      ],
+      "email_domains_with_accounts": [
+        {
+          "domain": "alexgo.eu",
+          "count": 1
+        },
+        {
+          "domain": "joel.paris",
+          "count": 4
+        },
+        {
+          "domain": "ladb.fr",
+          "count": 13
+        },
+        {
+          "domain": "ladb.paris",
+          "count": 4
+        },
+        {
+          "domain": "laprincesse.paris",
+          "count": 1
+        }
+      ]
     }
   },
-  "fleet": [],
+  "fleet": [
+    {
+      "name": "ubuntu-16gb-omar",
+      "label": "VPS-Omar",
+      "role": "CORE OA",
+      "role_color": "#0050d7",
+      "owner": "OA / Alex",
+      "purpose": "Infra centrale : agents Hermes, Caddy, Vault, sites CORE OA, QG.",
+      "links": [
+        {
+          "kind": "hub",
+          "label": "Hub local",
+          "url": "https://hub.omar.paris/",
+          "status": "live"
+        },
+        {
+          "kind": "hermesui",
+          "label": "Hermes UI",
+          "url": "http://100.79.68.6:9119/",
+          "status": "live"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Glances",
+          "url": "http://100.79.68.6:61208/",
+          "status": "live"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Dashy",
+          "url": "http://100.79.68.6:8084/",
+          "status": "tailnet"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Console Hetzner",
+          "url": "https://console.hetzner.cloud/",
+          "status": "live"
+        }
+      ],
+      "tailnet": "100.79.68.6",
+      "id": 124825569,
+      "status": "running",
+      "type": "ccx23",
+      "vcpu": 4,
+      "ram_gb": 16,
+      "disk_gb": 160,
+      "ip": "195.201.20.17",
+      "datacenter": "nbg1-dc3",
+      "location": "Nuremberg, DE",
+      "os": "ubuntu-24.04",
+      "created": "2026-03-24",
+      "price_eur": 37.79,
+      "backups": "on",
+      "traffic_out_gb": 19.3,
+      "traffic_inc_tb": 22.0
+    },
+    {
+      "name": "ubuntu-16gb-pan",
+      "label": "VPS-Pantheos",
+      "role": "STUDIO",
+      "role_color": "#7c3aed",
+      "owner": "OA / Alex",
+      "purpose": "Studio Pantheos : editing.alexgo.eu. Cible : H-Aurel + apps L1.",
+      "links": [
+        {
+          "kind": "site",
+          "label": "editing.alexgo.eu",
+          "url": "https://editing.alexgo.eu/",
+          "status": "live"
+        },
+        {
+          "kind": "hub",
+          "label": "Hub local",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "hermesui",
+          "label": "Hermes UI",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Glances",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Console Hetzner",
+          "url": "https://console.hetzner.cloud/",
+          "status": "live"
+        }
+      ],
+      "tailnet": "",
+      "id": 118906691,
+      "status": "running",
+      "type": "ccx23",
+      "vcpu": 4,
+      "ram_gb": 16,
+      "disk_gb": 160,
+      "ip": "78.46.201.97",
+      "datacenter": "nbg1-dc3",
+      "location": "Nuremberg, DE",
+      "os": "ubuntu-24.04",
+      "created": "2026-01-29",
+      "price_eur": 37.79,
+      "backups": "on",
+      "traffic_out_gb": 2.5,
+      "traffic_inc_tb": 22.0
+    },
+    {
+      "name": "ubuntu-4gb-jab",
+      "label": "VPS-JAB",
+      "role": "CLIENT",
+      "role_color": "#16a34a",
+      "owner": "Client JAB",
+      "purpose": "Stack client JAB : facturation PennyLane, Maryse, Google MyBusiness.",
+      "links": [
+        {
+          "kind": "hub",
+          "label": "Hub local",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "hermesui",
+          "label": "Hermes UI",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Glances",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Console Hetzner",
+          "url": "https://console.hetzner.cloud/",
+          "status": "live"
+        }
+      ],
+      "tailnet": "",
+      "id": 127265089,
+      "status": "running",
+      "type": "cpx32",
+      "vcpu": 4,
+      "ram_gb": 8,
+      "disk_gb": 160,
+      "ip": "168.119.172.126",
+      "datacenter": "nbg1-dc3",
+      "location": "Nuremberg, DE",
+      "os": "ubuntu-24.04",
+      "created": "2026-04-17",
+      "price_eur": 16.79,
+      "backups": "on",
+      "traffic_out_gb": 0.0,
+      "traffic_inc_tb": 22.0
+    }
+  ],
   "vps": {
     "built_at": "2026-06-13T06:40:03Z",
     "standard": "VPS Hermes OA (OmarTop phases-spec P0→P6)",
