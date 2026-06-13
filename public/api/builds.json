@@ -1,94 +1,63 @@
 {
-  "generated_at": "2026-06-12T03:00:27Z",
-  "today": "2026-06-12",
+  "generated_at": "2026-06-13T22:30:27Z",
+  "today": "2026-06-14",
   "window_days": 7,
   "totals": {
-    "today": 6,
-    "window": 119,
-    "repos_today": 4,
+    "today": 0,
+    "window": 104,
+    "repos_today": 0,
     "repos_total": 7
   },
-  "today_by_repo": [
-    {
-      "repo": "omar-qg",
-      "name": "QG",
-      "count": 2,
-      "commits": [
-        {
-          "hash": "abc3fff",
-          "author": "Claude-Cockpit [bot]",
-          "date": "2026-06-12 00:18",
-          "day": "2026-06-12",
-          "message": "feat(observe): envoi matinal Telegram conversationnel + cron 6h (go Alex 12/06)"
-        },
-        {
-          "hash": "5c0b780",
-          "author": "Claude-Cockpit [bot]",
-          "date": "2026-06-12 00:09",
-          "day": "2026-06-12",
-          "message": "feat(observe): oa-observe — observateur proactif de la flotte OA"
-        }
-      ]
-    },
-    {
-      "repo": "omar-top",
-      "name": "OmarTop",
-      "count": 2,
-      "commits": [
-        {
-          "hash": "70249ee",
-          "author": "cc-manager",
-          "date": "2026-06-12 02:50",
-          "day": "2026-06-12",
-          "message": "docs: SYSTÈME OA 1-page — la boucle canonique (devis→onboarding→catalogue→install→hub→agent→doctor→observateur→QG→feedback) + standard recette + anti-orphelins (grave Alex 12/06)"
-        },
-        {
-          "hash": "fa7a1c4",
-          "author": "cc-manager",
-          "date": "2026-06-12 00:02",
-          "day": "2026-06-12",
-          "message": "docs: glossaire OA canonique (SoT vocabulaire) + lien dans index doctrine"
-        }
-      ]
-    },
-    {
-      "repo": "omar-catalogue",
-      "name": "Catalogue",
-      "count": 1,
-      "commits": [
-        {
-          "hash": "4d4ef0f",
-          "author": "cc-manager",
-          "date": "2026-06-12 02:56",
-          "day": "2026-06-12",
-          "message": "feat: standard recette d'app + pilote Listmonk + installeur oa-install (dry-run OK)"
-        }
-      ]
-    },
-    {
-      "repo": "omar-landing",
-      "name": "Landing",
-      "count": 1,
-      "commits": [
-        {
-          "hash": "931e2cd",
-          "author": "Claude-Cockpit [bot]",
-          "date": "2026-06-12 01:30",
-          "day": "2026-06-12",
-          "message": "feat(landing): 3 variantes comparatives v1/v2/v3 (preuve en direct / artisan / éditorial) — design Alex 12/06"
-        }
-      ]
-    }
-  ],
+  "today_by_repo": [],
   "days": [
     {
+      "date": "2026-06-13",
+      "count": 2,
+      "repos": [
+        {
+          "repo": "omar-catalogue",
+          "name": "Catalogue",
+          "commits": [
+            {
+              "hash": "2b0c166",
+              "author": "Omar",
+              "date": "2026-06-13 01:53",
+              "day": "2026-06-13",
+              "message": "feat(llm-ops): Langfuse v2 (observabilité légère) déployé + callback LiteLLM→Langfuse prouvé"
+            },
+            {
+              "hash": "ecbb3fe",
+              "author": "Omar",
+              "date": "2026-06-13 00:20",
+              "day": "2026-06-13",
+              "message": "feat(llm-ops): passerelle LiteLLM L1 — déployée et prouvée sur VPS-Omar"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "date": "2026-06-12",
-      "count": 6,
+      "count": 9,
       "repos": [
         {
           "repo": "omar-qg",
           "name": "QG",
           "commits": [
+            {
+              "hash": "6242c7e",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-12 03:09",
+              "day": "2026-06-12",
+              "message": "fix: hetzner secret → prod/test (réorg 12/06)"
+            },
+            {
+              "hash": "0232f3f",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-12 03:00",
+              "day": "2026-06-12",
+              "message": "feat(qg): page Builds du jour + reconnexion Décisions à la nav"
+            },
             {
               "hash": "abc3fff",
               "author": "Claude-Cockpit [bot]",
@@ -122,6 +91,19 @@
               "date": "2026-06-12 00:02",
               "day": "2026-06-12",
               "message": "docs: glossaire OA canonique (SoT vocabulaire) + lien dans index doctrine"
+            }
+          ]
+        },
+        {
+          "repo": "omar-app",
+          "name": "AppOmar",
+          "commits": [
+            {
+              "hash": "82df60c",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-12 03:09",
+              "day": "2026-06-12",
+              "message": "fix: hetzner secret → integrations/hetzner/test (réorg prod/test 12/06)"
             }
           ]
         },
@@ -959,206 +941,36 @@
           ]
         }
       ]
-    },
-    {
-      "date": "2026-06-06",
-      "count": 8,
-      "repos": [
-        {
-          "repo": "omar-hub",
-          "name": "Hub",
-          "commits": [
-            {
-              "hash": "0afcbb3",
-              "author": "alexwill87",
-              "date": "2026-06-06 03:38",
-              "day": "2026-06-06",
-              "message": "fix(deploy): keep source tree clean during staging"
-            },
-            {
-              "hash": "9e3ea0a",
-              "author": "alexwill87",
-              "date": "2026-06-06 03:07",
-              "day": "2026-06-06",
-              "message": "feat(home): add local cockpit federation view"
-            },
-            {
-              "hash": "3d287b0",
-              "author": "alexwill87",
-              "date": "2026-06-06 02:57",
-              "day": "2026-06-06",
-              "message": "docs: define Hub local and QG fleet model"
-            },
-            {
-              "hash": "2421110",
-              "author": "alexwill87",
-              "date": "2026-06-06 01:52",
-              "day": "2026-06-06",
-              "message": "fix(activity): keep collector publishes web-readable (#27)"
-            },
-            {
-              "hash": "facf1ad",
-              "author": "alexwill87",
-              "date": "2026-06-06 01:42",
-              "day": "2026-06-06",
-              "message": "feat(activity): add local dynamic collector (#26)"
-            },
-            {
-              "hash": "24eefe4",
-              "author": "alexwill87",
-              "date": "2026-06-06 01:12",
-              "day": "2026-06-06",
-              "message": "fix(activity): consolidate read-only sessions and logs fixtures (#25)"
-            },
-            {
-              "hash": "cff407b",
-              "author": "alexwill87",
-              "date": "2026-06-06 00:30",
-              "day": "2026-06-06",
-              "message": "feat: expose changelog in Hub (#24)"
-            },
-            {
-              "hash": "202b908",
-              "author": "alexwill87",
-              "date": "2026-06-06 00:12",
-              "day": "2026-06-06",
-              "message": "feat: consolidate catalogue v1 skills observability (#23)"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "date": "2026-06-05",
-      "count": 12,
-      "repos": [
-        {
-          "repo": "omar-catalogue",
-          "name": "Catalogue",
-          "commits": [
-            {
-              "hash": "932474b",
-              "author": "alexwill87",
-              "date": "2026-06-05 23:11",
-              "day": "2026-06-05",
-              "message": "feat(catalogue): export potential graph contract (#10)"
-            },
-            {
-              "hash": "df3871a",
-              "author": "alexwill87",
-              "date": "2026-06-05 23:03",
-              "day": "2026-06-05",
-              "message": "feat(catalogue): add C1 structured relations (#9)"
-            },
-            {
-              "hash": "563101a",
-              "author": "alexwill87",
-              "date": "2026-06-05 21:46",
-              "day": "2026-06-05",
-              "message": "docs(catalogue): define living capacity relations strategy (#8)"
-            },
-            {
-              "hash": "795f60b",
-              "author": "alexwill87",
-              "date": "2026-06-05 21:25",
-              "day": "2026-06-05",
-              "message": "feat(catalogue): enrich c1 priority capabilities (#7)"
-            },
-            {
-              "hash": "86a2749",
-              "author": "alexwill87",
-              "date": "2026-06-05 21:18",
-              "day": "2026-06-05",
-              "message": "docs: align catalogue capabilities and vps state (#6)"
-            },
-            {
-              "hash": "7a47a8c",
-              "author": "alexwill87",
-              "date": "2026-06-05 16:13",
-              "day": "2026-06-05",
-              "message": "fix: enforce settings-first catalogue contract"
-            }
-          ]
-        },
-        {
-          "repo": "omar-hub",
-          "name": "Hub",
-          "commits": [
-            {
-              "hash": "c3e6274",
-              "author": "alexwill87",
-              "date": "2026-06-05 22:15",
-              "day": "2026-06-05",
-              "message": "feat(hub): close V1 cockpit gaps (#22)"
-            },
-            {
-              "hash": "75edc74",
-              "author": "alexwill87",
-              "date": "2026-06-05 15:51",
-              "day": "2026-06-05",
-              "message": "feat(agents): add permissions matrix page (#19)"
-            },
-            {
-              "hash": "218e274",
-              "author": "alexwill87",
-              "date": "2026-06-05 15:39",
-              "day": "2026-06-05",
-              "message": "docs(logs): add OmarHub observability brief (#18)"
-            },
-            {
-              "hash": "f132cf0",
-              "author": "alexwill87",
-              "date": "2026-06-05 15:39",
-              "day": "2026-06-05",
-              "message": "docs(connexions): add Nango product brief (#17)"
-            },
-            {
-              "hash": "d206459",
-              "author": "alexwill87",
-              "date": "2026-06-05 03:49",
-              "day": "2026-06-05",
-              "message": "feat(capacites): introduce typed capability directory"
-            },
-            {
-              "hash": "0f8b99f",
-              "author": "alexwill87",
-              "date": "2026-06-05 03:01",
-              "day": "2026-06-05",
-              "message": "docs(connexions): define Nango activation contract"
-            }
-          ]
-        }
-      ]
     }
   ],
   "deploys": [
     {
       "path": "changelog/index.html",
-      "mtime": "2026-06-12 03:00"
-    },
-    {
-      "path": "partenaires/index.html",
-      "mtime": "2026-06-12 03:00"
+      "mtime": "2026-06-13 22:00"
     },
     {
       "path": "decisions/index.html",
-      "mtime": "2026-06-12 03:00"
+      "mtime": "2026-06-13 22:00"
     },
     {
       "path": "builds/index.html",
-      "mtime": "2026-06-12 03:00"
+      "mtime": "2026-06-13 22:00"
     },
     {
       "path": "clients/index.html",
-      "mtime": "2026-06-12 03:00"
+      "mtime": "2026-06-13 22:00"
     },
     {
       "path": "ops/index.html",
-      "mtime": "2026-06-12 03:00"
+      "mtime": "2026-06-13 22:00"
+    },
+    {
+      "path": "partenaires/index.html",
+      "mtime": "2026-06-13 22:00"
     },
     {
       "path": "index.html",
-      "mtime": "2026-06-12 03:00"
+      "mtime": "2026-06-13 22:00"
     }
   ]
 }

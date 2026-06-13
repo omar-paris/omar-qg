@@ -1,35 +1,27 @@
 {
-  "latest": "/api/daily-ledger/2026-06-12.json",
+  "latest": "/api/daily-ledger/2026-06-14.json",
   "items": [
     {
-      "date": "2026-06-12",
-      "generated_at": "2026-06-12T03:00:02Z",
+      "date": "2026-06-14",
+      "generated_at": "2026-06-13T22:30:01Z",
       "version": "V0.7.0",
       "sessions": {
         "hermes": {
-          "sessions": 1,
-          "messages": 34,
-          "tool_calls": 14,
-          "api_calls": 17,
-          "by_source": {
-            "tui": 1
-          },
+          "sessions": 0,
+          "messages": 0,
+          "tool_calls": 0,
+          "api_calls": 0,
+          "by_source": {},
           "db": "/home/omar/.hermes/state.db",
           "error": null
         },
         "ccusage": {
           "sessions_by_agent": {},
           "daily": {
-            "total_cost_usd": 48.6346,
-            "total_tokens": 41367814,
-            "agents": [
-              "claude"
-            ],
-            "models_used": [
-              "claude-fable-5",
-              "claude-haiku-4-5-20251001",
-              "claude-opus-4-8"
-            ]
+            "total_cost_usd": 0.0,
+            "total_tokens": 0,
+            "agents": [],
+            "models_used": []
           },
           "error": null
         }
@@ -46,7 +38,7 @@
         "local_build_records": 0
       },
       "local_builds": {
-        "path": "/home/omar/11-Pilotage/ledgers/builds/2026-06-12.jsonl",
+        "path": "/home/omar/11-Pilotage/ledgers/builds/2026-06-14.jsonl",
         "count": 0,
         "success": 0,
         "failure": 0,
@@ -61,7 +53,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 16
+            "latency_ms": 18
           },
           "git": {
             "exists": true,
@@ -96,15 +88,16 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 18
+            "latency_ms": 30
           },
           "git": {
             "exists": true,
             "branch": "main",
             "dirty": true,
-            "head": "d4ae1d3 feat: portail unifié OA App — UN seul build servi par le serveur (home/devis/onboarding/sav/compte/aide/changelog/admin)",
+            "head": "82df60c fix: hetzner secret → integrations/hetzner/test (réorg prod/test 12/06)",
             "status_short": [
-              "?? var/devis/devis-20260611T030928Z-2131c52a.json"
+              "?? var/devis/devis-20260611T030928Z-2131c52a.json",
+              "?? var/devis/devis-20260613T025607Z-1f974aaf.json"
             ]
           },
           "github_open": {
@@ -129,14 +122,16 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 12
+            "latency_ms": 19
           },
           "git": {
             "exists": true,
-            "branch": "feat/recipe-listmonk",
-            "dirty": false,
-            "head": "4d4ef0f feat: standard recette d'app + pilote Listmonk + installeur oa-install (dry-run OK)",
-            "status_short": []
+            "branch": "feat/litellm-gateway",
+            "dirty": true,
+            "head": "2b0c166 feat(llm-ops): Langfuse v2 (observabilité légère) déployé + callback LiteLLM→Langfuse prouvé",
+            "status_short": [
+              "M apps/llm-observability-langfuse/docker-compose.yml"
+            ]
           },
           "github_open": {
             "open_issues": 11,
@@ -162,9 +157,9 @@
           "name": "Lab",
           "repo": "",
           "health": {
-            "status": "ok",
-            "http_code": 200,
-            "latency_ms": 13
+            "status": "error",
+            "http_code": 502,
+            "latency_ms": 18
           },
           "git": {
             "exists": true,
@@ -187,18 +182,16 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 12
+            "latency_ms": 18
           },
           "git": {
             "exists": true,
-            "branch": "main",
+            "branch": "feat/qg-builds",
             "dirty": true,
             "head": "current qg build",
             "status_short": [
               "M scripts/agentok_bridge.py",
-              " M scripts/build.py",
-              "?? scripts/README-builds.md",
-              "?? scripts/build-ledger.py"
+              " M scripts/qg_api.py"
             ]
           },
           "github_open": {
@@ -227,7 +220,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 18
+            "latency_ms": 16
           },
           "git": {
             "exists": true,
@@ -258,7 +251,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 15
+            "latency_ms": 10
           },
           "git": {
             "exists": true,
@@ -291,7 +284,7 @@
         {
           "level": "warning",
           "code": "DIRTY_REPOS",
-          "message": "2 repo(s) locaux dirty dans le registry."
+          "message": "3 repo(s) locaux dirty dans le registry."
         },
         {
           "level": "warning",

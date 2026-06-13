@@ -1,11 +1,11 @@
 {
-  "built_at": "2026-06-11T06:15:04Z",
+  "built_at": "2026-06-13T06:15:04Z",
   "llm_used": false,
   "fetch_errors": [],
   "apps": {
     "app": {
       "p0": 5,
-      "p1": 23,
+      "p1": 24,
       "p2": 11,
       "top": [
         {
@@ -39,6 +39,12 @@
           "url": "https://github.com/omar-paris/omar-app/issues/13"
         },
         {
+          "number": 41,
+          "title": "Convergence Onboarding + SAV + Hub/Maturité = une seule surface de tests homogène",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-app/issues/41"
+        },
+        {
           "number": 40,
           "title": "Endpoint support agents clients : Edilia (et futurs h-*) posent leurs questions, un agent OA répond",
           "prio": "P1",
@@ -61,12 +67,6 @@
           "title": "feat: wizard achat fournisseurs RÉEL (Hetzner/OVH/Telnyx) — acheter les produits pour le client",
           "prio": "P1",
           "url": "https://github.com/omar-paris/omar-app/issues/36"
-        },
-        {
-          "number": 35,
-          "title": "feat: onboarding persistant + reprise + mode simulation console (comme devis)",
-          "prio": "P1",
-          "url": "https://github.com/omar-paris/omar-app/issues/35"
         }
       ],
       "next": "P0 · #38 — ops: durcir la gestion des secrets (Vault root token → policies/Infisical) avant prod"
@@ -141,7 +141,7 @@
     },
     "hub": {
       "p0": 2,
-      "p1": 0,
+      "p1": 1,
       "p2": 12,
       "top": [
         {
@@ -155,6 +155,12 @@
           "title": "[night][secu] public/api/vault.json publie l'inventaire des secrets hors-Vault (chemins SSH, .env, username GitHub)",
           "prio": "P0",
           "url": "https://github.com/omar-paris/omar-hub/issues/43"
+        },
+        {
+          "number": 53,
+          "title": "Home : 4 sections métier + favoris épinglables + voyants reconnectés (retours client 11/06)",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-hub/issues/53"
         },
         {
           "number": 52,
@@ -197,12 +203,6 @@
           "title": "[night][coherence] apps-catalogue.json : duplicata mort (109 items) jamais consommé par l'UI",
           "prio": "P2",
           "url": "https://github.com/omar-paris/omar-hub/issues/46"
-        },
-        {
-          "number": 38,
-          "title": "Hub consistency backlog: classify VPS mirror and Capacités-Catalogue gaps from nightly V4",
-          "prio": "P2",
-          "url": "https://github.com/omar-paris/omar-hub/issues/38"
         }
       ],
       "next": "P0 · #44 — [night][secu] vault-scanner.py : le strip des valeurs de secrets Infisical n'a aucun test"
@@ -210,7 +210,7 @@
     "qg": {
       "p0": 5,
       "p1": 3,
-      "p2": 13,
+      "p2": 14,
       "top": [
         {
           "number": 30,
@@ -261,24 +261,24 @@
           "url": "https://github.com/omar-paris/omar-qg/issues/15"
         },
         {
+          "number": 32,
+          "title": "Page Rôles & Accès — qui voit quoi dans le système",
+          "prio": "P2",
+          "url": "https://github.com/omar-paris/omar-qg/issues/32"
+        },
+        {
           "number": 27,
           "title": "feat: /decisions/ — boîte de décisions Alex (questions uniques, groupées, boutons, déblocage kanban)",
           "prio": "P2",
           "url": "https://github.com/omar-paris/omar-qg/issues/27"
-        },
-        {
-          "number": 26,
-          "title": "feat: fiche app /apps/<id>/ (V0.8) — triage du jour, historique builds 7j, contract",
-          "prio": "P2",
-          "url": "https://github.com/omar-paris/omar-qg/issues/26"
         }
       ],
       "next": "P0 · #30 — Page Accès : collecter les logs oauth2-proxy → qui se connecte où (brique doctrine OAuth)"
     },
     "top": {
       "p0": 3,
-      "p1": 8,
-      "p2": 28,
+      "p1": 10,
+      "p2": 31,
       "top": [
         {
           "number": 43,
@@ -297,6 +297,18 @@
           "title": "[O-Top] SEC-SECRET-ROTATION-01 — Rotation secrets",
           "prio": "P0",
           "url": "https://github.com/omar-paris/omar-top/issues/20"
+        },
+        {
+          "number": 46,
+          "title": "Nango par VPS client : instance dédiée sur VPS-JAB (et standard P3)",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-top/issues/46"
+        },
+        {
+          "number": 45,
+          "title": "Standard P4 : toute surface client est validée EN TANT QUE CLIENT avant d'être montrée (règle Alex 11/06)",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-top/issues/45"
         },
         {
           "number": 38,
@@ -327,18 +339,6 @@
           "title": "[O-Top] AGENT-EMAIL-01 — Email lire/rédiger avec validation",
           "prio": "P1",
           "url": "https://github.com/omar-paris/omar-top/issues/22"
-        },
-        {
-          "number": 21,
-          "title": "[O-Top] AGENT-CANAL-01 — Canal client principal",
-          "prio": "P1",
-          "url": "https://github.com/omar-paris/omar-top/issues/21"
-        },
-        {
-          "number": 19,
-          "title": "[O-Top] DATA-EXPORT-01 — Export client",
-          "prio": "P1",
-          "url": "https://github.com/omar-paris/omar-top/issues/19"
         }
       ],
       "next": "P0 · #43 — doctrine: appliquer STANDARD-OAUTH-OA (doc publié docs/standards/oauth-oa.md)"

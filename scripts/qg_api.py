@@ -31,7 +31,15 @@ def load() -> list[dict]:
 
 def save(items: list[dict]) -> None:
     STORE.parent.mkdir(exist_ok=True)
-    STORE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    payload = json.dumps(items, ensure_ascii=False, indent=2)
+    STORE.write_text(payload, encoding="utf-8")
+    # Reflet IMMÉDIAT dans la page publique servie (sinon lag jusqu'au rebuild 30 min — fix 12/06)
+    pub = ROOT / "public" / "api" / "decisions.json"
+    try:
+        if pub.parent.exists():
+            pub.write_text(payload, encoding="utf-8")
+    except Exception:
+        pass
 
 
 def unblock(ref: str, qid: str, answer: str) -> str:

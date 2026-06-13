@@ -79,7 +79,195 @@
     "blocked_ref": "",
     "posee_par": "CCC2",
     "posee_le": "2026-06-11T00:28:49Z",
-    "statut": "ouverte",
-    "reponse": null
+    "statut": "répondue",
+    "reponse": "A) la session Fable Pantheos (caddy y est inactive — Ton acces à Pantheos doit être aussi bon voire meilleure que pour JAB. Pouras ton utiliser les pages ONboarding ou SAV de AppOmar pour bien configurer ce qu'on veut installer et le faire ? Au fait, tu me propsoes 2 boutons pour 3 réposnes.  tu doits faire pluts attention. AUssi, l'encarte textes est = à un eligne alors que ca devrait être un blo paratagraphe ET je ne vois pas de bouton, au cas aucune des reponeses ne me plait.",
+    "repondue_le": "2026-06-12T14:34:06Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "69078d311f",
+    "groupe": "consolidation-120626",
+    "type": "fermée",
+    "texte": "[D1] Valider en lot les 28 questions standard [O-Top] (top#11-40) ?",
+    "options": [
+      "valider par pilier A/B/C",
+      "valider tout en bloc",
+      "traiter une par une"
+    ],
+    "contexte": "Débloque ~28 issues d'un coup → AGENT-OK. Ce sont des questions de standard avec 'Action proposée' déjà rédigée. Plus gros gisement débloquable en 1 décision. (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "valider par pilier A/B/C — J'aimerai lire cette page. Mais c'est dommage tu ne me donnes pas le lien de ce doc ET code.omar.app est hors ligne",
+    "repondue_le": "2026-06-12T14:35:39Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "25f69efa80",
+    "groupe": "consolidation-120626",
+    "type": "fermée",
+    "texte": "[D2] Hetzner : créer un token read-write + upgrader JAB en CX32 ?",
+    "options": [
+      "oui token RW + CX32",
+      "token RW seul",
+      "attendre"
+    ],
+    "contexte": "Les 2 tokens Hetzner sont READ-ONLY → resize/provisioning API impossible, JAB tourne sur swap. Débloque l'installeur mode réel + 1 VPS par client. (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "oui token RW + CX32 — C'est déjà faiit.....",
+    "repondue_le": "2026-06-12T14:34:54Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "b17cd03aed",
+    "groupe": "consolidation-120626",
+    "type": "fermée",
+    "texte": "[D3] Activer Stripe LIVE (lancer le KYC/IBAN) ?",
+    "options": [
+      "oui lancer le KYC",
+      "attendre un 2e client",
+      "non"
+    ],
+    "contexte": "Tout l'e-commerce tourne en test. Débloque app#1-12/#24/#32/#34/#37 + landing#4/#9 (tout le pricing). KYC = uniquement toi. (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "non — on attend encore un peu. Je dois tester app.omar en entier...",
+    "repondue_le": "2026-06-12T14:37:08Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "3ff2a4f2ad",
+    "groupe": "consolidation-120626",
+    "type": "fermée",
+    "texte": "[D4] Surface de vérité maturité/SAV/onboarding : laquelle ?",
+    "options": [
+      "hub#52 = spec unique",
+      "garder séparé",
+      "autre"
+    ],
+    "contexte": "Convergence décidée 11/06 (app#41) mais 4 issues la spécifient séparément. Choisir hub#52 ferme/réoriente qg#15, app#20/#33/#41. (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "autre — Quand je dois prendre une décision, TU dois me donner les éléments pour dédcier directmeent depuis cette page décisions saoit avec les infos direct dans la desrption de la question soit avec un lien code.",
+    "repondue_le": "2026-06-12T14:38:12Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "2fa0610f95",
+    "groupe": "consolidation-120626",
+    "type": "fermée",
+    "texte": "[D5] Rollout OAuth *.omar.paris : généraliser le modèle JAB ?",
+    "options": [
+      "oui généraliser",
+      "déployer par domaine",
+      "attendre visite"
+    ],
+    "contexte": "Débloque qg#23/#24/#29/#30, app#13/#30, top#43. Le modèle JAB (1 client Google, forward_auth) marche déjà en SSO. (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "oui généraliser — oui nous devons généraliser si ce n'est pas fait, faire des vérif puor être certains qu'on a rien cassé et qu'on définisse une page dans QG pour définir les acccès par type de user et peutêtre type d'agents avec les types d'App. à voir.",
+    "repondue_le": "2026-06-12T14:39:41Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "447fac7271",
+    "groupe": "consolidation-120626",
+    "type": "ouverte",
+    "texte": "[D9] Matrice coût réel : quel prix par palier (Starter/Pro/Max) ?",
+    "options": [],
+    "contexte": "Starter/Pro/Max non chiffrés (app#7, parent app#1). Bloque tout le packaging. Piste évoquée : 200 EUR install + 80 EUR/mois (landing#4). À fixer depuis le coût réel Hetzner+LLM. (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "Notre politique est de commencer bas : 29€ 59 € et 89€ peutêtre ? sachant que c'est Hors taxe. à fixer oui par rapport à ce qu'on inclut dans chacun de ces pack.",
+    "repondue_le": "2026-06-12T14:41:33Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "14192085d0",
+    "groupe": "consolidation-120626",
+    "type": "fermée",
+    "texte": "[D12] Vault dev → prod : quelle cible ?",
+    "options": [
+      "Vault persistant",
+      "Infisical (déjà std secrets-par-client)",
+      "hybride"
+    ],
+    "contexte": "Vault OA en mode DEV : root token en clair dans la cmdline, données en RAM. À sécuriser avant d'industrialiser. Infisical est déjà le standard secrets-par-client. (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "Infisical (déjà std secrets-par-client) — Merci de me propsoer UNE solution robusste et définitive avec UNE app. Sachant que chaque VPS doit avoir le meme. Que chacun des users doit pouvoir rajouter facilement des mots de passe via Hub parametres ou ailleurs ou en direct avec l'agent hermes via Télégram ou un autre canal sécurisé. Sahant qu'on est sur tailscale, on doit sécursier sans paniquer. Les agents doivent avec access en fonction de leurs rôle. MAis oui H-omar ou les ClaudeCode doitvent avec une accès 100% normalement. A bien définir",
+    "repondue_le": "2026-06-12T14:44:24Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "d9beee76e6",
+    "groupe": "consolidation-120626",
+    "type": "fermée",
+    "texte": "[D16] Successeur orchestrateur : ré-armer h-omar ?",
+    "options": [
+      "oui ré-armer h-omar",
+      "créer un nouvel agent",
+      "Alex arbitre manuellement"
+    ],
+    "contexte": "h-omar archivé le 7/06, jamais remplacé. oa-builder+oa-athena tournent sans chef → personne ne ferme la boucle build. Le nom h-omar est déjà câblé (collecteur, observateur). (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "oui ré-armer h-omar — Pourquoi H-Omar aurait été archivé. Je continue à lui parler. H-Omar = default chez Hermes. Mais oui on pourrait s'implifier.  COMMENT ça il n'y a plus de chef, que s'est il passé ????",
+    "repondue_le": "2026-06-12T14:45:32Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "4fcb210178",
+    "groupe": "consolidation-120626",
+    "type": "fermée",
+    "texte": "[D17] Modèle sur canal client = premium obligatoire ?",
+    "options": [
+      "oui premium obligatoire",
+      "free toléré",
+      "au cas par cas"
+    ],
+    "contexte": "Incident 11/06 : Edilia a inventé OVH/Netlify devant Maître JA sur un modèle FREE. Règle dure proposée : canal client = Sonnet/Codex, free réservé interne. (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "au cas par cas — Le free était une promot de Nemotron 5 ultra. DONC ce n'était pas à cause du modele, tu m'as fait comprendre que tu avais oublié de charger Soul.md de Edilia dans OPenWebUI. Donc s'il te plait ne causons pas plus de trouble que tu n'en a créé. Si tu avais configuré parfaitement OpenWeb ui dès le début, on aurait pas cette convesastation, memem en utilsiant le free Nemotron 5 ultra.",
+    "repondue_le": "2026-06-12T14:47:26Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "46cb4e7dc1",
+    "groupe": "consolidation-120626",
+    "type": "fermée",
+    "texte": "[D22] 2e client pilote pour valider un 2e bundle ?",
+    "options": [
+      "Maryse",
+      "Medhi",
+      "attendre"
+    ],
+    "contexte": "Sortir du mono-client JAB. Maryse et Medhi sont déjà provisionnés en Vault (agent-keys, tailscale, ssh). Valide un bundle non-avocat. (consolidation 12/06)",
+    "blocked_ref": "",
+    "posee_par": "fable-night",
+    "posee_le": "2026-06-12T03:42:14Z",
+    "statut": "répondue",
+    "reponse": "Maryse",
+    "repondue_le": "2026-06-12T14:47:38Z",
+    "deblocage": "no_ref"
   }
 ]

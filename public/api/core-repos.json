@@ -1,7 +1,7 @@
 {
   "version": "V0.7.0",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-12T03:00:02Z",
+  "built_at": "2026-06-13T22:30:01Z",
   "items": [
     {
       "id": "landing",
@@ -33,7 +33,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 16
+        "latency_ms": 18
       },
       "triage": {
         "p0": 1,
@@ -56,9 +56,10 @@
         "exists": true,
         "branch": "main",
         "dirty": true,
-        "head": "d4ae1d3 feat: portail unifié OA App — UN seul build servi par le serveur (home/devis/onboarding/sav/compte/aide/changelog/admin)",
+        "head": "82df60c fix: hetzner secret → integrations/hetzner/test (réorg prod/test 12/06)",
         "status_short": [
-          "?? var/devis/devis-20260611T030928Z-2131c52a.json"
+          "?? var/devis/devis-20260611T030928Z-2131c52a.json",
+          "?? var/devis/devis-20260613T025607Z-1f974aaf.json"
         ]
       },
       "github": {
@@ -69,11 +70,11 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 30
       },
       "triage": {
         "p0": 5,
-        "p1": 23,
+        "p1": 24,
         "p2": 11
       }
     },
@@ -90,10 +91,12 @@
       "next": "P1 · #21 — [Feature] Skill automatisé d'onboarding d'apps — ajouter, référencer, analyser, peupler les fiches",
       "git": {
         "exists": true,
-        "branch": "feat/recipe-listmonk",
-        "dirty": false,
-        "head": "4d4ef0f feat: standard recette d'app + pilote Listmonk + installeur oa-install (dry-run OK)",
-        "status_short": []
+        "branch": "feat/litellm-gateway",
+        "dirty": true,
+        "head": "2b0c166 feat(llm-ops): Langfuse v2 (observabilité légère) déployé + callback LiteLLM→Langfuse prouvé",
+        "status_short": [
+          "M apps/llm-observability-langfuse/docker-compose.yml"
+        ]
       },
       "github": {
         "open_issues": 11,
@@ -107,7 +110,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 12
+        "latency_ms": 19
       },
       "triage": {
         "p0": 0,
@@ -139,9 +142,9 @@
         "last_merged_pr": null
       },
       "health": {
-        "status": "ok",
-        "http_code": 200,
-        "latency_ms": 13
+        "status": "error",
+        "http_code": 502,
+        "latency_ms": 18
       }
     },
     {
@@ -157,14 +160,12 @@
       "next": "P0 · #30 — Page Accès : collecter les logs oauth2-proxy → qui se connecte où (brique doctrine OAuth)",
       "git": {
         "exists": true,
-        "branch": "main",
+        "branch": "feat/qg-builds",
         "dirty": true,
         "head": "current qg build",
         "status_short": [
           "M scripts/agentok_bridge.py",
-          " M scripts/build.py",
-          "?? scripts/README-builds.md",
-          "?? scripts/build-ledger.py"
+          " M scripts/qg_api.py"
         ]
       },
       "github": {
@@ -179,12 +180,12 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 12
+        "latency_ms": 18
       },
       "triage": {
         "p0": 5,
         "p1": 3,
-        "p2": 13
+        "p2": 14
       }
     },
     {
@@ -213,11 +214,11 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 16
       },
       "triage": {
         "p0": 2,
-        "p1": 0,
+        "p1": 1,
         "p2": 12
       }
     },
@@ -251,7 +252,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 15
+        "latency_ms": 10
       }
     }
   ],
@@ -259,7 +260,7 @@
     "total": 7,
     "core": 5,
     "vps": 2,
-    "healthy": 7,
+    "healthy": 6,
     "open_issues_total": 160,
     "open_prs_total": 3
   },
@@ -519,7 +520,7 @@
       "logo": "H",
       "color": "#d50c2d",
       "url": "https://www.hetzner.com",
-      "vault_key": "secret/integrations/hetzner",
+      "vault_key": "secret/integrations/hetzner/prod",
       "api_status": "key_missing"
     },
     "ovh": {
@@ -555,7 +556,7 @@
   },
   "fleet": [],
   "vps": {
-    "built_at": "2026-06-11T06:40:03Z",
+    "built_at": "2026-06-13T06:40:03Z",
     "standard": "VPS Hermes OA (OmarTop phases-spec P0→P6)",
     "vps": [
       {
@@ -564,11 +565,11 @@
         "status": "measured",
         "doctor": {
           "available": true,
-          "pass": 12,
-          "fail": 25,
+          "pass": 11,
+          "fail": 26,
           "skip": 23,
           "total": 37,
-          "score_pct": 32,
+          "score_pct": 30,
           "phases": [
             {
               "phase": "P0",
@@ -622,8 +623,8 @@
             {
               "phase": "P5",
               "name": "Maintenance",
-              "pass": 1,
-              "fail": 6,
+              "pass": 0,
+              "fail": 7,
               "skip": 0
             },
             {
@@ -636,9 +637,9 @@
           ]
         },
         "system": {
-          "disk_root": "76%",
-          "swap_pct": 82,
-          "claude_orphans": 1,
+          "disk_root": "81%",
+          "swap_pct": 79,
+          "claude_orphans": 0,
           "services": {
             "caddy": "active",
             "docker": "active",
@@ -647,9 +648,7 @@
             "openclaw-gateway (user)": "unknown",
             "oa-proposal-server (user)": "unknown"
           },
-          "alerts": [
-            "swap 82% (>80) — risque OOM, cf. incident 9 juin"
-          ]
+          "alerts": []
         }
       },
       {
@@ -681,7 +680,7 @@
     ]
   },
   "triage": {
-    "built_at": "2026-06-11T06:15:04Z",
+    "built_at": "2026-06-13T06:15:04Z",
     "llm_used": false,
     "top3": [
       {

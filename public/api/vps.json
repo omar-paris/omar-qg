@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-06-11T06:40:03Z",
+  "built_at": "2026-06-13T06:40:03Z",
   "standard": "VPS Hermes OA (OmarTop phases-spec P0→P6)",
   "vps": [
     {
@@ -8,11 +8,11 @@
       "status": "measured",
       "doctor": {
         "available": true,
-        "pass": 12,
-        "fail": 25,
+        "pass": 11,
+        "fail": 26,
         "skip": 23,
         "total": 37,
-        "score_pct": 32,
+        "score_pct": 30,
         "phases": [
           {
             "phase": "P0",
@@ -66,8 +66,8 @@
           {
             "phase": "P5",
             "name": "Maintenance",
-            "pass": 1,
-            "fail": 6,
+            "pass": 0,
+            "fail": 7,
             "skip": 0
           },
           {
@@ -80,9 +80,9 @@
         ]
       },
       "system": {
-        "disk_root": "76%",
-        "swap_pct": 82,
-        "claude_orphans": 1,
+        "disk_root": "81%",
+        "swap_pct": 79,
+        "claude_orphans": 0,
         "services": {
           "caddy": "active",
           "docker": "active",
@@ -91,9 +91,7 @@
           "openclaw-gateway (user)": "unknown",
           "oa-proposal-server (user)": "unknown"
         },
-        "alerts": [
-          "swap 82% (>80) — risque OOM, cf. incident 9 juin"
-        ]
+        "alerts": []
       }
     },
     {
