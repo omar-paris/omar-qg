@@ -54,7 +54,15 @@ def main() -> None:
         "statut": "ouverte", "reponse": None,
     })
     STORE.parent.mkdir(exist_ok=True)
-    STORE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    payload = json.dumps(items, ensure_ascii=False, indent=2)
+    STORE.write_text(payload, encoding="utf-8")
+    # Reflet IMMÉDIAT dans la page servie (sinon lag jusqu'au rebuild 30 min — fix 14/06)
+    pub = STORE.parent.parent / "public" / "api" / "decisions.json"
+    try:
+        if pub.parent.exists():
+            pub.write_text(payload, encoding="utf-8")
+    except Exception:
+        pass
     if a.blocked.startswith("t_"):
         subprocess.run(["hermes", "kanban", "block", a.blocked, "--reason", f"decision:{qid}"],
                        capture_output=True, timeout=30)
