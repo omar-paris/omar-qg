@@ -1,7 +1,7 @@
 {
   "version": "V0.7.0",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-13T23:01:19Z",
+  "built_at": "2026-06-13T23:16:19Z",
   "items": [
     {
       "id": "landing",
@@ -33,7 +33,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 15
+        "latency_ms": 20
       },
       "triage": {
         "p0": 1,
@@ -67,7 +67,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 20
+        "latency_ms": 14
       },
       "triage": {
         "p0": 5,
@@ -105,7 +105,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 19
+        "latency_ms": 20
       },
       "triage": {
         "p0": 0,
@@ -139,7 +139,7 @@
       "health": {
         "status": "error",
         "http_code": 502,
-        "latency_ms": 17
+        "latency_ms": 9
       }
     },
     {
@@ -174,7 +174,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 20
+        "latency_ms": 17
       },
       "triage": {
         "p0": 5,
@@ -208,7 +208,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 19
       },
       "triage": {
         "p0": 2,
@@ -246,7 +246,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 36
       }
     }
   ],

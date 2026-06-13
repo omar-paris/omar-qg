@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-06-13T23:01:52Z",
+  "generated_at": "2026-06-13T23:16:51Z",
   "today": "2026-06-14",
   "window_days": 7,
   "totals": {
     "today": 0,
-    "window": 108,
+    "window": 110,
     "repos_today": 0,
     "repos_total": 7
   },
@@ -12,8 +12,42 @@
   "days": [
     {
       "date": "2026-06-13",
-      "count": 6,
+      "count": 8,
       "repos": [
+        {
+          "repo": "omar-qg",
+          "name": "QG",
+          "commits": [
+            {
+              "hash": "1d4a37b",
+              "author": "Omar",
+              "date": "2026-06-13 23:14",
+              "day": "2026-06-13",
+              "message": "fix(qg): oa_ask reflète les nouvelles décisions immédiatement (plus de lag 30min)"
+            },
+            {
+              "hash": "77c80d3",
+              "author": "Omar",
+              "date": "2026-06-13 23:01",
+              "day": "2026-06-13",
+              "message": "fix(cadrage): OmarTop + Hub = CORE OA (Hub = app N°1 répliquée L0/L1)"
+            },
+            {
+              "hash": "fd1183b",
+              "author": "Omar",
+              "date": "2026-06-13 22:59",
+              "day": "2026-06-13",
+              "message": "chore(qg): consolidation — fix qg_api reflet décisions immédiat + snapshot données générées"
+            },
+            {
+              "hash": "c5b9590",
+              "author": "Omar",
+              "date": "2026-06-13 22:51",
+              "day": "2026-06-13",
+              "message": "fix(bridge): chemins absolus hermes+gh pour le cron (boucle agent-ok)"
+            }
+          ]
+        },
         {
           "repo": "omar-catalogue",
           "name": "Catalogue",
@@ -38,26 +72,6 @@
               "date": "2026-06-13 00:20",
               "day": "2026-06-13",
               "message": "feat(llm-ops): passerelle LiteLLM L1 — déployée et prouvée sur VPS-Omar"
-            }
-          ]
-        },
-        {
-          "repo": "omar-qg",
-          "name": "QG",
-          "commits": [
-            {
-              "hash": "fd1183b",
-              "author": "Omar",
-              "date": "2026-06-13 22:59",
-              "day": "2026-06-13",
-              "message": "chore(qg): consolidation — fix qg_api reflet décisions immédiat + snapshot données générées"
-            },
-            {
-              "hash": "c5b9590",
-              "author": "Omar",
-              "date": "2026-06-13 22:51",
-              "day": "2026-06-13",
-              "message": "fix(bridge): chemins absolus hermes+gh pour le cron (boucle agent-ok)"
             }
           ]
         },
@@ -986,31 +1000,31 @@
   "deploys": [
     {
       "path": "changelog/index.html",
-      "mtime": "2026-06-13 23:00"
-    },
-    {
-      "path": "partenaires/index.html",
-      "mtime": "2026-06-13 23:00"
-    },
-    {
-      "path": "index.html",
-      "mtime": "2026-06-13 23:00"
+      "mtime": "2026-06-13 23:13"
     },
     {
       "path": "decisions/index.html",
-      "mtime": "2026-06-13 23:00"
+      "mtime": "2026-06-13 23:13"
     },
     {
       "path": "builds/index.html",
-      "mtime": "2026-06-13 23:00"
+      "mtime": "2026-06-13 23:13"
     },
     {
       "path": "clients/index.html",
-      "mtime": "2026-06-13 23:00"
+      "mtime": "2026-06-13 23:13"
     },
     {
       "path": "ops/index.html",
-      "mtime": "2026-06-13 23:00"
+      "mtime": "2026-06-13 23:13"
+    },
+    {
+      "path": "partenaires/index.html",
+      "mtime": "2026-06-13 23:13"
+    },
+    {
+      "path": "index.html",
+      "mtime": "2026-06-13 23:13"
     }
   ]
 }

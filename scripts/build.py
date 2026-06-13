@@ -778,6 +778,14 @@ def sidebar(active: str, built_at: str) -> str:
             f'{escape(label)}</a>'
         )
     ts_short = built_at[11:16] + "Z" if len(built_at) > 16 else built_at
+    # Dernier push réel (git) en heure de Paris — pour qu'Alex se repère (demande 14/06)
+    try:
+        import subprocess as _sp
+        last_push = _sp.run(["git", "-C", str(ROOT), "log", "-1", "--format=%cd", "--date=format-local:%d/%m %Hh%M"],
+                            capture_output=True, text=True, timeout=10,
+                            env={**__import__("os").environ, "TZ": "Europe/Paris"}).stdout.strip() or "?"
+    except Exception:
+        last_push = "?"
     return f"""
 <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col z-30 hidden md:flex">
   <div class="px-5 py-4 border-b border-gray-100">
@@ -791,7 +799,7 @@ def sidebar(active: str, built_at: str) -> str:
   </div>
   <nav class="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">{nav_links}</nav>
   <div class="px-5 py-3 border-t border-gray-100">
-    <div class="text-xs text-gray-400">Mis à jour {escape(ts_short)}</div>
+    <div class="text-xs text-gray-400">Rebuild {escape(ts_short)} · <span title="dernier commit poussé">push {escape(last_push)}</span></div>
     <a href="/api/core-repos.json" class="text-xs text-blue-500 hover:underline">API JSON</a>
   </div>
 </aside>
