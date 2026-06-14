@@ -7,6 +7,7 @@ oa-athena rejoue les critères → session CC valide le merge → digest montre 
 WIP=1 : jamais de nouvelle carte build tant qu'une est active (leçon des 6 drafts morts).
 """
 from __future__ import annotations
+import argparse
 import json
 import subprocess
 from pathlib import Path
@@ -25,7 +26,16 @@ def builder_busy() -> bool:
     return any(s in txt for s in ("ready", "running", "claimed", "todo"))
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Create one oa-builder Kanban card from the highest-priority open GitHub issue labelled agent-ok."
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Print the selected candidate without creating a Kanban card.")
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
     if builder_busy():
         print("WIP=1 : une carte oa-builder est déjà active — pas de nouveau build")
         return
@@ -54,6 +64,9 @@ def main() -> None:
 
     cands.sort(key=lambda c: (prio(c), -c["number"]))
     c = cands[0]
+    if args.dry_run:
+        print(json.dumps({"repo": c["repo"], "number": c["number"], "title": c["title"]}, ensure_ascii=False))
+        return
     body = f"""Mission BUILD automatique (pipeline agent-ok — qg#25).
 
 Issue source : https://github.com/omar-paris/{c['repo']}/issues/{c['number']}
