@@ -26,3 +26,7 @@ python3 scripts/build.py
 ```bash
 python3 -m pytest -q
 ```
+
+## Smoke PR autonome
+
+Chemin minimal builder : branche dédiée, note README non-risque, `python3 -m pytest -q`, commit, push, puis draft PR liée à l'issue.
