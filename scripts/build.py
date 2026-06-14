@@ -494,12 +494,30 @@ def git_state(path_slug: str) -> dict:
     return {"exists": True, "branch": branch or "no-git", "dirty": bool(status), "head": head, "status_short": status.splitlines()[:8]}
 
 
+def _vault_env() -> dict:
+    """Vault env for unattended builds.
+
+    Cron/systemd jobs may inherit no token, or a stale VAULT_TOKEN. The local
+    root token file is the operational fallback on this VPS; never print it.
+    """
+    env = {**os.environ, "VAULT_ADDR": "http://127.0.0.1:8202"}
+    token_file = Path.home() / ".vault-token"
+    if token_file.exists():
+        try:
+            token = token_file.read_text(encoding="utf-8").strip()
+        except Exception:
+            token = ""
+        if token:
+            env["VAULT_TOKEN"] = token
+    return env
+
+
 def _vault_read(path: str) -> dict:
     try:
         raw = subprocess.check_output(
             ["/usr/bin/vault", "kv", "get", "-format=json", path],
             text=True, stderr=subprocess.DEVNULL,
-            env={**os.environ, "VAULT_ADDR": "http://127.0.0.1:8202"},
+            env=_vault_env(),
         )
         return json.loads(raw).get("data", {}).get("data", {})
     except Exception:
