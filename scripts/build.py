@@ -701,10 +701,58 @@ def hetzner_fleet() -> list:
 
 
 def _read_var_json(name: str) -> dict:
+    """Read QG generated inputs without collecting new data.
+
+    Runtime crons normally write ROOT/var/*.json. In clean worktrees those files are
+    absent, so build-time pages fall back to the already-published public/api
+    snapshots committed in the repo. This keeps app pages factual while respecting
+    the issue #26 boundary: no extra API calls or fresh collection for detail pages.
+    """
+    for path in (ROOT / "var" / name, PUBLIC / "api" / name):
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+    return {}
+
+
+def _read_existing_daily_ledgers(limit: int = 7) -> list[dict]:
+    """Return existing daily-ledger snapshots from public/api (newest first)."""
+    index = PUBLIC / "api" / "daily-ledger" / "index.json"
+    out: list[dict] = []
     try:
-        return json.loads((ROOT / "var" / name).read_text(encoding="utf-8"))
+        payload_index = json.loads(index.read_text(encoding="utf-8"))
     except Exception:
-        return {}
+        payload_index = {}
+    for item in payload_index.get("items", []) if isinstance(payload_index, dict) else []:
+        if isinstance(item, dict) and item.get("date"):
+            out.append(item)
+    # Older builds only expose snapshot files; include them if the index is thin.
+    ledger_dir = PUBLIC / "api" / "daily-ledger"
+    if ledger_dir.exists():
+        for path in sorted(ledger_dir.glob("*.json"), reverse=True):
+            if path.name == "index.json":
+                continue
+            try:
+                item = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if isinstance(item, dict) and item.get("date"):
+                out.append(item)
+    dedup: dict[str, dict] = {}
+    for item in out:
+        dedup.setdefault(str(item.get("date")), item)
+    return [dedup[k] for k in sorted(dedup.keys(), reverse=True)[:limit]]
+
+
+def _merge_daily_ledgers(current: dict, previous: list[dict], limit: int = 7) -> list[dict]:
+    dedup: dict[str, dict] = {}
+    for item in previous:
+        if isinstance(item, dict) and item.get("date"):
+            dedup[str(item["date"])] = item
+    if isinstance(current, dict) and current.get("date"):
+        dedup[str(current["date"])] = current
+    return [dedup[k] for k in sorted(dedup.keys(), reverse=True)[:limit]]
 
 
 def payload(built_at: str) -> dict:
@@ -714,21 +762,30 @@ def payload(built_at: str) -> dict:
     vps = _read_var_json("vps.json")
     items = []
     for item in ITEMS:
-        enriched = dict(item)
+        enriched: dict = dict(item)
         enriched["git"] = git_state(item["path"])
         enriched["github"] = github_state(item.get("repo", ""))
         enriched["health"] = health_probe(item["domain"])
         t = (triage.get("apps") or {}).get(item["id"])
         if t and t.get("next"):
             enriched["next"] = t["next"]
-            enriched["triage"] = {k: t.get(k) for k in ("p0", "p1", "p2")}
-        # Version réelle = fichier VERSION du repo (le hardcodé n'est qu'un fallback)
+            enriched["triage"] = {k: t.get(k) for k in ("p0", "p1", "p2", "top")}
+        # Sources mesurées depuis l'actif local. Les valeurs codées dans ITEMS
+        # documentent l'intention produit, mais ne doivent pas être affichées
+        # comme des faits si le fichier source réel est absent.
+        asset_dir = ACTIFS / item["path"]
+        version_file = asset_dir / "VERSION"
+        enriched["version_source"] = "unmeasured"
+        enriched["version"] = "version non mesurée"
         try:
-            v = (Path("/home/omar/23-Offre/actifs") / item["path"] / "VERSION").read_text().strip()
+            v = version_file.read_text(encoding="utf-8").strip()
             if v:
                 enriched["version"] = v if v[:1].upper() in ("V", "P") else f"V{v}"
+                enriched["version_source"] = "VERSION"
         except Exception:
             pass
+        enriched["has_contract_source"] = (asset_dir / "CONTRACT.md").exists()
+        enriched["has_changelog_source"] = (asset_dir / "CHANGELOG.md").exists()
         items.append(enriched)
     healthy = sum(1 for i in items if i["health"]["status"] == "ok")
     counts = {
@@ -925,7 +982,7 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0)
         rows += (
             f'<div class="grid md:grid-cols-[1fr_100px_110px_100px_100px] gap-2 px-4 py-3.5 border-b border-gray-100 last:border-0 items-start hover:bg-gray-50">'
             f'<div><div class="flex items-center gap-2 mb-0.5">'
-            f'<span class="text-sm font-semibold text-gray-900">{escape(item["name"])}</span>'
+            f'<a href="{_app_route(item)}" class="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline">{escape(item["name"])}</a>'
             f'<span class="text-xs rounded px-1.5 py-0.5 {scope_cls}">{escape("Référentiel VPS Hermes OA" if item["scope"] == "VPS Hermes OA" else item["scope"])}</span>'
             f'</div>'
             f'<div class="text-xs text-gray-500 mb-1.5">{escape(item["role"])}</div>'
@@ -942,8 +999,143 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0)
         )
     rows += '</div>'
 
-    header = '<div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold text-gray-900">Registry CORE OA</h1><span class="text-xs text-gray-400">Rebuild auto · 30 min</span></div>'
+    header = '<div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold text-gray-900">Registry CORE OA</h1><span class="text-xs text-gray-400">Rebuild auto · 30 min · Référentiel VPS Hermes OA</span></div>'
     return header + tiles + stats + rows
+
+
+def _app_route(item: dict) -> str:
+    return f'/apps/{item.get("id", "")}/'
+
+
+def _repo_short(repo_slug: str) -> str:
+    return repo_slug.split("/", 1)[-1] if repo_slug else ""
+
+
+def _health_html(h: dict) -> str:
+    status = h.get("status")
+    if status == "ok":
+        lat = f' · {h["latency_ms"]}ms' if h.get("latency_ms") else ""
+        return f'<span class="pill-ok inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">{escape(str(h.get("http_code", "ok")))}{escape(lat)}</span>'
+    if h.get("http_code"):
+        return f'<span class="pill-warn inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">{escape(str(h.get("http_code")))}</span>'
+    return '<span class="pill-err inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">down</span>'
+
+
+def _metric(v) -> str:
+    return "—" if v is None else str(v)
+
+
+def _app_commits(app: dict, builds: dict, limit: int = 5) -> list[dict]:
+    repo_short = _repo_short(app.get("repo", ""))
+    commits: list[dict] = []
+    if not repo_short:
+        return commits
+    for day in builds.get("days", []) or []:
+        for repo in day.get("repos", []) or []:
+            if repo.get("repo") == repo_short or repo.get("name") == app.get("name"):
+                commits.extend(repo.get("commits", []) or [])
+    return commits[:limit]
+
+
+def _app_history(app: dict, ledgers: list[dict]) -> list[dict]:
+    out: list[dict] = []
+    for ledger in ledgers:
+        for repo in ledger.get("repos", []) or []:
+            if repo.get("id") == app.get("id"):
+                out.append({"date": ledger.get("date"), "repo": repo})
+                break
+    return out[:7]
+
+
+def page_app_detail(data: dict, app: dict, builds: dict, ledgers: list[dict]) -> str:
+    repo = app.get("repo", "")
+    gh = app.get("github", {}) or {}
+    git = app.get("git", {}) or {}
+    triage = app.get("triage", {}) or {}
+    top = [t for t in triage.get("top", []) if t.get("prio") in ("P0", "P1")]
+    top.sort(key=lambda t: (0 if t.get("prio") == "P0" else 1, int(t.get("number") or 0)))
+    commits = _app_commits(app, builds)
+    history = _app_history(app, ledgers)
+
+    html = (
+        '<div class="mb-5"><a href="/" class="text-xs text-blue-500 hover:underline">← Registry</a></div>'
+        '<div class="bg-white rounded-2xl border border-gray-200 px-6 py-5 mb-6">'
+        '<div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">'
+        '<div>'
+        f'<div class="text-xs font-semibold uppercase tracking-wide text-blue-600 mb-1">{escape(app.get("scope", ""))}</div>'
+        f'<h1 class="text-2xl font-bold text-gray-900">{escape(app.get("name", ""))}</h1>'
+        f'<p class="text-sm text-gray-600 mt-2 max-w-2xl">{escape(app.get("role", ""))}</p>'
+        '</div>'
+        '<div class="flex flex-wrap gap-2 md:justify-end">'
+        f'<span class="text-xs font-mono bg-gray-100 rounded px-2 py-1 text-gray-700">{escape(app.get("version", ""))}</span>'
+        f'{_health_html(app.get("health", {}) or {})}'
+        f'<span class="{"pill-warn" if git.get("dirty") else "pill-ok"} inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">{"dirty" if git.get("dirty") else "clean"}</span>'
+        '</div></div>'
+        '<div class="flex gap-3 flex-wrap mt-5 text-sm">'
+        f'<a class="text-blue-600 hover:underline" href="https://{escape(app.get("domain", ""))}/">{escape(app.get("domain", ""))}</a>'
+        + (f'<a class="text-blue-600 hover:underline" href="https://github.com/{escape(repo)}">GitHub</a>' if repo else '')
+        + (f'<a class="text-blue-600 hover:underline" href="https://github.com/{escape(repo)}/blob/main/CONTRACT.md">CONTRACT</a>' if repo and app.get("has_contract_source") else '')
+        + (f'<a class="text-blue-600 hover:underline" href="{escape(app.get("changelog", ""))}">Changelog</a>' if app.get("changelog") and app.get("has_changelog_source") else '')
+        + '</div></div>'
+    )
+
+    html += '<div class="grid md:grid-cols-3 gap-4 mb-6">'
+    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">Issues ouvertes</div><div class="text-2xl font-bold text-gray-900">{escape(str(gh.get("open_issues") if gh.get("open_issues") is not None else "—"))}</div></div>'
+    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">PRs ouvertes</div><div class="text-2xl font-bold text-gray-900">{escape(str(gh.get("open_prs") if gh.get("open_prs") is not None else "—"))}</div></div>'
+    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">Head local</div><div class="text-sm font-mono text-gray-700 break-words mt-1">{escape(git.get("head") or "—")}</div></div>'
+    html += '</div>'
+
+    html += '<div class="grid lg:grid-cols-2 gap-6 mb-6">'
+    html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden"><div class="px-4 py-3 border-b border-gray-100"><h2 class="text-sm font-bold text-gray-900">P0/P1 du jour</h2><p class="text-xs text-gray-500">Source: triage QG existant, trié P0 puis P1.</p></div>'
+    if top:
+        for issue in top:
+            badge = 'bg-red-50 text-red-700' if issue.get("prio") == "P0" else 'bg-amber-50 text-amber-700'
+            html += (
+                '<a class="block px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50" '
+                f'href="{escape(issue.get("url", "#"))}">'
+                f'<span class="inline-flex rounded px-1.5 py-0.5 text-xs font-semibold {badge}">{escape(issue.get("prio", ""))}</span> '
+                f'<span class="text-xs font-mono text-gray-400">#{escape(str(issue.get("number", "")))}</span> '
+                f'<span class="text-sm text-gray-800">{escape(issue.get("title", ""))}</span></a>'
+            )
+    else:
+        html += '<div class="px-4 py-5 text-sm text-gray-500">Aucun P0/P1 mesuré dans le triage publié.</div>'
+    html += '</section>'
+
+    html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden"><div class="px-4 py-3 border-b border-gray-100"><h2 class="text-sm font-bold text-gray-900">Derniers commits</h2><p class="text-xs text-gray-500">Source: API builds QG / 7 jours.</p></div>'
+    if commits:
+        for c in commits:
+            html += (
+                '<div class="px-4 py-3 border-b border-gray-100 last:border-0">'
+                f'<div class="flex gap-2 items-center"><span class="text-xs font-mono bg-gray-100 rounded px-1.5 py-0.5 text-gray-600">{escape(c.get("hash", ""))}</span>'
+                f'<span class="text-xs text-gray-400">{escape(c.get("date", ""))}</span></div>'
+                f'<div class="text-sm text-gray-800 mt-1">{escape(c.get("message", ""))}</div>'
+                f'<div class="text-xs text-gray-400 mt-0.5">{escape(c.get("author", ""))}</div>'
+                '</div>'
+            )
+    else:
+        html += '<div class="px-4 py-5 text-sm text-gray-500">Aucun commit mesuré dans la fenêtre builds.</div>'
+    html += '</section></div>'
+
+    html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden"><div class="px-4 py-3 border-b border-gray-100"><h2 class="text-sm font-bold text-gray-900">Historique 7 jours</h2><p class="text-xs text-gray-500">Source: daily-ledgers QG existants + ledger courant.</p></div>'
+    if history:
+        html += '<div class="grid md:grid-cols-[120px_1fr_1fr_1fr_1fr] gap-2 px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500"><span>Date</span><span>Health</span><span>Issues</span><span>PRs</span><span>Builds</span></div>'
+        for row in history:
+            r = row["repo"]
+            act = r.get("activity", {}) or {}
+            h = r.get("health", {}) or {}
+            html += (
+                '<div class="grid md:grid-cols-[120px_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 border-t border-gray-100 text-sm">'
+                f'<span class="font-mono text-gray-500">{escape(row.get("date", ""))}</span>'
+                f'<span>{_health_html(h)}</span>'
+                f'<span>{escape(_metric(act.get("issues_created")))} créées / {escape(_metric(act.get("issues_closed")))} fermées</span>'
+                f'<span>{escape(_metric(act.get("prs_created")))} créées / {escape(_metric(act.get("prs_merged")))} mergées</span>'
+                f'<span>{escape(_metric(act.get("build_runs")))} runs</span>'
+                '</div>'
+            )
+    else:
+        html += '<div class="px-4 py-5 text-sm text-gray-500">Aucun historique ledger disponible pour cette app.</div>'
+    html += '</section>'
+    return html
 
 
 def _api_badge(status: str) -> str:
@@ -1421,8 +1613,10 @@ def page_builds(builds: dict) -> str:
 
 def main() -> None:
     built_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    previous_ledgers = _read_existing_daily_ledgers()
     data = payload(built_at)
     ledger = daily_ledger(data, built_at)
+    ledger_history = _merge_daily_ledgers(ledger, previous_ledgers)
 
     tmp = PUBLIC.parent / "public_build_tmp"
     if tmp.exists():
@@ -1433,18 +1627,25 @@ def main() -> None:
     (tmp / "api" / "core-repos.json").write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build)
+    # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
+    # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
     for var_name in ("triage.json", "vps.json", "decisions.json"):
-        src = ROOT / "var" / var_name
-        if src.exists():
-            (tmp / "api" / var_name).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        var_payload = _read_var_json(var_name)
+        if var_payload:
+            (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     ledger_dir = tmp / "api" / "daily-ledger"
     ledger_dir.mkdir(parents=True, exist_ok=True)
     (ledger_dir / f"{ledger['date']}.json").write_text(
         json.dumps(ledger, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    for old_ledger in ledger_history[1:]:
+        old_date = old_ledger.get("date")
+        if old_date:
+            (ledger_dir / f"{old_date}.json").write_text(
+                json.dumps(old_ledger, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
     (ledger_dir / "index.json").write_text(
-        json.dumps({"latest": f"/api/daily-ledger/{ledger['date']}.json", "items": [ledger]}, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps({"latest": f"/api/daily-ledger/{ledger['date']}.json", "items": ledger_history}, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
     decisions = []
@@ -1474,6 +1675,8 @@ def main() -> None:
         ("/partenaires/", "partenaires", "Partenaires",              page_partenaires(data)),
         ("/changelog/",   "changelog",   "Changelog",                page_changelog()),
     ]
+    for app in data.get("items", []):
+        pages.append((_app_route(app), "registry", f'{app.get("name", "App")} · fiche app', page_app_detail(data, app, builds, ledger_history)))
     for route, active, title, body in pages:
         out = tmp / "index.html" if route == "/" else tmp / route.strip("/") / "index.html"
         out.parent.mkdir(parents=True, exist_ok=True)

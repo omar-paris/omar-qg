@@ -3,17 +3,18 @@
   "items": [
     {
       "date": "2026-06-14",
-      "generated_at": "2026-06-13T23:47:04Z",
+      "generated_at": "2026-06-14T03:33:50Z",
       "version": "V0.7.0",
       "sessions": {
         "hermes": {
-          "sessions": 2,
-          "messages": 41,
-          "tool_calls": 29,
-          "api_calls": 27,
+          "sessions": 8,
+          "messages": 610,
+          "tool_calls": 345,
+          "api_calls": 183,
           "by_source": {
             "cli": 1,
-            "tui": 1
+            "cron": 4,
+            "tui": 3
           },
           "db": "/home/omar/.hermes/state.db",
           "error": null
@@ -21,10 +22,14 @@
         "ccusage": {
           "sessions_by_agent": {},
           "daily": {
-            "total_cost_usd": 0.0,
-            "total_tokens": 0,
-            "agents": [],
-            "models_used": []
+            "total_cost_usd": 15.0236,
+            "total_tokens": 18803242,
+            "agents": [
+              "hermes"
+            ],
+            "models_used": [
+              "gpt-5.5"
+            ]
           },
           "error": null
         }
@@ -37,7 +42,7 @@
         "build_runs": 0,
         "build_success": 0,
         "build_failed": 0,
-        "unknown_fields": 7,
+        "unknown_fields": 49,
         "local_build_records": 0
       },
       "local_builds": {
@@ -56,41 +61,28 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 17
+            "latency_ms": 8
           },
           "git": {
             "exists": true,
             "branch": "main",
-            "dirty": true,
-            "head": "931e2cd feat(landing): 3 variantes comparatives v1/v2/v3 (preuve en direct / artisan / éditorial) — design Alex 12/06",
-            "status_short": [
-              "M public/alex/index.html",
-              " M public/ce-que-l-agent-peut-faire/index.html",
-              " M public/changelog/index.html",
-              " M public/comment-ca-marche/index.html",
-              " M public/environnement-client/index.html",
-              " M public/faq/index.html",
-              " M public/index.html",
-              " M public/pourquoi-les-artisans/index.html"
-            ]
+            "dirty": false,
+            "head": "dde0533 feat(header): date = dernier push git (fini '9 juin 2026' codé en dur)",
+            "status_short": []
           },
           "github_open": {
-            "open_issues": 28,
-            "open_prs": 0,
-            "last_merged_pr": {
-              "title": "feat: add June conversion CTA landing",
-              "number": 16,
-              "merged_at": "2026-06-10T01:38:45Z"
-            }
+            "open_issues": null,
+            "open_prs": null,
+            "last_merged_pr": null
           },
           "activity": {
-            "issues_created": 0,
-            "issues_closed": 0,
-            "prs_created": 0,
-            "prs_merged": 0,
-            "build_runs": 0,
-            "build_success": 0,
-            "build_failed": 0
+            "issues_created": null,
+            "issues_closed": null,
+            "prs_created": null,
+            "prs_merged": null,
+            "build_runs": null,
+            "build_success": null,
+            "build_failed": null
           }
         },
         {
@@ -100,37 +92,28 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 19
+            "latency_ms": 157
           },
           "git": {
             "exists": true,
             "branch": "main",
-            "dirty": true,
-            "head": "a67ebcd chore(app): consolidation état courant (page /jab, données)",
-            "status_short": [
-              "M public/buy/index.html",
-              " M public/changelog/index.html",
-              " M public/compte/index.html",
-              " M public/config/index.html",
-              " M public/factures/index.html",
-              " M public/index.html",
-              " M public/jab/index.html",
-              " M public/onboarding/index.html"
-            ]
+            "dirty": false,
+            "head": "db79da5 feat(footer): affiche la date du dernier push git dans les footers",
+            "status_short": []
           },
           "github_open": {
-            "open_issues": 40,
-            "open_prs": 0,
+            "open_issues": null,
+            "open_prs": null,
             "last_merged_pr": null
           },
           "activity": {
-            "issues_created": 0,
-            "issues_closed": 0,
-            "prs_created": 0,
-            "prs_merged": 0,
-            "build_runs": 0,
-            "build_success": 0,
-            "build_failed": 0
+            "issues_created": null,
+            "issues_closed": null,
+            "prs_created": null,
+            "prs_merged": null,
+            "build_runs": null,
+            "build_success": null,
+            "build_failed": null
           }
         },
         {
@@ -140,41 +123,28 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 17
+            "latency_ms": 7
           },
           "git": {
             "exists": true,
             "branch": "main",
-            "dirty": true,
-            "head": "88de012 fix(langfuse): env Google SSO + init headless (observ.omar.paris)",
-            "status_short": [
-              "M public/agents/index.html",
-              " M public/api/catalogue-site.json",
-              " M public/apps/acces-distant-rustdesk/index.html",
-              " M public/apps/accueil-standard/index.html",
-              " M public/apps/affine/index.html",
-              " M public/apps/agenda-calendrier/index.html",
-              " M public/apps/agent-orchestrator/index.html",
-              " M public/apps/agent-personnel/index.html"
-            ]
+            "dirty": false,
+            "head": "83a7145 feat(hub-health): script de rafraichissement des artefacts",
+            "status_short": []
           },
           "github_open": {
-            "open_issues": 11,
-            "open_prs": 2,
-            "last_merged_pr": {
-              "title": "feat(catalogue): App Store V2 — Top5, 187 items, 14 catégories, fiches",
-              "number": 19,
-              "merged_at": "2026-06-09T20:03:17Z"
-            }
+            "open_issues": null,
+            "open_prs": null,
+            "last_merged_pr": null
           },
           "activity": {
-            "issues_created": 0,
-            "issues_closed": 0,
-            "prs_created": 0,
-            "prs_merged": 0,
-            "build_runs": 0,
-            "build_success": 0,
-            "build_failed": 0
+            "issues_created": null,
+            "issues_closed": null,
+            "prs_created": null,
+            "prs_merged": null,
+            "build_runs": null,
+            "build_success": null,
+            "build_failed": null
           }
         },
         {
@@ -184,7 +154,7 @@
           "health": {
             "status": "error",
             "http_code": 502,
-            "latency_ms": 13
+            "latency_ms": 7
           },
           "git": {
             "exists": true,
@@ -207,34 +177,28 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 16
+            "latency_ms": 6
           },
           "git": {
             "exists": true,
             "branch": "fix/hetzner-fleet-vault-token-fallback-t-c9d22340",
-            "dirty": true,
+            "dirty": false,
             "head": "current qg build",
-            "status_short": [
-              "M scripts/build.py"
-            ]
+            "status_short": []
           },
           "github_open": {
-            "open_issues": 22,
-            "open_prs": 0,
-            "last_merged_pr": {
-              "title": "feat(qg): daily ops ledger sessions/issues/PR/builds",
-              "number": 17,
-              "merged_at": "2026-06-09T20:04:09Z"
-            }
+            "open_issues": null,
+            "open_prs": null,
+            "last_merged_pr": null
           },
           "activity": {
-            "issues_created": 0,
-            "issues_closed": 0,
-            "prs_created": 0,
-            "prs_merged": 0,
-            "build_runs": 0,
-            "build_success": 0,
-            "build_failed": 0
+            "issues_created": null,
+            "issues_closed": null,
+            "prs_created": null,
+            "prs_merged": null,
+            "build_runs": null,
+            "build_success": null,
+            "build_failed": null
           }
         },
         {
@@ -244,33 +208,28 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 13
+            "latency_ms": 6
           },
           "git": {
             "exists": true,
             "branch": "main",
-            "dirty": true,
-            "head": "3a95b4c feat(data): url canonique par VPS via scripts/data/vhost-urls.json (hub#50)",
-            "status_short": [
-              "M public/api/omartop.json",
-              " M public/assets/app.js",
-              " M scripts/deploy.sh",
-              "?? public/api/build-info.json"
-            ]
+            "dirty": false,
+            "head": "ff69932 feat(hub): le collecteur consomme les artefacts par-app de la boucle agent",
+            "status_short": []
           },
           "github_open": {
-            "open_issues": 15,
-            "open_prs": 1,
+            "open_issues": null,
+            "open_prs": null,
             "last_merged_pr": null
           },
           "activity": {
-            "issues_created": 0,
-            "issues_closed": 0,
-            "prs_created": 0,
-            "prs_merged": 0,
-            "build_runs": 0,
-            "build_success": 0,
-            "build_failed": 0
+            "issues_created": null,
+            "issues_closed": null,
+            "prs_created": null,
+            "prs_merged": null,
+            "build_runs": null,
+            "build_success": null,
+            "build_failed": null
           }
         },
         {
@@ -280,46 +239,32 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 16
+            "latency_ms": 6
           },
           "git": {
             "exists": true,
             "branch": "main",
-            "dirty": true,
-            "head": "70249ee docs: SYSTÈME OA 1-page — la boucle canonique (devis→onboarding→catalogue→install→hub→agent→doctor→observateur→QG→feedback) + standard recette + anti-orphelins (grave Alex 12/06)",
-            "status_short": [
-              "M docs/bible/proofs/index.md",
-              " M mkdocs.yml",
-              " M phases-spec.json",
-              " M site-scripts/deploy.sh"
-            ]
+            "dirty": false,
+            "head": "cf2f7e5 feat(footer): dernier push dans le copyright MkDocs via OA_FOOTER (!ENV)",
+            "status_short": []
           },
           "github_open": {
-            "open_issues": 44,
-            "open_prs": 0,
-            "last_merged_pr": {
-              "title": "feat: map OA promise to OmarTop standards",
-              "number": 41,
-              "merged_at": "2026-06-09T02:27:15Z"
-            }
+            "open_issues": null,
+            "open_prs": null,
+            "last_merged_pr": null
           },
           "activity": {
-            "issues_created": 0,
-            "issues_closed": 0,
-            "prs_created": 0,
-            "prs_merged": 0,
-            "build_runs": 0,
-            "build_success": 0,
-            "build_failed": 0
+            "issues_created": null,
+            "issues_closed": null,
+            "prs_created": null,
+            "prs_merged": null,
+            "build_runs": null,
+            "build_success": null,
+            "build_failed": null
           }
         }
       ],
       "alerts": [
-        {
-          "level": "warning",
-          "code": "DIRTY_REPOS",
-          "message": "6 repo(s) locaux dirty dans le registry."
-        },
         {
           "level": "warning",
           "code": "NO_BUILDS_RECORDED",
