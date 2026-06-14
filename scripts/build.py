@@ -828,6 +828,7 @@ FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;
 
 NAV_ITEMS = [
     ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
+    ("/objectifs/",   "objectifs",   "Objectifs",   'M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418'),
     ("/ops/",         "ops",         "Ops",         'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125C16.5 3.504 17.004 3 17.625 3h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z'),
     ("/clients/",     "clients",     "Clients",     'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z'),
     ("/partenaires/", "partenaires", "Partenaires", 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.015M3.75 9.349a3 3 0 0 0 3.75.616m-3.75-.616a3.001 3.001 0 0 1-.75-1.99V6h17.25v1.36a3 3 0 0 1-.75 1.99m0 0a2.993 2.993 0 0 1-2.25 1.016'),
@@ -905,9 +906,10 @@ def layout(active: str, title: str, built_at: str, body: str) -> str:
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
-def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0) -> str:
+def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0, objectifs: list | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
+    objectifs = objectifs or []
 
     # Tuiles d'action : décisions à trancher + builds du jour (liens dédiés)
     dec_accent = "text-amber-600" if pending_decisions else "text-gray-900"
@@ -1000,7 +1002,8 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0)
     rows += '</div>'
 
     header = '<div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold text-gray-900">Registry CORE OA</h1><span class="text-xs text-gray-400">Rebuild auto · 30 min · Référentiel VPS Hermes OA</span></div>'
-    return header + tiles + stats + rows
+    # Les objectifs d'Alex viennent EN TÊTE de l'accueil, avant le registry de repos.
+    return objectifs_summary(objectifs) + header + tiles + stats + rows
 
 
 def _app_route(item: dict) -> str:
@@ -1447,6 +1450,109 @@ def page_ops(ledger: dict) -> str:
     return html
 
 
+# ── Objectifs ───────────────────────────────────────────────────────────────
+
+_OBJ_STATUTS = {
+    "a_faire":  ("À faire",   "bg-gray-100 text-gray-600",   "bg-gray-300"),
+    "en_cours": ("En cours",  "bg-blue-50 text-blue-700",    "bg-blue-500"),
+    "fait":     ("Fait",      "bg-green-50 text-green-700",   "bg-green-500"),
+}
+
+
+def _obj_progress(obj: dict) -> int:
+    try:
+        p = int(obj.get("progression", 0) or 0)
+    except (TypeError, ValueError):
+        p = 0
+    return max(0, min(100, p))
+
+
+def _decision_label(did: str, by_id: dict) -> str:
+    d = by_id.get(did)
+    if not d:
+        return did
+    txt = str(d.get("texte", did))
+    return txt if len(txt) <= 70 else txt[:67] + "…"
+
+
+def page_objectifs(objectifs: list, decisions: list) -> str:
+    """Couche OBJECTIFS du QG (qg) : ce qu'Alex vise, relié à ses décisions."""
+    by_id = {d.get("id"): d for d in decisions if isinstance(d, dict) and d.get("id")}
+    html = (
+        '<div class="flex items-center justify-between mb-6">'
+        '<div><h1 class="text-xl font-bold text-gray-900">Objectifs</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{len(objectifs)} objectif(s) — ce qu\'Alex vise, relié aux décisions qui les débloquent.</p></div></div>'
+    )
+    if not objectifs:
+        html += '<div class="bg-white border border-gray-200 rounded-xl px-5 py-4 text-sm text-gray-500">Aucun objectif défini.</div>'
+        return html
+    for obj in objectifs:
+        statut = str(obj.get("statut", "a_faire"))
+        label, badge_cls, bar_cls = _OBJ_STATUTS.get(statut, _OBJ_STATUTS["a_faire"])
+        prog = _obj_progress(obj)
+        html += '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-3">'
+        html += (
+            '<div class="flex items-start justify-between gap-3 mb-2">'
+            f'<div class="text-sm font-semibold text-gray-900">{escape(str(obj.get("titre", obj.get("id", "?"))))}</div>'
+            f'<span class="shrink-0 text-xs rounded-full px-2 py-0.5 font-medium {badge_cls}">{escape(label)}</span>'
+            '</div>'
+        )
+        if obj.get("description"):
+            html += f'<div class="text-xs text-gray-500 mb-3">{escape(str(obj["description"]))}</div>'
+        html += (
+            '<div class="flex items-center gap-3 mb-3">'
+            '<div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">'
+            f'<div class="h-2 rounded-full {bar_cls}" style="width:{prog}%"></div></div>'
+            f'<span class="text-xs font-medium text-gray-600 w-10 text-right">{prog}%</span>'
+            '</div>'
+        )
+        liees = [d for d in (obj.get("decisions_liees") or []) if d]
+        if liees:
+            html += '<div class="flex flex-wrap gap-1.5 pt-1 border-t border-gray-100 mt-1">'
+            html += '<span class="text-xs text-gray-400 mr-1 mt-0.5">Décisions liées :</span>'
+            for did in liees:
+                html += (
+                    f'<a href="/decisions/#card-{escape(str(did))}" '
+                    'class="text-xs rounded-full bg-amber-50 text-amber-700 px-2 py-0.5 hover:bg-amber-100" '
+                    f'title="{escape(_decision_label(str(did), by_id))}">{escape(_decision_label(str(did), by_id))}</a>'
+                )
+            html += '</div>'
+        html += '</div>'
+    return html
+
+
+def objectifs_summary(objectifs: list) -> str:
+    """Bandeau Objectifs en tête de l'accueil (avant le registry de repos)."""
+    if not objectifs:
+        return ""
+    cards = ""
+    for obj in objectifs:
+        statut = str(obj.get("statut", "a_faire"))
+        label, badge_cls, bar_cls = _OBJ_STATUTS.get(statut, _OBJ_STATUTS["a_faire"])
+        prog = _obj_progress(obj)
+        cards += (
+            '<a href="/objectifs/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+            '<div class="flex items-start justify-between gap-2 mb-2">'
+            f'<div class="text-sm font-semibold text-gray-900 leading-snug">{escape(str(obj.get("titre", obj.get("id", "?"))))}</div>'
+            f'<span class="shrink-0 text-xs rounded-full px-2 py-0.5 font-medium {badge_cls}">{escape(label)}</span>'
+            '</div>'
+            '<div class="flex items-center gap-2">'
+            '<div class="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">'
+            f'<div class="h-1.5 rounded-full {bar_cls}" style="width:{prog}%"></div></div>'
+            f'<span class="text-xs font-medium text-gray-500 w-9 text-right">{prog}%</span>'
+            '</div></a>'
+        )
+    return (
+        '<div class="mb-6">'
+        '<div class="flex items-center justify-between mb-2">'
+        '<h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Objectifs</h2>'
+        '<a href="/objectifs/" class="text-xs text-blue-500 hover:underline">Tout voir →</a>'
+        '</div>'
+        f'<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">{cards}</div>'
+        '</div>'
+    )
+
+
 def page_decisions(decisions: list) -> str:
     """Boîte de décisions Alex (qg#27) — réponse = bouton → qg-api → déblocage kanban/issue."""
     api = "http://100.79.68.6:8097/api/decisions/answer"
@@ -1629,7 +1735,7 @@ def main() -> None:
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
-    for var_name in ("triage.json", "vps.json", "decisions.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json"):
         var_payload = _read_var_json(var_name)
         if var_payload:
             (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -1653,6 +1759,15 @@ def main() -> None:
         decisions = json.loads((ROOT / "var" / "decisions.json").read_text(encoding="utf-8"))
     except Exception:
         pass
+    if not decisions:
+        # Worktree propre : pas de var/, on retombe sur le snapshot publié.
+        snap = _read_var_json("decisions.json")
+        decisions = snap if isinstance(snap, list) else []
+
+    # Couche OBJECTIFS (qg) : ce qu'Alex vise. var/ runtime, fallback public/api en worktree propre.
+    objectifs = _read_var_json("objectifs.json")
+    if not isinstance(objectifs, list):
+        objectifs = []
 
     # Builds du jour (commits par repo, 7 j) → public/api/builds.json
     try:
@@ -1667,7 +1782,8 @@ def main() -> None:
     builds_today = (builds.get("totals", {}) or {}).get("today", 0)
 
     pages = [
-        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today)),
+        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs)),
+        ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),

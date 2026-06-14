@@ -7,6 +7,7 @@ PUBLIC = ROOT / "public"
 
 ROUTES = {
     "/": PUBLIC / "index.html",
+    "/objectifs": PUBLIC / "objectifs" / "index.html",
     "/ops": PUBLIC / "ops" / "index.html",
     "/partenaires": PUBLIC / "partenaires" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
@@ -114,6 +115,47 @@ def test_qg_app_detail_pages_from_registry_data():
     assert "https://github.com/omar-paris/omar-app/issues/" in app_page
     ledger = json.loads((PUBLIC / "api" / "daily-ledger" / "index.json").read_text(encoding="utf-8"))
     assert 1 <= len(ledger["items"]) <= 7
+
+
+def test_qg_objectifs_page_and_api():
+    build()
+    # Page /objectifs/ existe et liste les objectifs seed
+    obj_html = (PUBLIC / "objectifs" / "index.html").read_text(encoding="utf-8")
+    assert "JAB pleinement servi" in obj_html
+    assert "Observabilite Langfuse" in obj_html
+    # Progression rendue sous forme de barre
+    assert "width:55%" in obj_html
+    # API snapshot republie
+    api = PUBLIC / "api" / "objectifs.json"
+    assert api.exists()
+    objectifs = json.loads(api.read_text(encoding="utf-8"))
+    assert isinstance(objectifs, list) and len(objectifs) >= 3
+    for obj in objectifs:
+        assert {"id", "titre", "statut", "progression", "decisions_liees", "description"} <= set(obj)
+        assert obj["statut"] in ("a_faire", "en_cours", "fait")
+        assert 0 <= int(obj["progression"]) <= 100
+
+
+def test_qg_objectifs_on_home_before_registry():
+    build()
+    home = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    body = home.split("<main", 1)[1]
+    # Les objectifs apparaissent EN TÊTE, avant le registry de repos
+    assert "Objectifs</h2>" in body
+    assert body.index("Objectifs</h2>") < body.index("Registry CORE OA</h1>")
+    # Lien nav vers la page dédiée
+    assert 'href="/objectifs/"' in home
+
+
+def test_qg_objectifs_link_to_decisions():
+    build()
+    obj_html = (PUBLIC / "objectifs" / "index.html").read_text(encoding="utf-8")
+    objectifs = json.loads((PUBLIC / "api" / "objectifs.json").read_text(encoding="utf-8"))
+    linked = [d for obj in objectifs for d in obj.get("decisions_liees", [])]
+    assert linked, "au moins un objectif relie a une decision"
+    # Chaque decision liee renvoie vers son ancre sur /decisions/
+    for did in linked:
+        assert f"/decisions/#card-{did}" in obj_html
 
 
 def test_qg_app_detail_hides_unmeasured_app_sources():
