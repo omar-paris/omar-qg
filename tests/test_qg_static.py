@@ -10,6 +10,7 @@ ROUTES = {
     "/ops": PUBLIC / "ops" / "index.html",
     "/partenaires": PUBLIC / "partenaires" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
+    "/apps/app": PUBLIC / "apps" / "app" / "index.html",
 }
 
 
@@ -101,3 +102,15 @@ def test_qg_no_hardcoded_live_status_pill():
     assert 'pill">live<' not in text
     assert 'pill">tailnet<' not in text
     assert 'pill">public<' not in text
+
+
+def test_qg_app_detail_pages_from_registry_data():
+    build()
+    registry = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    assert 'href="/apps/app/"' in registry
+    app_page = (PUBLIC / "apps" / "app" / "index.html").read_text(encoding="utf-8")
+    for expected in ["AppOmar", "Portail client", "P0/P1 du jour", "Derniers commits", "Historique 7 jours", "CONTRACT", "Changelog"]:
+        assert expected in app_page
+    assert "https://github.com/omar-paris/omar-app/issues/" in app_page
+    ledger = json.loads((PUBLIC / "api" / "daily-ledger" / "index.json").read_text(encoding="utf-8"))
+    assert 1 <= len(ledger["items"]) <= 7

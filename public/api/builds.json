@@ -1,23 +1,154 @@
 {
-  "generated_at": "2026-06-13T23:16:51Z",
+  "generated_at": "2026-06-14T03:23:42Z",
   "today": "2026-06-14",
   "window_days": 7,
   "totals": {
-    "today": 0,
-    "window": 110,
-    "repos_today": 0,
+    "today": 6,
+    "window": 123,
+    "repos_today": 2,
     "repos_total": 7
   },
-  "today_by_repo": [],
+  "today_by_repo": [
+    {
+      "repo": "omar-catalogue",
+      "name": "Catalogue",
+      "count": 5,
+      "commits": [
+        {
+          "hash": "83a7145",
+          "author": "alexwill87",
+          "date": "2026-06-14 03:09",
+          "day": "2026-06-14",
+          "message": "feat(hub-health): script de rafraichissement des artefacts"
+        },
+        {
+          "hash": "f50ceef",
+          "author": "alexwill87",
+          "date": "2026-06-14 02:19",
+          "day": "2026-06-14",
+          "message": "fix(llm-ops): healthchecks honnêtes"
+        },
+        {
+          "hash": "2847730",
+          "author": "alexwill87",
+          "date": "2026-06-14 01:53",
+          "day": "2026-06-14",
+          "message": "feat(listmonk): rendre oa-install réel sur vps-omar"
+        },
+        {
+          "hash": "c170468",
+          "author": "cc-manager",
+          "date": "2026-06-14 00:31",
+          "day": "2026-06-14",
+          "message": "fix(build): f-string compatible Python 3.11 (agents Hermes) — badge qualité extrait"
+        },
+        {
+          "hash": "3e9b5e6",
+          "author": "cc-manager",
+          "date": "2026-06-14 00:07",
+          "day": "2026-06-14",
+          "message": "fix(changelog): page /changelog/ lit CHANGELOG.md (11 versions) au lieu d'1 entrée figée"
+        }
+      ]
+    },
+    {
+      "repo": "omar-hub",
+      "name": "Hub",
+      "count": 1,
+      "commits": [
+        {
+          "hash": "ff69932",
+          "author": "cc-superadjoint",
+          "date": "2026-06-14 01:49",
+          "day": "2026-06-14",
+          "message": "feat(hub): le collecteur consomme les artefacts par-app de la boucle agent"
+        }
+      ]
+    }
+  ],
   "days": [
     {
+      "date": "2026-06-14",
+      "count": 6,
+      "repos": [
+        {
+          "repo": "omar-catalogue",
+          "name": "Catalogue",
+          "commits": [
+            {
+              "hash": "83a7145",
+              "author": "alexwill87",
+              "date": "2026-06-14 03:09",
+              "day": "2026-06-14",
+              "message": "feat(hub-health): script de rafraichissement des artefacts"
+            },
+            {
+              "hash": "f50ceef",
+              "author": "alexwill87",
+              "date": "2026-06-14 02:19",
+              "day": "2026-06-14",
+              "message": "fix(llm-ops): healthchecks honnêtes"
+            },
+            {
+              "hash": "2847730",
+              "author": "alexwill87",
+              "date": "2026-06-14 01:53",
+              "day": "2026-06-14",
+              "message": "feat(listmonk): rendre oa-install réel sur vps-omar"
+            },
+            {
+              "hash": "c170468",
+              "author": "cc-manager",
+              "date": "2026-06-14 00:31",
+              "day": "2026-06-14",
+              "message": "fix(build): f-string compatible Python 3.11 (agents Hermes) — badge qualité extrait"
+            },
+            {
+              "hash": "3e9b5e6",
+              "author": "cc-manager",
+              "date": "2026-06-14 00:07",
+              "day": "2026-06-14",
+              "message": "fix(changelog): page /changelog/ lit CHANGELOG.md (11 versions) au lieu d'1 entrée figée"
+            }
+          ]
+        },
+        {
+          "repo": "omar-hub",
+          "name": "Hub",
+          "commits": [
+            {
+              "hash": "ff69932",
+              "author": "cc-superadjoint",
+              "date": "2026-06-14 01:49",
+              "day": "2026-06-14",
+              "message": "feat(hub): le collecteur consomme les artefacts par-app de la boucle agent"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "date": "2026-06-13",
-      "count": 8,
+      "count": 15,
       "repos": [
         {
           "repo": "omar-qg",
           "name": "QG",
           "commits": [
+            {
+              "hash": "bf2008e",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-13 23:48",
+              "day": "2026-06-13",
+              "message": "fix(qg): restore Hetzner fleet vault token fallback"
+            },
+            {
+              "hash": "cfce338",
+              "author": "Omar",
+              "date": "2026-06-13 23:16",
+              "day": "2026-06-13",
+              "message": "feat(qg): afficher le dernier push réel (git, heure Paris) dans le footer — repère Alex"
+            },
             {
               "hash": "1d4a37b",
               "author": "Omar",
@@ -53,6 +184,13 @@
           "name": "Catalogue",
           "commits": [
             {
+              "hash": "e37dfb5",
+              "author": "cc-manager",
+              "date": "2026-06-13 23:51",
+              "day": "2026-06-13",
+              "message": "feat(footer): affiche la date du dernier push git dans le footer"
+            },
+            {
               "hash": "88de012",
               "author": "Omar",
               "date": "2026-06-13 22:54",
@@ -80,11 +218,57 @@
           "name": "AppOmar",
           "commits": [
             {
+              "hash": "db79da5",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-13 23:51",
+              "day": "2026-06-13",
+              "message": "feat(footer): affiche la date du dernier push git dans les footers"
+            },
+            {
               "hash": "a67ebcd",
               "author": "Omar",
               "date": "2026-06-13 22:59",
               "day": "2026-06-13",
               "message": "chore(app): consolidation état courant (page /jab, données)"
+            }
+          ]
+        },
+        {
+          "repo": "omar-hub",
+          "name": "Hub",
+          "commits": [
+            {
+              "hash": "bd41ffb",
+              "author": "cc-superadjoint",
+              "date": "2026-06-13 23:51",
+              "day": "2026-06-13",
+              "message": "feat(footer): buildDate dynamique via build-info.json (fini la date codée en dur)"
+            }
+          ]
+        },
+        {
+          "repo": "omar-landing",
+          "name": "Landing",
+          "commits": [
+            {
+              "hash": "dde0533",
+              "author": "Claude-Cockpit [bot]",
+              "date": "2026-06-13 23:51",
+              "day": "2026-06-13",
+              "message": "feat(header): date = dernier push git (fini '9 juin 2026' codé en dur)"
+            }
+          ]
+        },
+        {
+          "repo": "omar-top",
+          "name": "OmarTop",
+          "commits": [
+            {
+              "hash": "cf2f7e5",
+              "author": "cc-manager",
+              "date": "2026-06-13 23:51",
+              "day": "2026-06-13",
+              "message": "feat(footer): dernier push dans le copyright MkDocs via OA_FOOTER (!ENV)"
             }
           ]
         }
@@ -999,32 +1183,36 @@
   ],
   "deploys": [
     {
+      "path": "apps/omartop/index.html",
+      "mtime": "2026-06-14 03:23"
+    },
+    {
+      "path": "apps/hub/index.html",
+      "mtime": "2026-06-14 03:23"
+    },
+    {
+      "path": "apps/qg/index.html",
+      "mtime": "2026-06-14 03:23"
+    },
+    {
+      "path": "apps/lab/index.html",
+      "mtime": "2026-06-14 03:23"
+    },
+    {
+      "path": "apps/catalogue/index.html",
+      "mtime": "2026-06-14 03:23"
+    },
+    {
+      "path": "apps/app/index.html",
+      "mtime": "2026-06-14 03:23"
+    },
+    {
+      "path": "apps/landing/index.html",
+      "mtime": "2026-06-14 03:23"
+    },
+    {
       "path": "changelog/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "decisions/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "builds/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "clients/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "ops/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "partenaires/index.html",
-      "mtime": "2026-06-13 23:13"
-    },
-    {
-      "path": "index.html",
-      "mtime": "2026-06-13 23:13"
+      "mtime": "2026-06-14 03:23"
     }
   ]
 }
