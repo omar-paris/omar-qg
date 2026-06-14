@@ -3,17 +3,17 @@
   "items": [
     {
       "date": "2026-06-14",
-      "generated_at": "2026-06-14T03:23:41Z",
+      "generated_at": "2026-06-14T03:33:50Z",
       "version": "V0.7.0",
       "sessions": {
         "hermes": {
-          "sessions": 7,
-          "messages": 590,
-          "tool_calls": 335,
-          "api_calls": 166,
+          "sessions": 8,
+          "messages": 610,
+          "tool_calls": 345,
+          "api_calls": 183,
           "by_source": {
             "cli": 1,
-            "cron": 3,
+            "cron": 4,
             "tui": 3
           },
           "db": "/home/omar/.hermes/state.db",
@@ -22,8 +22,8 @@
         "ccusage": {
           "sessions_by_agent": {},
           "daily": {
-            "total_cost_usd": 13.2129,
-            "total_tokens": 16362805,
+            "total_cost_usd": 15.0236,
+            "total_tokens": 18803242,
             "agents": [
               "hermes"
             ],
@@ -61,7 +61,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 9
+            "latency_ms": 8
           },
           "git": {
             "exists": true,
@@ -92,7 +92,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 193
+            "latency_ms": 157
           },
           "git": {
             "exists": true,
@@ -123,7 +123,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 10
+            "latency_ms": 7
           },
           "git": {
             "exists": true,
@@ -154,7 +154,7 @@
           "health": {
             "status": "error",
             "http_code": 502,
-            "latency_ms": 13
+            "latency_ms": 7
           },
           "git": {
             "exists": true,
@@ -177,7 +177,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 10
+            "latency_ms": 6
           },
           "git": {
             "exists": true,
@@ -208,7 +208,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 14
+            "latency_ms": 6
           },
           "git": {
             "exists": true,
@@ -239,7 +239,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 10
+            "latency_ms": 6
           },
           "git": {
             "exists": true,

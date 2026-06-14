@@ -1,7 +1,7 @@
 {
   "version": "V0.7.0",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-14T03:23:41Z",
+  "built_at": "2026-06-14T03:33:50Z",
   "items": [
     {
       "id": "landing",
@@ -11,7 +11,7 @@
       "path": "omar-landing",
       "scope": "CORE OA",
       "role": "Vitrine publique. CTA → AppOmar.",
-      "version": "V0.2.0",
+      "version": "version non mesurée",
       "changelog": "https://landing.omar.paris/changelog/",
       "next": "P0 · #13 — Conversion stack: RDV, analytics sobre, suivi leads et conformité RGPD",
       "git": {
@@ -29,7 +29,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 9
+        "latency_ms": 8
       },
       "triage": {
         "p0": 1,
@@ -97,7 +97,10 @@
             "url": "https://github.com/omar-paris/omar-landing/issues/25"
           }
         ]
-      }
+      },
+      "version_source": "unmeasured",
+      "has_contract_source": false,
+      "has_changelog_source": true
     },
     {
       "id": "app",
@@ -107,7 +110,7 @@
       "path": "omar-app",
       "scope": "CORE OA",
       "role": "Portail client : onboarding, config, buy, SAV, factures.",
-      "version": "V0.3.0",
+      "version": "version non mesurée",
       "changelog": "https://app.omar.paris/changelog/",
       "next": "P0 · #38 — ops: durcir la gestion des secrets (Vault root token → policies/Infisical) avant prod",
       "git": {
@@ -125,7 +128,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 193
+        "latency_ms": 157
       },
       "triage": {
         "p0": 5,
@@ -193,7 +196,10 @@
             "url": "https://github.com/omar-paris/omar-app/issues/36"
           }
         ]
-      }
+      },
+      "version_source": "unmeasured",
+      "has_contract_source": false,
+      "has_changelog_source": false
     },
     {
       "id": "catalogue",
@@ -221,7 +227,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 10
+        "latency_ms": 7
       },
       "triage": {
         "p0": 0,
@@ -289,7 +295,10 @@
             "url": "https://github.com/omar-paris/omar-catalogue/issues/15"
           }
         ]
-      }
+      },
+      "version_source": "VERSION",
+      "has_contract_source": true,
+      "has_changelog_source": true
     },
     {
       "id": "lab",
@@ -299,7 +308,7 @@
       "path": "oa-lab-plane",
       "scope": "CORE OA",
       "role": "Atelier Plane : projets, work items, cycles.",
-      "version": "Plane",
+      "version": "version non mesurée",
       "changelog": "https://lab.omar.paris/",
       "next": "Consolider projets → CORE/VPS/DIVERS/ARCHIVE.",
       "git": {
@@ -317,8 +326,11 @@
       "health": {
         "status": "error",
         "http_code": 502,
-        "latency_ms": 13
-      }
+        "latency_ms": 7
+      },
+      "version_source": "unmeasured",
+      "has_contract_source": false,
+      "has_changelog_source": false
     },
     {
       "id": "qg",
@@ -346,7 +358,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 10
+        "latency_ms": 6
       },
       "triage": {
         "p0": 5,
@@ -414,7 +426,10 @@
             "url": "https://github.com/omar-paris/omar-qg/issues/27"
           }
         ]
-      }
+      },
+      "version_source": "VERSION",
+      "has_contract_source": false,
+      "has_changelog_source": true
     },
     {
       "id": "hub",
@@ -442,7 +457,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 14
+        "latency_ms": 6
       },
       "triage": {
         "p0": 2,
@@ -510,7 +525,10 @@
             "url": "https://github.com/omar-paris/omar-hub/issues/46"
           }
         ]
-      }
+      },
+      "version_source": "VERSION",
+      "has_contract_source": true,
+      "has_changelog_source": true
     },
     {
       "id": "omartop",
@@ -538,8 +556,11 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 10
-      }
+        "latency_ms": 6
+      },
+      "version_source": "VERSION",
+      "has_contract_source": true,
+      "has_changelog_source": true
     }
   ],
   "counts": {

@@ -109,8 +109,24 @@ def test_qg_app_detail_pages_from_registry_data():
     registry = (PUBLIC / "index.html").read_text(encoding="utf-8")
     assert 'href="/apps/app/"' in registry
     app_page = (PUBLIC / "apps" / "app" / "index.html").read_text(encoding="utf-8")
-    for expected in ["AppOmar", "Portail client", "P0/P1 du jour", "Derniers commits", "Historique 7 jours", "CONTRACT", "Changelog"]:
+    for expected in ["AppOmar", "Portail client", "P0/P1 du jour", "Derniers commits", "Historique 7 jours"]:
         assert expected in app_page
     assert "https://github.com/omar-paris/omar-app/issues/" in app_page
     ledger = json.loads((PUBLIC / "api" / "daily-ledger" / "index.json").read_text(encoding="utf-8"))
     assert 1 <= len(ledger["items"]) <= 7
+
+
+def test_qg_app_detail_hides_unmeasured_app_sources():
+    build()
+    payload = json.loads((PUBLIC / "api" / "core-repos.json").read_text(encoding="utf-8"))
+    app = next(item for item in payload["items"] if item["id"] == "app")
+    assert app["version_source"] == "unmeasured"
+    assert app["version"] == "version non mesurée"
+    assert app["has_contract_source"] is False
+    assert app["has_changelog_source"] is False
+
+    app_page = (PUBLIC / "apps" / "app" / "index.html").read_text(encoding="utf-8")
+    assert "V0.3.0" not in app_page
+    assert "version non mesurée" in app_page
+    assert "https://github.com/omar-paris/omar-app/blob/main/CONTRACT.md" not in app_page
+    assert "https://app.omar.paris/changelog/" not in app_page

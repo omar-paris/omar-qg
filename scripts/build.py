@@ -752,13 +752,22 @@ def payload(built_at: str) -> dict:
         if t and t.get("next"):
             enriched["next"] = t["next"]
             enriched["triage"] = {k: t.get(k) for k in ("p0", "p1", "p2", "top")}
-        # Version réelle = fichier VERSION du repo (le hardcodé n'est qu'un fallback)
+        # Sources mesurées depuis l'actif local. Les valeurs codées dans ITEMS
+        # documentent l'intention produit, mais ne doivent pas être affichées
+        # comme des faits si le fichier source réel est absent.
+        asset_dir = ACTIFS / item["path"]
+        version_file = asset_dir / "VERSION"
+        enriched["version_source"] = "unmeasured"
+        enriched["version"] = "version non mesurée"
         try:
-            v = (Path("/home/omar/23-Offre/actifs") / item["path"] / "VERSION").read_text().strip()
+            v = version_file.read_text(encoding="utf-8").strip()
             if v:
                 enriched["version"] = v if v[:1].upper() in ("V", "P") else f"V{v}"
+                enriched["version_source"] = "VERSION"
         except Exception:
             pass
+        enriched["has_contract_source"] = (asset_dir / "CONTRACT.md").exists()
+        enriched["has_changelog_source"] = (asset_dir / "CHANGELOG.md").exists()
         items.append(enriched)
     healthy = sum(1 for i in items if i["health"]["status"] == "ok")
     counts = {
@@ -1047,8 +1056,8 @@ def page_app_detail(data: dict, app: dict, builds: dict, ledgers: list[dict]) ->
         '<div class="flex gap-3 flex-wrap mt-5 text-sm">'
         f'<a class="text-blue-600 hover:underline" href="https://{escape(app.get("domain", ""))}/">{escape(app.get("domain", ""))}</a>'
         + (f'<a class="text-blue-600 hover:underline" href="https://github.com/{escape(repo)}">GitHub</a>' if repo else '')
-        + (f'<a class="text-blue-600 hover:underline" href="https://github.com/{escape(repo)}/blob/main/CONTRACT.md">CONTRACT</a>' if repo else '')
-        + (f'<a class="text-blue-600 hover:underline" href="{escape(app.get("changelog", ""))}">Changelog</a>' if app.get("changelog") else '')
+        + (f'<a class="text-blue-600 hover:underline" href="https://github.com/{escape(repo)}/blob/main/CONTRACT.md">CONTRACT</a>' if repo and app.get("has_contract_source") else '')
+        + (f'<a class="text-blue-600 hover:underline" href="{escape(app.get("changelog", ""))}">Changelog</a>' if app.get("changelog") and app.get("has_changelog_source") else '')
         + '</div></div>'
     )
 
