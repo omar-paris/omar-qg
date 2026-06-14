@@ -92,6 +92,15 @@ VPS_META = {
         "owner": "OA / Alex",
         "purpose": "Infra centrale : agents Hermes, Caddy, Vault, sites CORE OA, QG.",
         "tailnet": "100.79.68.6",
+        # Schéma RBAC `access` (cf. rbac-model §4.2/4.3). VPS-Omar = CORE, aucune
+        # vue client : pas de `client_view`, il n'apparaît dans aucune vue client.
+        "access": {
+            "owner": "alex",
+            "viewers": ["ccma", "h-omar"],
+            "exposure": "tailnet",
+            "client_view": [],
+            "internal_only": ["ip", "hetzner_id", "price_eur", "tailnet"],
+        },
         "links": [
             {"kind": "hub",       "label": "Hub local",      "url": "https://hub.omar.paris/",          "status": "live"},
             {"kind": "hermesui",  "label": "Hermes UI",      "url": "http://100.79.68.6:9119/",         "status": "live"},
@@ -107,6 +116,13 @@ VPS_META = {
         "owner": "OA / Alex",
         "purpose": "Studio Pantheos : editing.alexgo.eu. Cible : H-Aurel + apps L1.",
         "tailnet": "",
+        "access": {
+            "owner": "alex",
+            "viewers": ["ccma", "h-aurel"],
+            "exposure": "tailnet",
+            "client_view": [],
+            "internal_only": ["ip", "hetzner_id", "price_eur", "tailnet"],
+        },
         "links": [
             {"kind": "site",      "label": "editing.alexgo.eu", "url": "https://editing.alexgo.eu/",     "status": "live"},
             {"kind": "hub",       "label": "Hub local",         "url": "",                               "status": "todo"},
@@ -122,6 +138,15 @@ VPS_META = {
         "owner": "Client JAB",
         "purpose": "Stack client JAB : facturation PennyLane, Maryse, Google MyBusiness.",
         "tailnet": "",
+        # VPS client : jab est owner de SON vps. La vue client n'expose que
+        # health/services/invoice ; jamais ip/hetzner_id/price_eur/tailnet.
+        "access": {
+            "owner": "jab",
+            "viewers": ["alex", "ccma", "h-omar"],
+            "exposure": "public-authenticated",
+            "client_view": ["health", "services", "invoice"],
+            "internal_only": ["ip", "hetzner_id", "price_eur", "tailnet"],
+        },
         "links": [
             {"kind": "hub",       "label": "Hub local",       "url": "",                               "status": "todo"},
             {"kind": "hermesui",  "label": "Hermes UI",       "url": "",                               "status": "todo"},
@@ -130,6 +155,190 @@ VPS_META = {
         ],
     },
 }
+
+# ── RBAC : isolation client (Standard 3) ──────────────────────────────────────
+# Implémente le modèle de 11-Pilotage/night-agent/reports/2026-06-09-qg-rbac-model.md.
+# Slice fondatrice : build NIVEAU 2 (§5) — artefacts statiques par rôle, filtrés au
+# build, isolation client prouvable par test. Aucune logique d'autorisation runtime.
+
+RBAC_DIR = ROOT / "rbac"
+
+# Champs jamais exposés en vue client, quel que soit le `internal_only` déclaré
+# par une ressource. Filet de sécurité défensif (defense-in-depth) : même si une
+# ressource oublie de lister un de ces champs, il ne fuitera pas en vue client.
+SENSITIVE_FIELDS = frozenset({
+    "ip", "hetzner_id", "id", "price_eur", "tailnet",
+    "datacenter", "location", "os", "type", "vcpu", "ram_gb", "disk_gb",
+    "traffic_out_gb", "traffic_inc_tb", "created", "backups",
+})
+
+
+def _load_yaml(path: Path) -> dict:
+    """Charge un YAML simple. Utilise PyYAML si présent, sinon parseur minimal
+    (le build cron ne doit jamais casser faute de dépendance)."""
+    try:
+        import yaml  # type: ignore
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except ImportError:
+        return _parse_actors_minimal(path)
+
+
+def _parse_actors_minimal(path: Path) -> dict:
+    """Parseur de secours pour rbac/actors.yaml uniquement (format inline maîtrisé)."""
+    actors: dict = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.split("#", 1)[0].rstrip()
+        if not line or not line.startswith("  ") or ":" not in line:
+            continue
+        key, _, rest = line.strip().partition(":")
+        rest = rest.strip()
+        if not (rest.startswith("{") and rest.endswith("}")):
+            continue
+        entry: dict = {}
+        for pair in rest[1:-1].split(","):
+            if ":" in pair:
+                k, _, v = pair.partition(":")
+                entry[k.strip()] = v.strip()
+        actors[key.strip()] = entry
+    return {"actors": actors}
+
+
+def load_actors() -> dict:
+    """Renvoie le dict {actor_id: {kind, role_default, scope?}} depuis actors.yaml."""
+    data = _load_yaml(RBAC_DIR / "actors.yaml")
+    return (data or {}).get("actors", {}) if isinstance(data, dict) else {}
+
+
+def actor_can_see(actor: str, access: dict) -> bool:
+    """Vrai si `actor` est owner ou viewer de la ressource décrite par `access`."""
+    if not isinstance(access, dict):
+        return False
+    return actor == access.get("owner") or actor in (access.get("viewers") or [])
+
+
+def client_fields(access: dict) -> list:
+    """Champs autorisés en vue client = `client_view` moins tout champ sensible."""
+    allowed = access.get("client_view") or [] if isinstance(access, dict) else []
+    return [f for f in allowed if f not in SENSITIVE_FIELDS]
+
+
+def filter_resource_for_client(resource: dict, access: dict) -> dict:
+    """Projette une ressource sur sa vue client : ne garde QUE les champs
+    `client_view` (hors champs sensibles) + des étiquettes non sensibles.
+
+    Garantie : aucun champ de `internal_only` ni de SENSITIVE_FIELDS n'en sort.
+    """
+    fields = client_fields(access)
+    out = {
+        # Étiquettes d'identification non sensibles (jamais une IP/coût/id infra)
+        "name": resource.get("name") or resource.get("label"),
+        "label": resource.get("label") or resource.get("name"),
+        "role": resource.get("role"),
+        "fields": {},
+    }
+    for f in fields:
+        if f in resource:
+            out["fields"][f] = resource[f]
+        elif f == "health":
+            # santé dérivée des liens / d'un éventuel probe ; valeur neutre par défaut
+            out["fields"]["health"] = resource.get("health", "unknown")
+        elif f == "services":
+            out["fields"]["services"] = resource.get("services", [])
+        elif f == "invoice":
+            out["fields"]["invoice"] = resource.get("invoice", {"status": "n/a"})
+    return out
+
+
+def build_client_view(client_id: str) -> dict:
+    """Construit la vue client (Niveau 2) : UNIQUEMENT les ressources où
+    `client_id` est owner/viewer, et UNIQUEMENT les champs `client_view`.
+
+    Source = VPS_META (statique, toujours disponible même sans API Hetzner).
+    Enrichi des champs live de la flotte Hetzner s'ils sont accessibles.
+    """
+    actors = load_actors()
+    role = (actors.get(client_id) or {}).get("role_default", "client")
+
+    # Enrichissement live optionnel (ne bloque jamais : worktree propre = pas de token)
+    live_by_key: dict = {}
+    try:
+        for entry in hetzner_fleet():
+            for key in VPS_META:
+                if key in (entry.get("name") or ""):
+                    live_by_key[key] = entry
+                    break
+    except Exception:
+        live_by_key = {}
+
+    resources = []
+    for key, meta in VPS_META.items():
+        access = meta.get("access") or {}
+        if not actor_can_see(client_id, access):
+            continue
+        # Le rôle effectif sur CETTE ressource décide de la projection.
+        # Un client ne voit que la vue client ; on n'expose la vue client que si
+        # des champs client_view existent (sinon ressource interne, on l'omet).
+        if role == "client" and not client_fields(access):
+            continue
+        base = dict(meta)
+        base["name"] = meta.get("label", key)
+        live = live_by_key.get(key)
+        if isinstance(live, dict):
+            base = {**base, **{k: v for k, v in live.items() if k not in ("access", "links")}}
+        resources.append(filter_resource_for_client(base, access))
+
+    return {
+        "schema": "oa.rbac.client-view/1",
+        "client": client_id,
+        "role": role,
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "resource_count": len(resources),
+        "resources": resources,
+    }
+
+
+def client_view_html(view: dict) -> str:
+    """Rendu HTML minimal de la vue client (portail app, derrière auth)."""
+    rows = ""
+    for r in view.get("resources", []):
+        fields_html = "".join(
+            f'<div class="text-sm text-gray-600"><span class="font-medium text-gray-800">{escape(str(k))}</span> : {escape(json.dumps(v, ensure_ascii=False))}</div>'
+            for k, v in (r.get("fields") or {}).items()
+        )
+        rows += (
+            '<div class="bg-white rounded-lg border border-gray-200 p-4 mb-3">'
+            f'<div class="font-semibold text-gray-900">{escape(str(r.get("name") or r.get("label") or ""))}</div>'
+            f'{fields_html}</div>'
+        )
+    if not rows:
+        rows = '<div class="text-sm text-gray-500">Aucune ressource.</div>'
+    return (
+        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        f'<title>Espace client {escape(str(view.get("client","")))}</title>'
+        '<meta name="robots" content="noindex">'
+        '<script src="https://cdn.tailwindcss.com"></script></head>'
+        '<body class="bg-gray-50 p-6"><div class="max-w-2xl mx-auto">'
+        f'<h1 class="text-xl font-bold text-gray-900 mb-1">Espace client · {escape(str(view.get("client","")))}</h1>'
+        f'<p class="text-sm text-gray-500 mb-4">Vue client (santé, services, facture). '
+        f'{view.get("resource_count",0)} ressource(s).</p>'
+        f'{rows}</div></body></html>'
+    )
+
+
+def write_client_view(client_id: str, out_root: Path | None = None) -> Path:
+    """Génère public/client/<id>/index.html + public/api/client-<id>.json.
+    Renvoie le chemin du JSON (artefact testable)."""
+    out_root = out_root or PUBLIC
+    view = build_client_view(client_id)
+    api_dir = out_root / "api"
+    api_dir.mkdir(parents=True, exist_ok=True)
+    json_path = api_dir / f"client-{client_id}.json"
+    json_path.write_text(json.dumps(view, ensure_ascii=False, indent=2), encoding="utf-8")
+    html_dir = out_root / "client" / client_id
+    html_dir.mkdir(parents=True, exist_ok=True)
+    (html_dir / "index.html").write_text(client_view_html(view), encoding="utf-8")
+    return json_path
+
 
 # ── Catalog by type ───────────────────────────────────────────────────────────
 # Each type has options ordered best-first; default=True marks the OA standard choice.
@@ -678,6 +887,7 @@ def hetzner_fleet() -> list:
             "purpose": meta.get("purpose", ""),
             "links": meta.get("links", []),
             "tailnet": meta.get("tailnet", ""),
+            "access": meta.get("access", {}),
             "id": s.get("id"),
             "status": s.get("status", "?"),
             "type": st.get("name", "?"),
@@ -1717,7 +1927,38 @@ def page_builds(builds: dict) -> str:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def main() -> None:
+def _parse_args(argv: list[str]) -> dict:
+    """Parse les options CLI minimales : --view=<operator|client> --client=<id>."""
+    opts = {"view": "operator", "client": None}
+    for arg in argv:
+        if arg.startswith("--view="):
+            opts["view"] = arg.split("=", 1)[1]
+        elif arg.startswith("--client="):
+            opts["client"] = arg.split("=", 1)[1]
+        elif arg == "--view":
+            continue
+    return opts
+
+
+def main(argv: list[str] | None = None) -> None:
+    import sys
+    opts = _parse_args(list(argv) if argv is not None else sys.argv[1:])
+
+    # NIVEAU 2 (rbac-model §5) : build d'une vue client isolée. Artefact statique
+    # ne contenant QUE les ressources du client + champs client_view. Le build
+    # operator/normal reste inchangé et rétrocompatible (branche ci-dessous).
+    if opts["view"] == "client":
+        client_id = opts.get("client")
+        if not client_id:
+            raise SystemExit("usage: build.py --view=client --client=<id>")
+        json_path = write_client_view(client_id)
+        view = json.loads(json_path.read_text(encoding="utf-8"))
+        print(
+            f"built client view '{client_id}' · {view['resource_count']} resource(s) · "
+            f"{json_path.relative_to(PUBLIC.parent)} + public/client/{client_id}/index.html"
+        )
+        return
+
     built_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     previous_ledgers = _read_existing_daily_ledgers()
     data = payload(built_at)

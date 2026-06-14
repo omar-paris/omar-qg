@@ -1,0 +1,15 @@
+# RBAC — Acteurs OA (Standard 3, slice fondatrice)
+# Source de vérité : 11-Pilotage/night-agent/reports/2026-06-09-qg-rbac-model.md §4.1
+#
+# Chaque acteur porte un `role_default` (capacité par défaut, cf. §2) que les
+# ressources peuvent surcharger via leur bloc `access` (owner / viewers / client).
+# Rôles : owner > operator > viewer > client > public.
+#
+# `scope` fait office de groupe léger (cf. §7 point 1) : core = périmètre CORE OA.
+actors:
+  alex:    { kind: human,  role_default: owner }
+  ccma:    { kind: agent,  role_default: operator, scope: core }
+  h-omar:  { kind: agent,  role_default: operator, scope: core }
+  h-aurel: { kind: agent,  role_default: operator, scope: studio }
+  jab:     { kind: client, role_default: client }
+  public:  { kind: anon,   role_default: public }
