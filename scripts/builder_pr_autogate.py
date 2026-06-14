@@ -142,13 +142,16 @@ def create_gate_card(pr: PullRequest, *, dry_run: bool = False) -> str:
     return (cp.stdout or cp.stderr).strip()
 
 
-def discover_builder_prs(repos: Iterable[str]) -> list[PullRequest]:
+def discover_builder_prs(repos: Iterable[str], errors: list[str] | None = None) -> list[PullRequest]:
     found: list[PullRequest] = []
     for repo in repos:
         try:
             found.extend(pr for pr in list_open_prs(repo) if is_builder_pr(pr))
         except Exception as exc:
-            print(f"WARN {repo}: {exc}", file=sys.stderr)
+            msg = f"{repo}: {exc}"
+            if errors is not None:
+                errors.append(msg)
+            print(f"WARN {msg}", file=sys.stderr)
     return found
 
 
@@ -193,12 +196,11 @@ def main(argv: list[str] | None = None) -> int:
     errors: list[str] = []
     cards: list[str] = []
     try:
-        prs = discover_builder_prs(repos)
+        prs = discover_builder_prs(repos, errors)
+        status = "degraded" if errors else "healthy"
         if not prs:
             print("no builder PRs found")
-            status = "healthy"
         else:
-            status = "healthy"
             for pr in prs:
                 try:
                     result = create_gate_card(pr, dry_run=args.dry_run)

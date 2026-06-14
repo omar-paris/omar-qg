@@ -52,3 +52,20 @@ def test_write_status_artifact(tmp_path):
     assert payload["builder_prs_found"] == 1
     assert payload["builder_prs"][0]["url"].endswith("/36")
     assert payload["last_error"] is None
+
+
+def test_discovery_errors_make_status_degraded(tmp_path, monkeypatch):
+    import json
+    from scripts import builder_pr_autogate as mod
+
+    def boom(repo_name):
+        raise RuntimeError("gh unavailable")
+
+    monkeypatch.setattr(mod, "list_open_prs", boom)
+    out = tmp_path / "status.json"
+    rc = mod.main(["--repo", "omar-qg", "--dry-run", "--status-output", str(out)])
+    payload = json.loads(out.read_text())
+    assert rc == 1
+    assert payload["status"] == "degraded"
+    assert payload["last_error"]
+    assert "omar-qg" in payload["last_error"]
