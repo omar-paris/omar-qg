@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if builder_busy():
+    if builder_busy() and not args.dry_run:
         print("WIP=1 : une carte oa-builder est déjà active — pas de nouveau build")
         return
     cands = []
