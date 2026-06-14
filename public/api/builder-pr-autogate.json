@@ -1,0 +1,13 @@
+{
+  "status": "healthy",
+  "checked_at": "2026-06-14T04:55:23.489828+00:00",
+  "source": "scripts/builder_pr_autogate.py",
+  "repos": [
+    "omar-qg"
+  ],
+  "builder_prs_found": 0,
+  "builder_prs": [],
+  "cards": [],
+  "last_error": null,
+  "errors": []
+}

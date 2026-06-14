@@ -19,9 +19,14 @@ def test_detects_builder_prefix():
     assert is_builder_pr(pr("builder/agent-ok-pr-smoke-20260614"))
 
 
-def test_detects_issue_branch_only_with_builder_marker():
-    assert is_builder_pr(pr("feat/issue-35", body="Implemented by oa-builder"))
+def test_detects_issue_branch_only_with_structured_builder_marker():
+    assert is_builder_pr(pr("feat/issue-35", body="Generated-by: oa-builder"))
+    assert is_builder_pr(pr("feat/issue-35", body="Smoke-check builder vérifié"))
     assert not is_builder_pr(pr("feat/issue-35", body="human change"))
+
+
+def test_ignores_h_omar_pr_that_mentions_oa_builder():
+    assert not is_builder_pr(pr("h-omar/autogate-builder-athena-20260614", body="detect oa-builder body markers"))
 
 
 def test_ignores_unrelated_feature_branch():
@@ -33,3 +38,17 @@ def test_gate_body_forbids_auto_merge_and_mentions_review_artifact():
     assert "NE PAS merger" in body
     assert "review_result.json" in body
     assert "H-Omar/default arbitrer" in body
+
+
+def test_write_status_artifact(tmp_path):
+    from scripts.builder_pr_autogate import write_status
+    import json
+
+    out = tmp_path / "builder-pr-autogate.json"
+    sample = pr("builder/agent-ok-pr-smoke-20260614")
+    write_status(out, status="healthy", repos=["omar-qg"], prs=[sample], cards=["Created t_x"], errors=[])
+    payload = json.loads(out.read_text())
+    assert payload["status"] == "healthy"
+    assert payload["builder_prs_found"] == 1
+    assert payload["builder_prs"][0]["url"].endswith("/36")
+    assert payload["last_error"] is None

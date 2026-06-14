@@ -10,6 +10,7 @@ import argparse
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -80,13 +81,16 @@ def is_builder_pr(pr: PullRequest) -> bool:
     head = pr.head_ref.lower()
     body = (pr.body or "").lower()
     title = pr.title.lower()
-    return (
-        head.startswith("builder/")
-        or head.startswith("feat/issue-") and "builder" in body
-        or "oa-builder" in body
-        or "smoke-check builder" in body
-        or "builder" in title and "draft" in body
+    explicit_body_marker = any(
+        marker in body
+        for marker in (
+            "generated-by: oa-builder",
+            "builder-run:",
+            "smoke-check builder",
+            "micro-diff docs-only pour valider le chemin autonome pr builder",
+        )
     )
+    return head.startswith("builder/") or (head.startswith("feat/issue-") and explicit_body_marker)
 
 
 def gate_body(pr: PullRequest) -> str:
@@ -148,20 +152,70 @@ def discover_builder_prs(repos: Iterable[str]) -> list[PullRequest]:
     return found
 
 
+def write_status(path: Path, *, status: str, repos: list[str], prs: list[PullRequest], cards: list[str], errors: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "status": status,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "source": "scripts/builder_pr_autogate.py",
+        "repos": repos,
+        "builder_prs_found": len(prs),
+        "builder_prs": [
+            {
+                "repo": pr.repo,
+                "number": pr.number,
+                "url": pr.url,
+                "head_ref": pr.head_ref,
+                "base_ref": pr.base_ref,
+                "is_draft": pr.is_draft,
+            }
+            for pr in prs
+        ],
+        "cards": cards,
+        "last_error": errors[-1] if errors else None,
+        "errors": errors,
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", action="append", dest="repos", help="Repo name (repeatable). Defaults to OA repos.")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--status-output",
+        default="public/api/builder-pr-autogate.json",
+        help="Machine-readable Hub/QG status artifact path. Use empty string to disable.",
+    )
     args = parser.parse_args(argv)
 
     repos = args.repos or DEFAULT_REPOS
-    prs = discover_builder_prs(repos)
-    if not prs:
-        print("no builder PRs found")
-        return 0
-    for pr in prs:
-        print(create_gate_card(pr, dry_run=args.dry_run))
-    return 0
+    errors: list[str] = []
+    cards: list[str] = []
+    try:
+        prs = discover_builder_prs(repos)
+        if not prs:
+            print("no builder PRs found")
+            status = "healthy"
+        else:
+            status = "healthy"
+            for pr in prs:
+                try:
+                    result = create_gate_card(pr, dry_run=args.dry_run)
+                    cards.append(result)
+                    print(result)
+                except Exception as exc:
+                    status = "degraded"
+                    errors.append(f"{pr.repo}#{pr.number}: {exc}")
+                    print(f"ERROR {pr.repo}#{pr.number}: {exc}", file=sys.stderr)
+        if args.status_output:
+            write_status(Path(args.status_output), status=status, repos=list(repos), prs=prs, cards=cards, errors=errors)
+        return 0 if status == "healthy" else 1
+    except Exception as exc:
+        errors.append(str(exc))
+        if args.status_output:
+            write_status(Path(args.status_output), status="down", repos=list(repos), prs=[], cards=cards, errors=errors)
+        raise
 
 
 if __name__ == "__main__":
