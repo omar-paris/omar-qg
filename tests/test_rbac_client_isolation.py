@@ -16,7 +16,7 @@ PUBLIC = ROOT / "public"
 RBAC = ROOT / "rbac"
 
 # Champs qui ne doivent JAMAIS apparaître dans une vue client, où qu'ils soient.
-INTERNAL_ONLY = ["ip", "hetzner_id", "price_eur", "tailnet"]
+INTERNAL_ONLY = ["ip", "hetzner_id", "price_eur", "tailnet", "specs", "cost"]
 
 
 def _load_build():
@@ -122,6 +122,8 @@ def test_guardrail_would_catch_a_leak():
         "role": "CLIENT",
         "ip": "203.0.113.5",
         "price_eur": 42.0,
+        "cost": "42 €/mois",
+        "specs": "4 vCPU · 8 Go RAM",
         "hetzner_id": 99999,
         "health": "ok",
     }
@@ -129,17 +131,19 @@ def test_guardrail_would_catch_a_leak():
     bad_access = {
         "owner": "jab",
         "viewers": [],
-        "client_view": ["health", "ip", "price_eur", "hetzner_id"],
+        "client_view": ["health", "ip", "price_eur", "hetzner_id", "cost", "specs"],
         "internal_only": [],
     }
     projected = build.filter_resource_for_client(leaky_resource, bad_access)
     out_fields = set(projected.get("fields", {}).keys())
     # Le filtre laisse passer health mais BLOQUE ip/price_eur/hetzner_id
     assert "health" in out_fields
-    for sensitive in ("ip", "price_eur", "hetzner_id"):
+    for sensitive in ("ip", "price_eur", "hetzner_id", "cost", "specs"):
         assert sensitive not in out_fields, f"defense-in-depth a laissé fuiter {sensitive}"
-    # Et la valeur de l'IP n'apparaît nulle part dans la projection
-    assert "203.0.113.5" not in json.dumps(projected)
+    # Et les valeurs sensibles n'apparaissent nulle part dans la projection
+    blob = json.dumps(projected, ensure_ascii=False)
+    for sentinel in ("203.0.113.5", "42 €/mois", "4 vCPU"):
+        assert sentinel not in blob
 
 
 def test_unknown_client_gets_empty_view():

@@ -2,11 +2,11 @@
   "schema": "oa.rbac.client-view/1",
   "client": "jab",
   "role": "client",
-  "generated_at": "2026-06-14T22:20:25Z",
+  "generated_at": "2026-06-14T23:19:38Z",
   "resource_count": 1,
   "resources": [
     {
-      "name": "ubuntu-4gb-jab",
+      "name": "VPS-JAB",
       "label": "VPS-JAB",
       "role": "CLIENT",
       "fields": {

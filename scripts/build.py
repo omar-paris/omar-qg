@@ -99,7 +99,7 @@ VPS_META = {
             "viewers": ["ccma", "h-omar"],
             "exposure": "tailnet",
             "client_view": [],
-            "internal_only": ["ip", "hetzner_id", "price_eur", "tailnet"],
+            "internal_only": ["ip", "hetzner_id", "price_eur", "tailnet", "specs", "cost"],
         },
         "links": [
             {"kind": "hub",       "label": "Hub local",      "url": "https://hub.omar.paris/",          "status": "live"},
@@ -121,7 +121,7 @@ VPS_META = {
             "viewers": ["ccma", "h-aurel"],
             "exposure": "tailnet",
             "client_view": [],
-            "internal_only": ["ip", "hetzner_id", "price_eur", "tailnet"],
+            "internal_only": ["ip", "hetzner_id", "price_eur", "tailnet", "specs", "cost"],
         },
         "links": [
             {"kind": "site",      "label": "editing.alexgo.eu", "url": "https://editing.alexgo.eu/",     "status": "live"},
@@ -139,13 +139,13 @@ VPS_META = {
         "purpose": "Stack client JAB : facturation PennyLane, Maryse, Google MyBusiness.",
         "tailnet": "",
         # VPS client : jab est owner de SON vps. La vue client n'expose que
-        # health/services/invoice ; jamais ip/hetzner_id/price_eur/tailnet.
+        # health/services/invoice ; jamais ip/hetzner_id/price_eur/tailnet/specs/cost.
         "access": {
             "owner": "jab",
             "viewers": ["alex", "ccma", "h-omar"],
             "exposure": "public-authenticated",
             "client_view": ["health", "services", "invoice"],
-            "internal_only": ["ip", "hetzner_id", "price_eur", "tailnet"],
+            "internal_only": ["ip", "hetzner_id", "price_eur", "tailnet", "specs", "cost"],
         },
         "links": [
             {"kind": "hub",       "label": "Hub local",       "url": "",                               "status": "todo"},
@@ -170,6 +170,8 @@ SENSITIVE_FIELDS = frozenset({
     "ip", "hetzner_id", "id", "price_eur", "tailnet",
     "datacenter", "location", "os", "type", "vcpu", "ram_gb", "disk_gb",
     "traffic_out_gb", "traffic_inc_tb", "created", "backups",
+    "specs", "spec", "cost", "costs", "cost_eur", "coûts", "couts",
+    "price", "monthly_cost", "server_name",
 })
 
 
@@ -229,10 +231,13 @@ def filter_resource_for_client(resource: dict, access: dict) -> dict:
     Garantie : aucun champ de `internal_only` ni de SENSITIVE_FIELDS n'en sort.
     """
     fields = client_fields(access)
+    public_label = resource.get("label") or resource.get("name")
     out = {
         # Étiquettes d'identification non sensibles (jamais une IP/coût/id infra)
-        "name": resource.get("name") or resource.get("label"),
-        "label": resource.get("label") or resource.get("name"),
+        # Priorité au label statique métier : le nom live Hetzner peut contenir
+        # des specs/naming infra (ex. ubuntu-4gb-*) et ne doit pas fuiter.
+        "name": public_label,
+        "label": public_label,
         "role": resource.get("role"),
         "fields": {},
     }
