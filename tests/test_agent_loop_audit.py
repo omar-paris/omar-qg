@@ -43,6 +43,14 @@ def test_audit_detects_open_pr_without_gate_unless_decision_required():
         prs=[
             {"repo": "omar-qg", "number": 37, "title": "Builder PR", "url": "https://github.com/omar-paris/omar-qg/pull/37", "body": "Refs #13"},
             {"repo": "omar-hub", "number": 56, "title": "Decision needed", "url": "https://github.com/omar-paris/omar-hub/pull/56", "body": "decision_required: attente Alex"},
+            {
+                "repo": "omar-hub",
+                "number": 34,
+                "title": "Decision needed in comments",
+                "url": "https://github.com/omar-paris/omar-hub/pull/34",
+                "body": "Refs #34",
+                "comments": [{"body": "decision_required: attente Alex"}],
+            },
         ],
         tasks=[],
         now_ts=1_800_000_000,
@@ -51,6 +59,35 @@ def test_audit_detects_open_pr_without_gate_unless_decision_required():
     assert report["summary"]["prs_without_gate"] == 1
     assert report["prs_without_gate"][0]["expected_key"] == "builder-pr-gate:omar-qg:37"
     assert report["prs_without_gate"][0]["action"] == "create_athena_gate_card"
+
+
+def test_collect_open_prs_preserves_github_comment_bodies(monkeypatch):
+    from scripts import agent_loop_audit
+
+    def fake_run(cmd, *, timeout=90, check=False):
+        assert "number,title,url,body,comments" in cmd
+        return subprocess.CompletedProcess(
+            cmd,
+            0,
+            stdout=json.dumps([
+                {
+                    "number": 34,
+                    "title": "Decision in thread",
+                    "url": "https://github.com/omar-paris/omar-hub/pull/34",
+                    "body": "body only",
+                    "comments": [{"body": "decision_required: attente Alex"}],
+                }
+            ]),
+            stderr="",
+        )
+
+    monkeypatch.setattr(agent_loop_audit, "run", fake_run)
+    errors = []
+    prs = agent_loop_audit.collect_open_prs(["omar-hub"], errors)
+
+    assert errors == []
+    assert prs[0]["comments"] == "decision_required: attente Alex"
+    assert agent_loop_audit.audit_agent_loop(issues=[], prs=prs, tasks=[], now_ts=1_800_000_000)["prs_without_gate"] == []
 
 
 def test_audit_detects_review_required_builder_card_without_athena_gate():

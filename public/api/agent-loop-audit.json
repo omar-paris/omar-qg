@@ -1,35 +1,50 @@
 {
   "schema": "oa.agent-loop-audit/1",
   "status": "degraded",
-  "checked_at": "2026-06-15T14:20:45+00:00",
+  "checked_at": "2026-06-15T16:46:48+00:00",
   "source": "scripts/agent_loop_audit.py",
   "summary": {
-    "issues_without_card": 2,
-    "prs_without_gate": 3,
+    "issues_without_card": 0,
+    "prs_without_gate": 7,
     "builder_cards_without_gate": 1,
-    "blocked_without_next_action": 18,
+    "blocked_without_next_action": 20,
     "stale_scheduled": 264,
-    "total_orphans": 288
+    "total_orphans": 292
   },
-  "issues_without_card": [
+  "issues_without_card": [],
+  "prs_without_gate": [
     {
-      "repo": "omar-hub",
-      "number": 43,
-      "title": "[night][secu] public/api/vault.json publie l'inventaire des secrets hors-Vault (chemins SSH, .env, username GitHub)",
-      "url": "https://github.com/omar-paris/omar-hub/issues/43",
-      "expected_key": "agentok-omar-hub-43",
-      "action": "create_builder_card"
+      "repo": "omar-app",
+      "number": 45,
+      "title": "fix(security): scope omar-app Vault access",
+      "url": "https://github.com/omar-paris/omar-app/pull/45",
+      "expected_key": "builder-pr-gate:omar-app:45",
+      "action": "create_athena_gate_card"
     },
     {
-      "repo": "omar-qg",
-      "number": 13,
-      "title": "[night][secu] CERT_NONE désactive la vérification TLS sur des appels API porteurs de tokens (MITM)",
-      "url": "https://github.com/omar-paris/omar-qg/issues/13",
-      "expected_key": "agentok-omar-qg-13",
-      "action": "create_builder_card"
-    }
-  ],
-  "prs_without_gate": [
+      "repo": "omar-app",
+      "number": 44,
+      "title": "fix(security): prevent proposal PII enumeration",
+      "url": "https://github.com/omar-paris/omar-app/pull/44",
+      "expected_key": "builder-pr-gate:omar-app:44",
+      "action": "create_athena_gate_card"
+    },
+    {
+      "repo": "omar-app",
+      "number": 43,
+      "title": "fix(auth): isolate proposal access per client",
+      "url": "https://github.com/omar-paris/omar-app/pull/43",
+      "expected_key": "builder-pr-gate:omar-app:43",
+      "action": "create_athena_gate_card"
+    },
+    {
+      "repo": "omar-hub",
+      "number": 57,
+      "title": "fix(security): redact public vault inventory",
+      "url": "https://github.com/omar-paris/omar-hub/pull/57",
+      "expected_key": "builder-pr-gate:omar-hub:57",
+      "action": "create_athena_gate_card"
+    },
     {
       "repo": "omar-hub",
       "number": 56,
@@ -39,11 +54,11 @@
       "action": "create_athena_gate_card"
     },
     {
-      "repo": "omar-hub",
-      "number": 34,
-      "title": "docs: add Pantheos Hub onboarding checklist",
-      "url": "https://github.com/omar-paris/omar-hub/pull/34",
-      "expected_key": "builder-pr-gate:omar-hub:34",
+      "repo": "omar-qg",
+      "number": 45,
+      "title": "fix: keep CERT_NONE away from provider API probes",
+      "url": "https://github.com/omar-paris/omar-qg/pull/45",
+      "expected_key": "builder-pr-gate:omar-qg:45",
       "action": "create_athena_gate_card"
     },
     {
@@ -171,9 +186,21 @@
       "action": "add_owner_and_next_action"
     },
     {
+      "card_id": "t_2b5a400a",
+      "title": "build: QG audit anti-orphelins Issue↔Kanban↔PR↔Gate",
+      "assignee": "oa-builder",
+      "action": "add_owner_and_next_action"
+    },
+    {
       "card_id": "t_24cb98fc",
       "title": "[omartop] Corriger boucle Maturité/SAV: maintenance, réversibilité, oa-doctor drift, profil JAB",
       "assignee": "oa-builder",
+      "action": "add_owner_and_next_action"
+    },
+    {
+      "card_id": "t_4b0a6d88",
+      "title": "[secretaire-v1] Agent Secretaire reutilisable oa-secretaire — email Nango (lecture+tri+brouillons, no-send) sur Omar&Alex",
+      "assignee": "default",
       "action": "add_owner_and_next_action"
     }
   ],

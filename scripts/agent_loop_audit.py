@@ -54,8 +54,20 @@ def _is_archived(task: dict[str, Any]) -> bool:
     return _status(task) in {"archived", "cancelled", "canceled"}
 
 
+def _comment_text(comments: Any) -> str:
+    if isinstance(comments, list):
+        parts: list[str] = []
+        for comment in comments:
+            if isinstance(comment, dict):
+                parts.append(str(comment.get("body") or ""))
+            else:
+                parts.append(str(comment or ""))
+        return "\n".join(parts)
+    return str(comments or "")
+
+
 def _has_decision_required(pr: dict[str, Any]) -> bool:
-    return "decision_required" in _text(pr.get("body"), pr.get("comments")).lower()
+    return "decision_required" in _text(pr.get("body"), _comment_text(pr.get("comments"))).lower()
 
 
 def _first_pr_ref(text: str) -> tuple[str, int] | None:
@@ -206,12 +218,19 @@ def collect_agent_ok_issues(repos: Iterable[str], errors: list[str]) -> list[dic
 def collect_open_prs(repos: Iterable[str], errors: list[str]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for repo in repos:
-        cp = run([GH, "pr", "list", "-R", f"omar-paris/{repo}", "--state", "open", "--limit", "100", "--json", "number,title,url,body"], timeout=90)
+        cp = run([GH, "pr", "list", "-R", f"omar-paris/{repo}", "--state", "open", "--limit", "100", "--json", "number,title,url,body,comments"], timeout=90)
         if cp.returncode != 0:
             errors.append(f"github prs {repo}: {cp.stderr.strip() or cp.stdout.strip()}")
             continue
         for item in json.loads(cp.stdout or "[]"):
-            out.append({"repo": repo, "number": item.get("number"), "title": item.get("title"), "url": item.get("url"), "body": item.get("body") or ""})
+            out.append({
+                "repo": repo,
+                "number": item.get("number"),
+                "title": item.get("title"),
+                "url": item.get("url"),
+                "body": item.get("body") or "",
+                "comments": _comment_text(item.get("comments")),
+            })
     return out
 
 
