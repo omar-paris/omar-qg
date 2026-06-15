@@ -1,0 +1,325 @@
+{
+  "date": "2026-06-15",
+  "generated_at": "2026-06-15T14:20:45Z",
+  "version": "V0.8.2",
+  "sessions": {
+    "hermes": {
+      "sessions": 40,
+      "messages": 2126,
+      "tool_calls": 1164,
+      "api_calls": 916,
+      "by_source": {
+        "cli": 20,
+        "cron": 14,
+        "tui": 6
+      },
+      "db": "/home/omar/.hermes/state.db",
+      "error": null
+    },
+    "ccusage": {
+      "sessions_by_agent": {},
+      "daily": {
+        "total_cost_usd": 11.3404,
+        "total_tokens": 13902565,
+        "agents": [
+          "hermes"
+        ],
+        "models_used": [
+          "gpt-5.5"
+        ]
+      },
+      "error": null
+    }
+  },
+  "github_totals": {
+    "issues_created": 0,
+    "issues_closed": 0,
+    "prs_created": 5,
+    "prs_merged": 4,
+    "build_runs": 0,
+    "build_success": 0,
+    "build_failed": 0,
+    "unknown_fields": 7,
+    "local_build_records": 0
+  },
+  "local_builds": {
+    "path": "/home/omar/11-Pilotage/ledgers/builds/2026-06-15.jsonl",
+    "count": 0,
+    "success": 0,
+    "failure": 0,
+    "blocked": 0,
+    "recent": []
+  },
+  "repos": [
+    {
+      "id": "landing",
+      "name": "Landing",
+      "repo": "omar-paris/omar-landing",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 19
+      },
+      "git": {
+        "exists": true,
+        "branch": "main",
+        "dirty": false,
+        "head": "dde0533 feat(header): date = dernier push git (fini '9 juin 2026' codé en dur)",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 28,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "feat: add June conversion CTA landing",
+          "number": 16,
+          "merged_at": "2026-06-10T01:38:45Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "app",
+      "name": "AppOmar",
+      "repo": "omar-paris/omar-app",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 177
+      },
+      "git": {
+        "exists": true,
+        "branch": "main",
+        "dirty": false,
+        "head": "db79da5 feat(footer): affiche la date du dernier push git dans les footers",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 40,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "feat(app): isolation multi-tenant + SAV read-only reel (app#13/#14/#31)",
+          "number": 42,
+          "merged_at": "2026-06-14T21:00:05Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "catalogue",
+      "name": "Catalogue",
+      "repo": "omar-paris/omar-catalogue",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 14
+      },
+      "git": {
+        "exists": true,
+        "branch": "main",
+        "dirty": true,
+        "head": "d878e34 Merge pull request #4 from omar-paris/feat/local-capability-icons-generator",
+        "status_short": [
+          "M apps/llm-observability-langfuse/.env.example",
+          " M apps/llm-observability-langfuse/docker-compose.yml",
+          " M apps/llm-observability-langfuse/recipe.yaml",
+          " M public/agents/index.html",
+          " M public/api/apps/emailing-listmonk.json",
+          " M public/api/apps/llm-gateway-litellm.json",
+          " M public/api/apps/llm-observability-langfuse.json",
+          " M public/apps/acces-distant-rustdesk/index.html"
+        ]
+      },
+      "github_open": {
+        "open_issues": 11,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "fix(catalogue): enforce Standard 2 disk footprint",
+          "number": 35,
+          "merged_at": "2026-06-15T01:59:33Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 1,
+        "prs_merged": 1,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "lab",
+      "name": "Lab",
+      "repo": "",
+      "health": {
+        "status": "error",
+        "http_code": 502,
+        "latency_ms": 12
+      },
+      "git": {
+        "exists": true,
+        "branch": "no-git",
+        "dirty": false,
+        "head": "",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": null,
+        "open_prs": null,
+        "last_merged_pr": null
+      },
+      "activity": {}
+    },
+    {
+      "id": "qg",
+      "name": "QG",
+      "repo": "omar-paris/omar-qg",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 17
+      },
+      "git": {
+        "exists": true,
+        "branch": "review/pr-37",
+        "dirty": true,
+        "head": "current qg build",
+        "status_short": [
+          "M CHANGELOG.md",
+          " M VERSION",
+          " M scripts/alerts.py",
+          " M scripts/vps_doctor.py",
+          "?? .review-worktrees/",
+          "?? reviews/"
+        ]
+      },
+      "github_open": {
+        "open_issues": 20,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "fix: reduce noisy QG runtime alerts",
+          "number": 43,
+          "merged_at": "2026-06-15T13:57:30Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 3,
+        "prs_merged": 3,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "hub",
+      "name": "Hub",
+      "repo": "omar-paris/omar-hub",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 13
+      },
+      "git": {
+        "exists": true,
+        "branch": "feat/issue-44",
+        "dirty": true,
+        "head": "9ffb398 test: cover vault scanner secret redaction",
+        "status_short": [
+          "M public/api/apps.json",
+          " M public/api/mcp.json",
+          " M public/api/omartop.json",
+          " M public/api/skills.json",
+          " M public/api/skills/autonomous-ai-agents-hermes-agent.json",
+          " M public/api/skills/devops-kanban-operations.json",
+          " M public/api/skills/devops-kanban-worker.json",
+          " M public/api/skills/devops-oa-operations-playbook.json"
+        ]
+      },
+      "github_open": {
+        "open_issues": 13,
+        "open_prs": 2,
+        "last_merged_pr": {
+          "title": "feat(maturity): vue flotte 3-VPS (omar mesuré, jab/pantheos indéterminés)",
+          "number": 55,
+          "merged_at": "2026-06-14T21:03:32Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "omartop",
+      "name": "OmarTop",
+      "repo": "omar-paris/omar-top",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 15
+      },
+      "git": {
+        "exists": true,
+        "branch": "fix/maturity-sav-doctor-coverage",
+        "dirty": false,
+        "head": "a4609fd fix(omartop): cover maturity SAV doctor loop",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 44,
+        "open_prs": 1,
+        "last_merged_pr": {
+          "title": "docs: mandat opérationnel autonome H-Omar",
+          "number": 50,
+          "merged_at": "2026-06-14T23:38:59Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 1,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "level": "warning",
+      "code": "DIRTY_REPOS",
+      "message": "3 repo(s) locaux dirty dans le registry."
+    },
+    {
+      "level": "warning",
+      "code": "NO_BUILDS_RECORDED",
+      "message": "Aucun build GitHub Actions ou ledger local détecté aujourd'hui."
+    }
+  ]
+}

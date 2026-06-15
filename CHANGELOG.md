@@ -1,5 +1,9 @@
 # Changelog
 
+## V0.8.2 — 2026-06-15
+
+- Audit anti-orphelins Issue↔Kanban↔PR↔Gate : commande read-only `scripts/agent_loop_audit.py`, endpoint `/api/agent-loop-audit.json`, page `/agent-loop/` et tuile QG pour actions à prendre.
+
 ## V0.8.1 — 2026-06-15
 
 - mandat:h-omar-night-2026-06-14 — Accueil QG : bloc visible "Dernier résultat livré" + "Décisions / mandats" pour exposer preuves de build et rattachements `mandat:*` / `decision:*`.

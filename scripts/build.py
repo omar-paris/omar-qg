@@ -1068,6 +1068,7 @@ FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;
 NAV_ITEMS = [
     ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
     ("/objectifs/",   "objectifs",   "Objectifs",   'M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418'),
+    ("/agent-loop/",  "agent-loop",  "Agent loop",  'M3.75 12a8.25 8.25 0 0 1 14.49-5.42M20.25 6.75v-4.5m0 4.5h-4.5M20.25 12a8.25 8.25 0 0 1-14.49 5.42M3.75 17.25v4.5m0-4.5h4.5'),
     ("/ops/",         "ops",         "Ops",         'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125C16.5 3.504 17.004 3 17.625 3h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z'),
     ("/clients/",     "clients",     "Clients",     'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z'),
     ("/partenaires/", "partenaires", "Partenaires", 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.015M3.75 9.349a3 3 0 0 0 3.75.616m-3.75-.616a3.001 3.001 0 0 1-.75-1.99V6h17.25v1.36a3 3 0 0 1-.75 1.99m0 0a2.993 2.993 0 0 1-2.25 1.016'),
@@ -1182,16 +1183,18 @@ def qg_delivery_focus(builds: dict, pending_decisions: int) -> str:
     )
 
 
-def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None) -> str:
+def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
     objectifs = objectifs or []
     builds = builds or {"days": []}
+    audit_summary = (agent_loop_audit or {}).get("summary", {}) or {}
+    total_orphans = int(audit_summary.get("total_orphans") or 0)
 
     # Tuiles d'action : décisions à trancher + builds du jour (liens dédiés)
     dec_accent = "text-amber-600" if pending_decisions else "text-gray-900"
     tiles = (
-        '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">'
+        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">'
         f'<a href="/decisions/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}">{pending_decisions}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Décisions en attente</div></div>'
@@ -1200,6 +1203,10 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0,
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold text-gray-900">{builds_today}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Builds aujourd’hui</div></div>'
         f'<span class="text-xs text-blue-500">Voir →</span></div></a>'
+        f'<a href="/agent-loop/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {"text-red-600" if total_orphans else "text-gray-900"}">{total_orphans}</div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">Orphelins Issue↔Kanban↔PR↔Gate</div></div>'
+        f'<span class="text-xs text-blue-500">Auditer →</span></div></a>'
         '</div>'
     )
 
@@ -1888,6 +1895,78 @@ def page_decisions(decisions: list) -> str:
     return html
 
 
+def page_agent_loop_audit(report: dict) -> str:
+    """Surface QG read-only des orphelins Issue↔Kanban↔PR↔Gate."""
+    summary = report.get("summary", {}) if isinstance(report, dict) else {}
+    total = int(summary.get("total_orphans") or 0)
+    checked_at = report.get("checked_at") or "non généré"
+
+    def card(label: str, key: str, tone: str = "text-gray-900") -> str:
+        value = int(summary.get(key) or 0)
+        return (
+            '<div class="bg-white rounded-xl border border-gray-200 px-4 py-3">'
+            f'<div class="text-2xl font-bold {tone if value else "text-gray-900"}">{value}</div>'
+            f'<div class="text-xs text-gray-500 mt-0.5">{escape(label)}</div></div>'
+        )
+
+    def row(section: str, item: dict) -> str:
+        title = item.get("title") or item.get("url") or item.get("card_id") or "orphelin"
+        target = item.get("url") or ""
+        ident = item.get("expected_key") or item.get("card_id") or "—"
+        action = item.get("action") or "inspect"
+        if target:
+            left = f'<a href="{escape(target)}" class="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline">{escape(str(title))}</a>'
+        else:
+            left = f'<div class="text-sm font-semibold text-gray-900">{escape(str(title))}</div>'
+        return (
+            '<div class="grid md:grid-cols-[170px_1fr_240px_190px] gap-2 px-4 py-3 border-b border-gray-100 last:border-0">'
+            f'<div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{escape(section)}</div>'
+            f'<div>{left}</div>'
+            f'<div class="text-xs font-mono text-gray-500 break-all">{escape(str(ident))}</div>'
+            f'<div class="text-xs text-amber-700">{escape(str(action))}</div>'
+            '</div>'
+        )
+
+    rows = ""
+    sections = [
+        ("Issue agent-ok sans carte", "issues_without_card"),
+        ("PR ouverte sans gate", "prs_without_gate"),
+        ("Builder review-required sans Athena", "builder_cards_without_gate"),
+        ("Blocked sans owner/next_action", "blocked_without_next_action"),
+        ("Scheduled périmé", "stale_scheduled"),
+    ]
+    for label, key in sections:
+        for item in report.get(key, []) if isinstance(report, dict) else []:
+            if isinstance(item, dict):
+                rows += row(label, item)
+    if not rows:
+        rows = '<div class="px-4 py-5 text-sm text-green-700 bg-green-50">Aucun orphelin détecté dans le dernier audit.</div>'
+
+    errors = (report.get("errors") or []) if isinstance(report, dict) else []
+    errors_html = ""
+    if errors:
+        errors_html = '<div class="mt-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"><div class="text-sm font-semibold text-amber-800">Collecte dégradée</div>'
+        errors_html += "".join(f'<div class="text-xs text-amber-700 font-mono mt-1">{escape(str(e))}</div>' for e in errors[:5])
+        errors_html += '</div>'
+
+    return (
+        '<div class="flex items-center justify-between mb-6"><div>'
+        '<h1 class="text-xl font-bold text-gray-900">Audit anti-orphelins</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">Issue ↔ Kanban ↔ PR ↔ Gate — dernier scan {escape(str(checked_at))}.</p></div>'
+        '<a href="/api/agent-loop-audit.json" class="text-xs text-blue-500 hover:underline">API JSON</a></div>'
+        '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold {"text-red-600" if total else "text-gray-900"}">{total}</div><div class="text-xs text-gray-500 mt-0.5">Total orphelins</div></div>'
+        + card("Issues agent-ok sans carte", "issues_without_card", "text-red-600")
+        + card("PRs sans gate", "prs_without_gate", "text-red-600")
+        + card("Review-required sans Athena", "builder_cards_without_gate", "text-red-600")
+        + card("Blocked sans action", "blocked_without_next_action", "text-amber-600")
+        + card("Scheduled périmés", "stale_scheduled", "text-amber-600")
+        + '</div><div class="bg-white rounded-xl border border-gray-200 overflow-hidden">'
+        '<div class="px-4 py-3 border-b border-gray-100"><div class="text-sm font-bold text-gray-900">Orphelins et actions à prendre</div></div>'
+        + rows + '</div>' + errors_html
+    )
+
+
 def page_changelog() -> str:
     cl = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     lines = cl.splitlines()
@@ -2043,10 +2122,10 @@ def main(argv: list[str] | None = None) -> None:
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
-    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "builder-pr-autogate.json"):
         var_payload = _read_var_json(var_name)
         if var_payload:
-            (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     ledger_dir = tmp / "api" / "daily-ledger"
     ledger_dir.mkdir(parents=True, exist_ok=True)
     (ledger_dir / f"{ledger['date']}.json").write_text(
@@ -2077,6 +2156,33 @@ def main(argv: list[str] | None = None) -> None:
     if not isinstance(objectifs, list):
         objectifs = []
 
+    # Audit anti-orphelins Issue↔Kanban↔PR↔Gate : produit par scripts/agent_loop_audit.py.
+    # Le build reste read-only et republie le dernier snapshot disponible.
+    agent_loop_audit = _read_var_json("agent-loop-audit.json")
+    if not isinstance(agent_loop_audit, dict) or not agent_loop_audit:
+        agent_loop_audit = {
+            "schema": "oa.agent-loop-audit/1",
+            "status": "unknown",
+            "checked_at": None,
+            "summary": {
+                "total_orphans": 0,
+                "issues_without_card": 0,
+                "prs_without_gate": 0,
+                "builder_cards_without_gate": 0,
+                "blocked_without_next_action": 0,
+                "stale_scheduled": 0,
+            },
+            "issues_without_card": [],
+            "prs_without_gate": [],
+            "builder_cards_without_gate": [],
+            "blocked_without_next_action": [],
+            "stale_scheduled": [],
+            "errors": ["agent-loop-audit snapshot absent — run scripts/agent_loop_audit.py"],
+        }
+    (tmp / "api" / "agent-loop-audit.json").write_text(
+        json.dumps(agent_loop_audit, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
     # Builds du jour (commits par repo, 7 j) → public/api/builds.json
     try:
         builds = _load_build_ledger().collect_builds()
@@ -2090,8 +2196,9 @@ def main(argv: list[str] | None = None) -> None:
     builds_today = (builds.get("totals", {}) or {}).get("today", 0)
 
     pages = [
-        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds)),
+        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
+        ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),
