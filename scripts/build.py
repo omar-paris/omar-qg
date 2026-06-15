@@ -54,9 +54,14 @@ def _gh_token() -> str:
 
 GH_TOKEN = _gh_token()
 
-_SSL = ssl.create_default_context()
-_SSL.check_hostname = False
-_SSL.verify_mode = ssl.CERT_NONE
+# Les domaines OA internes utilisent Caddy `tls internal` sur le Tailnet :
+# le build QG doit pouvoir les sonder même si l'autorité interne n'est pas
+# installée dans le trust store système. Ce contexte CERT_NONE est strictement
+# réservé aux health probes `*.omar.paris` et ne doit jamais transporter de
+# secrets vers des API fournisseurs publiques.
+_INTERNAL_OMAR_PARIS_SSL = ssl.create_default_context()
+_INTERNAL_OMAR_PARIS_SSL.check_hostname = False
+_INTERNAL_OMAR_PARIS_SSL.verify_mode = ssl.CERT_NONE
 
 # ── Registry items ────────────────────────────────────────────────────────────
 
@@ -69,6 +74,17 @@ ITEMS = [
     {"id": "hub",      "name": "Hub",       "domain": "hub.omar.paris",       "repo": "omar-paris/omar-hub",       "path": "omar-hub",       "scope": "CORE OA",       "role": "App N°1 : relie chaque VPS à OA. Répliquée sur tout VPS (L0/L1). Vue = version installée ici.",                                                "version": "V0.9.2", "changelog": "https://hub.omar.paris/changelog/",       "next": "Harmoniser VERSION."},
     {"id": "omartop",  "name": "OmarTop",   "domain": "top.omar.paris",       "repo": "omar-paris/omar-top",       "path": "omar-top",       "scope": "CORE OA",       "role": "Référence/doctrine : standards, maturité, contrôles (L0→L3 par VPS).",   "version": "0.3.0-rc1", "changelog": "https://top.omar.paris/changelog/",    "next": "Stabiliser rc1."},
 ]
+
+INTERNAL_HEALTH_PROBE_DOMAINS = frozenset(
+    domain
+    for item in ITEMS
+    for domain in [item.get("domain", "").strip().lower().rstrip(".")]
+    if domain.endswith(".omar.paris")
+)
+
+
+def _is_internal_health_probe_domain(domain: str) -> bool:
+    return domain.strip().lower().rstrip(".") in INTERNAL_HEALTH_PROBE_DOMAINS
 
 # ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -464,10 +480,15 @@ def health_probe(domain: str) -> dict:
         except Exception:
             pass
         _hdrs = {"User-Agent": "OA-QG-probe/1.0"}
-        if _tok and domain.endswith(".omar.paris"):
+        internal_probe = _is_internal_health_probe_domain(domain)
+        if _tok and internal_probe:
             _hdrs["X-OA-Token"] = _tok
         req = urllib.request.Request(url, headers=_hdrs)
-        with urllib.request.urlopen(req, timeout=8, context=_SSL) as r:
+        if internal_probe:
+            response = urllib.request.urlopen(req, timeout=8, context=_INTERNAL_OMAR_PARIS_SSL)
+        else:
+            response = urllib.request.urlopen(req, timeout=8)
+        with response as r:
             latency_ms = int((time.monotonic() - t0) * 1000)
             return {"status": "ok", "http_code": r.status, "latency_ms": latency_ms}
     except urllib.error.HTTPError as e:
@@ -783,7 +804,10 @@ def ovh_live(creds: dict) -> dict:
 def _http_status(url: str, headers: dict, timeout: int = 6) -> int | None:
     req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=_SSL) as r:
+        # API fournisseurs publiques : ne pas passer de contexte CERT_NONE.
+        # Laisser urllib utiliser le contexte TLS par défaut vérifié, surtout
+        # quand les headers portent des tokens Vault.
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status
     except urllib.error.HTTPError as e:
         return e.code
