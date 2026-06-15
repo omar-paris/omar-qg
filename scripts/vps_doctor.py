@@ -19,7 +19,7 @@ OUT = ROOT / "var" / "vps.json"
 OA_DOCTOR = Path("/home/omar/23-Offre/actifs/omar-top/bin/oa-doctor")
 
 SERVICES_SYSTEM = ["caddy", "docker", "tailscaled"]
-SERVICES_USER = ["hermes-gateway", "openclaw-gateway", "oa-proposal-server"]
+SERVICES_USER = ["hermes-gateway", "oa-proposal-server"]
 
 
 def run(cmd: list[str], timeout: int = 30) -> str:
@@ -73,8 +73,10 @@ def system_health() -> dict:
     for s in SERVICES_USER:
         services[s + " (user)"] = run(["systemctl", "--user", "is-active", s]) or "unknown"
     alerts = []
-    if swap_pct is not None and swap_pct > 80:
-        alerts.append(f"swap {swap_pct}% (>80) — risque OOM, cf. incident 9 juin")
+    # Swap: alerte seulement sur pression durable/critique. >80% créait des cartes
+    # doublonnées sur pics transitoires; la RAM disponible reste le vrai garde-fou court terme.
+    if swap_pct is not None and swap_pct > 90:
+        alerts.append(f"swap {swap_pct}% (>90) — pression critique à confirmer, cf. incident 9 juin")
     try:
         if int(orphans or 0) > 5:
             alerts.append(f"{orphans} processus claude orphelins (>5)")
