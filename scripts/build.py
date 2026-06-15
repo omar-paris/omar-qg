@@ -1121,10 +1121,48 @@ def layout(active: str, title: str, built_at: str, body: str) -> str:
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
-def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0, objectifs: list | None = None) -> str:
+def _latest_delivered_result(builds: dict) -> dict:
+    """mandat:h-omar-night-2026-06-14 — dernier commit livré visible QG."""
+    for day in builds.get("days", []) or []:
+        for repo in day.get("repos", []) or []:
+            commits = repo.get("commits", []) or []
+            if commits:
+                commit = commits[0]
+                return {
+                    "repo": repo.get("repo") or repo.get("name") or "repo inconnu",
+                    "hash": commit.get("hash") or "—",
+                    "message": commit.get("message") or "Résultat non nommé",
+                    "date": commit.get("date") or day.get("date") or "",
+                }
+    return {"repo": "—", "hash": "—", "message": "Aucun résultat livré détecté sur 7 jours", "date": ""}
+
+
+def qg_delivery_focus(builds: dict, pending_decisions: int) -> str:
+    """mandat:h-omar-night-2026-06-14 — bloc cockpit résultat/mandats."""
+    latest = _latest_delivered_result(builds)
+    when = (latest.get("date") or "")[:16].replace("T", " ")
+    return (
+        '<div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">'
+        '<a href="/builds/" class="block bg-white rounded-xl border border-blue-100 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+        '<div class="text-xs font-semibold uppercase tracking-wide text-blue-600">Dernier résultat livré</div>'
+        f'<div class="mt-1 text-sm font-semibold text-gray-900">{escape(latest.get("message", ""))}</div>'
+        f'<div class="mt-1 text-xs text-gray-500"><span class="font-mono">{escape(latest.get("repo", ""))}</span> · <span class="font-mono">{escape(latest.get("hash", ""))}</span>'
+        + (f' · {escape(when)}' if when else '')
+        + '</div><div class="mt-2 text-xs text-blue-500">Voir builds/preuves →</div></a>'
+        '<a href="/decisions/" class="block bg-white rounded-xl border border-amber-100 px-4 py-3 hover:border-amber-300 hover:shadow-sm transition">'
+        '<div class="text-xs font-semibold uppercase tracking-wide text-amber-600">Décisions / mandats</div>'
+        f'<div class="mt-1 text-sm font-semibold text-gray-900">{pending_decisions} décision(s) ouverte(s)</div>'
+        '<div class="mt-1 text-xs text-gray-500">Mandat actif: mandat:h-omar-night-2026-06-14 · décisions tracées en decision:*</div>'
+        '<div class="mt-2 text-xs text-amber-600">Voir décisions →</div></a>'
+        '</div>'
+    )
+
+
+def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
     objectifs = objectifs or []
+    builds = builds or {"days": []}
 
     # Tuiles d'action : décisions à trancher + builds du jour (liens dédiés)
     dec_accent = "text-amber-600" if pending_decisions else "text-gray-900"
@@ -1218,7 +1256,7 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0,
 
     header = '<div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold text-gray-900">Registry CORE OA</h1><span class="text-xs text-gray-400">Rebuild auto · 30 min · Référentiel VPS Hermes OA</span></div>'
     # Les objectifs d'Alex viennent EN TÊTE de l'accueil, avant le registry de repos.
-    return objectifs_summary(objectifs) + header + tiles + stats + rows
+    return objectifs_summary(objectifs) + header + qg_delivery_focus(builds, pending_decisions) + tiles + stats + rows
 
 
 def _app_route(item: dict) -> str:
@@ -2028,7 +2066,7 @@ def main(argv: list[str] | None = None) -> None:
     builds_today = (builds.get("totals", {}) or {}).get("today", 0)
 
     pages = [
-        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs)),
+        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
