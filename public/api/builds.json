@@ -1,80 +1,78 @@
 {
-  "generated_at": "2026-06-14T03:33:51Z",
-  "today": "2026-06-14",
+  "generated_at": "2026-06-15T14:20:59Z",
+  "today": "2026-06-15",
   "window_days": 7,
   "totals": {
-    "today": 6,
-    "window": 123,
-    "repos_today": 2,
+    "today": 1,
+    "window": 117,
+    "repos_today": 1,
     "repos_total": 7
   },
   "today_by_repo": [
     {
-      "repo": "omar-catalogue",
-      "name": "Catalogue",
-      "count": 5,
-      "commits": [
-        {
-          "hash": "83a7145",
-          "author": "alexwill87",
-          "date": "2026-06-14 03:09",
-          "day": "2026-06-14",
-          "message": "feat(hub-health): script de rafraichissement des artefacts"
-        },
-        {
-          "hash": "f50ceef",
-          "author": "alexwill87",
-          "date": "2026-06-14 02:19",
-          "day": "2026-06-14",
-          "message": "fix(llm-ops): healthchecks honnêtes"
-        },
-        {
-          "hash": "2847730",
-          "author": "alexwill87",
-          "date": "2026-06-14 01:53",
-          "day": "2026-06-14",
-          "message": "feat(listmonk): rendre oa-install réel sur vps-omar"
-        },
-        {
-          "hash": "c170468",
-          "author": "cc-manager",
-          "date": "2026-06-14 00:31",
-          "day": "2026-06-14",
-          "message": "fix(build): f-string compatible Python 3.11 (agents Hermes) — badge qualité extrait"
-        },
-        {
-          "hash": "3e9b5e6",
-          "author": "cc-manager",
-          "date": "2026-06-14 00:07",
-          "day": "2026-06-14",
-          "message": "fix(changelog): page /changelog/ lit CHANGELOG.md (11 versions) au lieu d'1 entrée figée"
-        }
-      ]
-    },
-    {
-      "repo": "omar-hub",
-      "name": "Hub",
+      "repo": "omar-top",
+      "name": "OmarTop",
       "count": 1,
       "commits": [
         {
-          "hash": "ff69932",
-          "author": "cc-superadjoint",
-          "date": "2026-06-14 01:49",
-          "day": "2026-06-14",
-          "message": "feat(hub): le collecteur consomme les artefacts par-app de la boucle agent"
+          "hash": "a4609fd",
+          "author": "cc-manager",
+          "date": "2026-06-15 14:18",
+          "day": "2026-06-15",
+          "message": "fix(omartop): cover maturity SAV doctor loop"
         }
       ]
     }
   ],
   "days": [
     {
+      "date": "2026-06-15",
+      "count": 1,
+      "repos": [
+        {
+          "repo": "omar-top",
+          "name": "OmarTop",
+          "commits": [
+            {
+              "hash": "a4609fd",
+              "author": "cc-manager",
+              "date": "2026-06-15 14:18",
+              "day": "2026-06-15",
+              "message": "fix(omartop): cover maturity SAV doctor loop"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "date": "2026-06-14",
-      "count": 6,
+      "count": 17,
       "repos": [
         {
           "repo": "omar-catalogue",
           "name": "Catalogue",
           "commits": [
+            {
+              "hash": "d878e34",
+              "author": "alexwill87",
+              "date": "2026-06-14 04:41",
+              "day": "2026-06-14",
+              "message": "Merge pull request #4 from omar-paris/feat/local-capability-icons-generator"
+            },
+            {
+              "hash": "e343db5",
+              "author": "cc-manager",
+              "date": "2026-06-14 04:39",
+              "day": "2026-06-14",
+              "message": "fix(catalogue): scope hub sync normalizer to target dir"
+            },
+            {
+              "hash": "a2a7561",
+              "author": "alexwill87",
+              "date": "2026-06-14 04:33",
+              "day": "2026-06-14",
+              "message": "docs: trace Catalogue CRM Nango handover"
+            },
             {
               "hash": "83a7145",
               "author": "alexwill87",
@@ -117,6 +115,34 @@
           "name": "Hub",
           "commits": [
             {
+              "hash": "9ffb398",
+              "author": "Claude Code",
+              "date": "2026-06-14 22:03",
+              "day": "2026-06-14",
+              "message": "test: cover vault scanner secret redaction"
+            },
+            {
+              "hash": "4586443",
+              "author": "alexwill87",
+              "date": "2026-06-14 21:03",
+              "day": "2026-06-14",
+              "message": "Merge pull request #55 from omar-paris/cc/hub-3vps-maturity"
+            },
+            {
+              "hash": "6c85172",
+              "author": "Claude Code",
+              "date": "2026-06-14 14:46",
+              "day": "2026-06-14",
+              "message": "feat(maturity): vue flotte 3-VPS (omar mesuré + jab/pantheos indéterminés)"
+            },
+            {
+              "hash": "42ce6a2",
+              "author": "alexwill87",
+              "date": "2026-06-14 05:39",
+              "day": "2026-06-14",
+              "message": "feat(maturity): add measured Omar artifact for Hub (#54)"
+            },
+            {
               "hash": "ff69932",
               "author": "cc-superadjoint",
               "date": "2026-06-14 01:49",
@@ -124,24 +150,57 @@
               "message": "feat(hub): le collecteur consomme les artefacts par-app de la boucle agent"
             }
           ]
-        }
-      ]
-    },
-    {
-      "date": "2026-06-13",
-      "count": 15,
-      "repos": [
+        },
         {
           "repo": "omar-qg",
           "name": "QG",
           "commits": [
             {
-              "hash": "bf2008e",
-              "author": "Claude-Cockpit [bot]",
-              "date": "2026-06-13 23:48",
-              "day": "2026-06-13",
-              "message": "fix(qg): restore Hetzner fleet vault token fallback"
+              "hash": "8c729b5",
+              "author": "OA Builder",
+              "date": "2026-06-14 04:40",
+              "day": "2026-06-14",
+              "message": "feat: add builder PR Athena autogate bridge"
             },
+            {
+              "hash": "b7e4a3e",
+              "author": "alexwill87",
+              "date": "2026-06-14 04:07",
+              "day": "2026-06-14",
+              "message": "fix(qg): restore Hetzner fleet vault fallback"
+            },
+            {
+              "hash": "b04c90b",
+              "author": "alexwill87",
+              "date": "2026-06-14 03:41",
+              "day": "2026-06-14",
+              "message": "feat(qg): fiche app dédiée"
+            }
+          ]
+        },
+        {
+          "repo": "omar-top",
+          "name": "OmarTop",
+          "commits": [
+            {
+              "hash": "d3f386e",
+              "author": "alexwill87",
+              "date": "2026-06-14 23:38",
+              "day": "2026-06-14",
+              "message": "docs: mandat opérationnel autonome H-Omar"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-06-13",
+      "count": 14,
+      "repos": [
+        {
+          "repo": "omar-qg",
+          "name": "QG",
+          "commits": [
             {
               "hash": "cfce338",
               "author": "Omar",
@@ -939,105 +998,8 @@
     },
     {
       "date": "2026-06-08",
-      "count": 25,
+      "count": 10,
       "repos": [
-        {
-          "repo": "omar-hub",
-          "name": "Hub",
-          "commits": [
-            {
-              "hash": "1b8671e",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 23:25",
-              "day": "2026-06-08",
-              "message": "feat: point hub catalogue to dedicated catalogue site"
-            },
-            {
-              "hash": "18d4da6",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 06:29",
-              "day": "2026-06-08",
-              "message": "feat: expose observability maturity controls"
-            },
-            {
-              "hash": "e0a7019",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 06:19",
-              "day": "2026-06-08",
-              "message": "feat: expose network maturity controls"
-            },
-            {
-              "hash": "4dad16f",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 06:04",
-              "day": "2026-06-08",
-              "message": "feat: clarify maturity evidence"
-            },
-            {
-              "hash": "84817ac",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 05:42",
-              "day": "2026-06-08",
-              "message": "feat: compact maturity control evidence"
-            },
-            {
-              "hash": "e27ae39",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 03:55",
-              "day": "2026-06-08",
-              "message": "feat: source maturity L1 from OmarTop export"
-            },
-            {
-              "hash": "4699f82",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 03:42",
-              "day": "2026-06-08",
-              "message": "feat: refactor home as VPS gallery"
-            },
-            {
-              "hash": "3c56f9a",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 02:57",
-              "day": "2026-06-08",
-              "message": "feat: consume maturity L1 contract"
-            },
-            {
-              "hash": "c255179",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 02:39",
-              "day": "2026-06-08",
-              "message": "feat: expose L1 maturity pillars"
-            },
-            {
-              "hash": "f8f6f1e",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 02:11",
-              "day": "2026-06-08",
-              "message": "feat: reorganize maturity around surfaces"
-            },
-            {
-              "hash": "ea68a0b",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 01:55",
-              "day": "2026-06-08",
-              "message": "feat: surface OmarTop items in Hub 0.7.1"
-            },
-            {
-              "hash": "70764e8",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 01:31",
-              "day": "2026-06-08",
-              "message": "fix: hide legacy phases on milestone maturity"
-            },
-            {
-              "hash": "b9e1052",
-              "author": "cc-superadjoint",
-              "date": "2026-06-08 01:29",
-              "day": "2026-06-08",
-              "message": "feat: align Hub with OmarTop maturity"
-            }
-          ]
-        },
         {
           "repo": "omar-qg",
           "name": "QG",
@@ -1100,33 +1062,6 @@
           ]
         },
         {
-          "repo": "omar-landing",
-          "name": "Landing",
-          "commits": [
-            {
-              "hash": "955ee68",
-              "author": "Claude-Cockpit [bot]",
-              "date": "2026-06-08 04:59",
-              "day": "2026-06-08",
-              "message": "feat: add June conversion CTA landing"
-            },
-            {
-              "hash": "6a8012d",
-              "author": "Claude-Cockpit [bot]",
-              "date": "2026-06-08 04:25",
-              "day": "2026-06-08",
-              "message": "chore: add Caddy runtime route for landing domain"
-            },
-            {
-              "hash": "52e8895",
-              "author": "Claude-Cockpit [bot]",
-              "date": "2026-06-08 04:23",
-              "day": "2026-06-08",
-              "message": "feat: create Omar & Alex landing V0"
-            }
-          ]
-        },
-        {
           "repo": "omar-catalogue",
           "name": "Catalogue",
           "commits": [
@@ -1145,36 +1080,17 @@
               "message": "feat: add public catalogue site"
             }
           ]
-        }
-      ]
-    },
-    {
-      "date": "2026-06-07",
-      "count": 2,
-      "repos": [
-        {
-          "repo": "omar-top",
-          "name": "OmarTop",
-          "commits": [
-            {
-              "hash": "59fceab",
-              "author": "alexwill87",
-              "date": "2026-06-07 21:57",
-              "day": "2026-06-07",
-              "message": "feat: define OmarTop core VPS model (#6)"
-            }
-          ]
         },
         {
-          "repo": "omar-top-site",
-          "name": "OmarTop-site",
+          "repo": "omar-hub",
+          "name": "Hub",
           "commits": [
             {
-              "hash": "6c5f079",
-              "author": "alexwill87",
-              "date": "2026-06-07 21:58",
-              "day": "2026-06-07",
-              "message": "docs: publish OmarTop VPS model site (#2)"
+              "hash": "1b8671e",
+              "author": "cc-superadjoint",
+              "date": "2026-06-08 23:25",
+              "day": "2026-06-08",
+              "message": "feat: point hub catalogue to dedicated catalogue site"
             }
           ]
         }
@@ -1183,36 +1099,36 @@
   ],
   "deploys": [
     {
+      "path": "client/jab/index.html",
+      "mtime": "2026-06-15 14:20"
+    },
+    {
       "path": "apps/omartop/index.html",
-      "mtime": "2026-06-14 03:33"
+      "mtime": "2026-06-15 14:20"
     },
     {
       "path": "apps/hub/index.html",
-      "mtime": "2026-06-14 03:33"
+      "mtime": "2026-06-15 14:20"
     },
     {
       "path": "apps/qg/index.html",
-      "mtime": "2026-06-14 03:33"
+      "mtime": "2026-06-15 14:20"
     },
     {
       "path": "apps/lab/index.html",
-      "mtime": "2026-06-14 03:33"
+      "mtime": "2026-06-15 14:20"
     },
     {
       "path": "apps/catalogue/index.html",
-      "mtime": "2026-06-14 03:33"
+      "mtime": "2026-06-15 14:20"
     },
     {
       "path": "apps/app/index.html",
-      "mtime": "2026-06-14 03:33"
+      "mtime": "2026-06-15 14:20"
     },
     {
       "path": "apps/landing/index.html",
-      "mtime": "2026-06-14 03:33"
-    },
-    {
-      "path": "changelog/index.html",
-      "mtime": "2026-06-14 03:33"
+      "mtime": "2026-06-15 14:20"
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
-  "version": "V0.7.0",
+  "version": "V0.8.2",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-14T03:33:50Z",
+  "built_at": "2026-06-15T14:20:45Z",
   "items": [
     {
       "id": "landing",
@@ -22,14 +22,18 @@
         "status_short": []
       },
       "github": {
-        "open_issues": null,
-        "open_prs": null,
-        "last_merged_pr": null
+        "open_issues": 28,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "feat: add June conversion CTA landing",
+          "number": 16,
+          "merged_at": "2026-06-10T01:38:45Z"
+        }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 8
+        "latency_ms": 19
       },
       "triage": {
         "p0": 1,
@@ -121,14 +125,18 @@
         "status_short": []
       },
       "github": {
-        "open_issues": null,
-        "open_prs": null,
-        "last_merged_pr": null
+        "open_issues": 40,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "feat(app): isolation multi-tenant + SAV read-only reel (app#13/#14/#31)",
+          "number": 42,
+          "merged_at": "2026-06-14T21:00:05Z"
+        }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 157
+        "latency_ms": 177
       },
       "triage": {
         "p0": 5,
@@ -215,19 +223,32 @@
       "git": {
         "exists": true,
         "branch": "main",
-        "dirty": false,
-        "head": "83a7145 feat(hub-health): script de rafraichissement des artefacts",
-        "status_short": []
+        "dirty": true,
+        "head": "d878e34 Merge pull request #4 from omar-paris/feat/local-capability-icons-generator",
+        "status_short": [
+          "M apps/llm-observability-langfuse/.env.example",
+          " M apps/llm-observability-langfuse/docker-compose.yml",
+          " M apps/llm-observability-langfuse/recipe.yaml",
+          " M public/agents/index.html",
+          " M public/api/apps/emailing-listmonk.json",
+          " M public/api/apps/llm-gateway-litellm.json",
+          " M public/api/apps/llm-observability-langfuse.json",
+          " M public/apps/acces-distant-rustdesk/index.html"
+        ]
       },
       "github": {
-        "open_issues": null,
-        "open_prs": null,
-        "last_merged_pr": null
+        "open_issues": 11,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "fix(catalogue): enforce Standard 2 disk footprint",
+          "number": 35,
+          "merged_at": "2026-06-15T01:59:33Z"
+        }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 7
+        "latency_ms": 14
       },
       "triage": {
         "p0": 0,
@@ -326,7 +347,7 @@
       "health": {
         "status": "error",
         "http_code": 502,
-        "latency_ms": 7
+        "latency_ms": 12
       },
       "version_source": "unmeasured",
       "has_contract_source": false,
@@ -340,25 +361,36 @@
       "path": "omar-qg",
       "scope": "CORE OA",
       "role": "Registry opérationnel : versions, health, issues, PRs.",
-      "version": "V0.7.0",
+      "version": "V0.8.0",
       "changelog": "https://qg.omar.paris/changelog/",
       "next": "P0 · #30 — Page Accès : collecter les logs oauth2-proxy → qui se connecte où (brique doctrine OAuth)",
       "git": {
         "exists": true,
-        "branch": "fix/hetzner-fleet-vault-token-fallback-t-c9d22340",
-        "dirty": false,
+        "branch": "review/pr-37",
+        "dirty": true,
         "head": "current qg build",
-        "status_short": []
+        "status_short": [
+          "M CHANGELOG.md",
+          " M VERSION",
+          " M scripts/alerts.py",
+          " M scripts/vps_doctor.py",
+          "?? .review-worktrees/",
+          "?? reviews/"
+        ]
       },
       "github": {
-        "open_issues": null,
-        "open_prs": null,
-        "last_merged_pr": null
+        "open_issues": 20,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "fix: reduce noisy QG runtime alerts",
+          "number": 43,
+          "merged_at": "2026-06-15T13:57:30Z"
+        }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 6
+        "latency_ms": 17
       },
       "triage": {
         "p0": 5,
@@ -444,20 +476,33 @@
       "next": "P0 · #44 — [night][secu] vault-scanner.py : le strip des valeurs de secrets Infisical n'a aucun test",
       "git": {
         "exists": true,
-        "branch": "main",
-        "dirty": false,
-        "head": "ff69932 feat(hub): le collecteur consomme les artefacts par-app de la boucle agent",
-        "status_short": []
+        "branch": "feat/issue-44",
+        "dirty": true,
+        "head": "9ffb398 test: cover vault scanner secret redaction",
+        "status_short": [
+          "M public/api/apps.json",
+          " M public/api/mcp.json",
+          " M public/api/omartop.json",
+          " M public/api/skills.json",
+          " M public/api/skills/autonomous-ai-agents-hermes-agent.json",
+          " M public/api/skills/devops-kanban-operations.json",
+          " M public/api/skills/devops-kanban-worker.json",
+          " M public/api/skills/devops-oa-operations-playbook.json"
+        ]
       },
       "github": {
-        "open_issues": null,
-        "open_prs": null,
-        "last_merged_pr": null
+        "open_issues": 13,
+        "open_prs": 2,
+        "last_merged_pr": {
+          "title": "feat(maturity): vue flotte 3-VPS (omar mesuré, jab/pantheos indéterminés)",
+          "number": 55,
+          "merged_at": "2026-06-14T21:03:32Z"
+        }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 6
+        "latency_ms": 13
       },
       "triage": {
         "p0": 2,
@@ -543,20 +588,24 @@
       "next": "Stabiliser rc1.",
       "git": {
         "exists": true,
-        "branch": "main",
+        "branch": "fix/maturity-sav-doctor-coverage",
         "dirty": false,
-        "head": "cf2f7e5 feat(footer): dernier push dans le copyright MkDocs via OA_FOOTER (!ENV)",
+        "head": "a4609fd fix(omartop): cover maturity SAV doctor loop",
         "status_short": []
       },
       "github": {
-        "open_issues": null,
-        "open_prs": null,
-        "last_merged_pr": null
+        "open_issues": 44,
+        "open_prs": 1,
+        "last_merged_pr": {
+          "title": "docs: mandat opérationnel autonome H-Omar",
+          "number": 50,
+          "merged_at": "2026-06-14T23:38:59Z"
+        }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 6
+        "latency_ms": 15
       },
       "version_source": "VERSION",
       "has_contract_source": true,
@@ -568,8 +617,8 @@
     "core": 7,
     "vps": 0,
     "healthy": 6,
-    "open_issues_total": 0,
-    "open_prs_total": 0
+    "open_issues_total": 156,
+    "open_prs_total": 3
   },
   "catalog": [
     {
