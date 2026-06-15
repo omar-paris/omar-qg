@@ -158,6 +158,16 @@ def test_qg_objectifs_link_to_decisions():
         assert f"/decisions/#card-{did}" in obj_html
 
 
+def test_qg_home_surfaces_latest_result_and_mandates():
+    build()
+    home = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    assert "Dernier résultat livré" in home
+    assert "Décisions / mandats" in home
+    assert "mandat:h-omar-night-2026-06-14" in home
+    assert 'href="/builds/"' in home
+    assert 'href="/decisions/"' in home
+
+
 def test_qg_app_detail_hides_unmeasured_app_sources():
     build()
     payload = json.loads((PUBLIC / "api" / "core-repos.json").read_text(encoding="utf-8"))

@@ -1,5 +1,9 @@
 # Changelog
 
+## V0.8.1 — 2026-06-15
+
+- mandat:h-omar-night-2026-06-14 — Accueil QG : bloc visible "Dernier résultat livré" + "Décisions / mandats" pour exposer preuves de build et rattachements `mandat:*` / `decision:*`.
+
 ## V0.8.0 — 2026-06-14
 
 - Standard 3 QG : isolation client RBAC en build statique Niveau 2 (`/api/client-jab.json` + `/client/jab/`).
