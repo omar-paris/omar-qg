@@ -1,5 +1,13 @@
 # Changelog
 
+## V0.8.0 — 2026-06-14
+
+- Standard 3 QG : isolation client RBAC en build statique Niveau 2 (`/api/client-jab.json` + `/client/jab/`).
+- Gate Athena round 2 PASS : correction de la fuite de nom live Hetzner (`ubuntu-4gb-jab`) et blocage defense-in-depth de `specs`/`cost`.
+- Vue OmarTop réalignée : mandat opérationnel autonome H-Omar mergé côté OmarTop et visible dans QG (`d3f386e`).
+- Discipline opérateur : H-Omar reste orchestrateur ; les missions longues partent en background borné avec rapport, pas en blocage de conversation.
+- Baseline Mission #1 Kanban/QG produite : backlog visible, PRs restantes, files `ready/blocked/todo` priorisées.
+
 ## V0.7.0 — 2026-06-09
 
 - Nouvelle page `/ops/` : consolidation quotidienne sessions Hermes, sessions Claude/CLI, issues, PRs, merges, builds, coûts tokens, repos dirty et alertes.
