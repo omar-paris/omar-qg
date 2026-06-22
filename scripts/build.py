@@ -26,6 +26,22 @@ def _load_build_ledger():
     spec = importlib.util.spec_from_file_location(
         "build_ledger", Path(__file__).resolve().parent / "build-ledger.py"
     )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("build-ledger.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _load_repo_health():
+    """Importe scripts/repo_health.py pour publier le snapshot QG."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "repo_health", Path(__file__).resolve().parent / "repo_health.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("repo_health.py introuvable")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -1663,7 +1679,7 @@ def _num(v) -> int:
         return 0
 
 
-def page_ops(ledger: dict) -> str:
+def page_ops(ledger: dict, repo_health: dict | None = None) -> str:
     gh = ledger.get("github_totals", {})
     hermes = ledger.get("sessions", {}).get("hermes", {})
     cc = ledger.get("sessions", {}).get("ccusage", {})
@@ -1671,8 +1687,10 @@ def page_ops(ledger: dict) -> str:
     cc_sessions = sum(_num(v.get("sessions")) for v in by_agent.values())
     cc_daily = cc.get("daily") or {}
     alerts = ledger.get("alerts", [])
+    repo_health = repo_health or {}
+    repo_totals = repo_health.get("totals", {}) if isinstance(repo_health, dict) else {}
 
-    def card(label: str, value: str, sub: str = "") -> str:
+    def card(label: str, value: object, sub: str = "") -> str:
         sub_html = f'<div class="text-xs text-gray-400 mt-1">{escape(sub)}</div>' if sub else ""
         return f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{escape(str(value))}</div><div class="text-xs text-gray-500 mt-0.5">{escape(label)}</div>{sub_html}</div>'
 
@@ -1690,9 +1708,28 @@ def page_ops(ledger: dict) -> str:
     html += card("PRs créées", gh.get("prs_created", 0), f'{gh.get("prs_merged", 0)} mergées')
     html += card("Builds", gh.get("build_runs", 0) + gh.get("local_build_records", 0), f'{gh.get("build_success", 0)} OK · {gh.get("build_failed", 0)} KO · {gh.get("local_build_records", 0)} locaux')
     html += card("Coût tokens", f'${cc_daily.get("total_cost_usd", 0):.2f}' if isinstance(cc_daily.get("total_cost_usd", 0), (int, float)) else "—", f'{cc_daily.get("total_tokens", 0)} tokens')
-    html += card("Repos dirty", sum(1 for r in ledger.get("repos", []) if (r.get("git") or {}).get("dirty")), "statut local")
-    html += card("Alertes", len(alerts), "warnings / infos")
+    html += card("Repos dirty", repo_totals.get("dirty", sum(1 for r in ledger.get("repos", []) if (r.get("git") or {}).get("dirty"))), f"{repo_totals.get('p0', 0)} P0 · {repo_totals.get('p1', 0)} P1 · {repo_totals.get('p2', 0)} P2")
+    html += card("Alertes", len(alerts) + len(repo_health.get("alerts", []) if isinstance(repo_health, dict) else []), "ledger + repo-health")
     html += '</div>'
+
+    if isinstance(repo_health, dict) and repo_health.get("repos"):
+        html += '<div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between"><div><div class="text-sm font-bold text-gray-900">Repo Health — boucle QG obligatoire</div><div class="text-xs text-gray-400">Seuils explicites: PR en conflit=P0, drift massif >72h=P0, source dirty/âge >24h=P1</div></div><a href="/api/repo-health.json" class="text-xs text-blue-500 hover:underline">API repo-health</a></div>'
+        html += '<div class="grid md:grid-cols-[80px_1fr_90px_90px_1fr] gap-2 px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase hidden md:grid"><span>Risque</span><span>Repo</span><span>Dirty</span><span>PRs</span><span>Prochaine action</span></div>'
+        for rr in repo_health.get("repos", [])[:8]:
+            risk = str(rr.get("risk", "OK"))
+            cls = "pill-err" if risk == "P0" else "pill-warn" if risk in {"P1", "P2"} else "pill-ok"
+            prs = rr.get("open_prs") or []
+            html += (
+                '<div class="grid md:grid-cols-[80px_1fr_90px_90px_1fr] gap-2 px-4 py-3 border-b border-gray-100 last:border-0 text-sm items-start">'
+                f'<div><span class="{cls} inline-flex rounded-full px-2 py-0.5 text-xs font-medium">{escape(risk)}</span></div>'
+                f'<div><div class="font-semibold text-gray-900">{escape(str(rr.get("name") or rr.get("slug") or ""))}</div><div class="text-xs text-gray-400 font-mono">{escape(str(rr.get("branch") or ""))}</div></div>'
+                f'<div class="text-gray-700">{escape(str(rr.get("dirty_count", 0)))}<div class="text-xs text-gray-400">{escape(str(rr.get("oldest_dirty_age_hours") or "—"))}h</div></div>'
+                f'<div class="text-gray-700">{len(prs)}</div>'
+                f'<div class="text-gray-600 text-xs leading-relaxed">{escape(str(rr.get("next_action") or ""))}</div>'
+                '</div>'
+            )
+        html += '</div>'
 
     if alerts:
         html += '<div class="space-y-2 mb-6">'
@@ -2183,6 +2220,22 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(agent_loop_audit, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    # Repo Health v0 — snapshot canonique pour éviter la redécouverte manuelle.
+    try:
+        repo_health = _load_repo_health().collect()
+    except Exception as exc:  # ne casse jamais le build QG
+        repo_health = {
+            "schema": "oa.repo-health/1",
+            "generated_at": built_at,
+            "source": "scripts/repo_health.py",
+            "totals": {"repos": 0, "dirty": 0, "p0": 0, "p1": 0, "p2": 0, "ok": 0, "open_prs": 0, "conflict_prs": 0},
+            "alerts": [{"level": "P1", "code": "REPO_HEALTH_UNAVAILABLE", "message": f"Collecte repo-health indisponible: {exc.__class__.__name__}"}],
+            "repos": [],
+        }
+    (tmp / "api" / "repo-health.json").write_text(
+        json.dumps(repo_health, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
     # Builds du jour (commits par repo, 7 j) → public/api/builds.json
     try:
         builds = _load_build_ledger().collect_builds()
@@ -2199,7 +2252,7 @@ def main(argv: list[str] | None = None) -> None:
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit)),
-        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger)),
+        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),
         ("/builds/",      "builds",      "Builds du jour",           page_builds(builds)),

@@ -182,3 +182,19 @@ def test_qg_app_detail_hides_unmeasured_app_sources():
     assert "version non mesurée" in app_page
     assert "https://github.com/omar-paris/omar-app/blob/main/CONTRACT.md" not in app_page
     assert "https://app.omar.paris/changelog/" not in app_page
+
+
+def test_qg_repo_health_api_and_ops_surface():
+    build()
+    api = PUBLIC / "api" / "repo-health.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.repo-health/1"
+    assert payload["totals"]["repos"] >= 5
+    assert {"dirty", "p0", "p1", "p2", "open_prs", "conflict_prs"} <= set(payload["totals"])
+    for repo in payload["repos"]:
+        assert {"slug", "risk", "dirty_count", "next_action"} <= set(repo)
+        assert repo["risk"] in {"P0", "P1", "P2", "OK"}
+    ops = (PUBLIC / "ops" / "index.html").read_text(encoding="utf-8")
+    assert "Repo Health" in ops
+    assert "/api/repo-health.json" in ops
