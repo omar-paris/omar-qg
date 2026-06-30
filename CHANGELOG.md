@@ -1,5 +1,11 @@
 # Changelog
 
+## V0.8.4 — 2026-06-30
+
+- Page `/ops/` enrichie avec un bloc read-only `Stockage & sauvegardes` : root VPS, volumes Hetzner, swap, backups Hermes DB, remotes rclone et actions recommandées.
+- Nouvel endpoint `/api/ops/storage-summary.json` généré par `scripts/collect_storage.py`, sans secrets ni listing de contenu cloud.
+- Portage propre d’une fonctionnalité locale non mergée depuis le checkout QG divergent vers une branche basée sur `origin/main`.
+
 ## V0.8.3 — 2026-06-30
 
 - Page `/agent-loop/` enrichie avec les boucles prouvées du registry P4 : PR, cartes Kanban, gates, merge et artefacts issus du run réel AppOmar PR#48.

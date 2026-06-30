@@ -240,3 +240,29 @@ def test_qg_agent_loop_registry_api_and_surface(tmp_path, monkeypatch):
     assert "registry P4" in page
     assert "feat(app): devis PDF + provisioning dry-run" in page
     assert "/api/agent-loop-registry.json" in page
+
+
+
+def test_qg_storage_summary_api_and_ops_surface():
+    build()
+    api = PUBLIC / "api" / "ops" / "storage-summary.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert {"meta", "status", "mounts", "memory", "backup_sets", "cloud_archives", "risks", "recommended_actions"} <= set(payload)
+    assert payload["meta"]["source"] == "scripts/collect_storage.py"
+    assert payload["status"] in {"ok", "warning", "critical", "unknown"}
+    assert len(payload["mounts"]) >= 1
+    for mount in payload["mounts"]:
+        assert {"path", "label", "status", "exists"} <= set(mount)
+    for backup_set in payload["backup_sets"]:
+        assert "path" not in backup_set
+        assert "latest" not in backup_set
+        assert "archives_tail" not in backup_set
+        assert {"count", "total_h", "latest_age_hours", "latest_checksum_exists"} <= set(backup_set)
+    backup_serialized = json.dumps(payload["backup_sets"], ensure_ascii=False)
+    assert "hermes-dbs-" not in backup_serialized
+    assert "oa-offload-hermes-backups" not in backup_serialized
+    ops = (PUBLIC / "ops" / "index.html").read_text(encoding="utf-8")
+    assert "Stockage &amp; sauvegardes" in ops
+    assert "/api/ops/storage-summary.json" in ops
+    assert "Backups Hermes DB" in ops
