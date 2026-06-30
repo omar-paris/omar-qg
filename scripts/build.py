@@ -46,6 +46,20 @@ def _load_repo_health():
     spec.loader.exec_module(mod)
     return mod
 
+
+def _load_agent_loop_registry():
+    """Importe scripts/agent_loop_registry.py pour publier le registry P4."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agent_loop_registry", Path(__file__).resolve().parent / "agent_loop_registry.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("agent_loop_registry.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 VERSION = "V" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 DOMAIN = "qg.omar.paris"
 STATE_DB = Path("/home/omar/.hermes/state.db")
@@ -1932,8 +1946,11 @@ def page_decisions(decisions: list) -> str:
     return html
 
 
-def page_agent_loop_audit(report: dict) -> str:
-    """Surface QG read-only des orphelins Issue↔Kanban↔PR↔Gate."""
+def page_agent_loop_audit(report: dict, registry: dict | None = None) -> str:
+    """Surface QG read-only des orphelins Issue↔Kanban↔PR↔Gate + registry des boucles prouvées."""
+    registry = registry or {}
+    registry_summary = registry.get("summary", {}) if isinstance(registry, dict) else {}
+    registry_items = registry.get("items", []) if isinstance(registry, dict) else []
     summary = report.get("summary", {}) if isinstance(report, dict) else {}
     total = int(summary.get("total_orphans") or 0)
     checked_at = report.get("checked_at") or "non généré"
@@ -1986,11 +2003,37 @@ def page_agent_loop_audit(report: dict) -> str:
         errors_html += "".join(f'<div class="text-xs text-amber-700 font-mono mt-1">{escape(str(e))}</div>' for e in errors[:5])
         errors_html += '</div>'
 
+    registry_cards = ""
+    for key, label in [("prs", "PR"), ("cards", "Cartes"), ("gates", "Gates"), ("merges", "Merges"), ("artifacts", "Artefacts")]:
+        registry_cards += (
+            '<div class="bg-white rounded-xl border border-gray-200 px-4 py-3">'
+            f'<div class="text-2xl font-bold text-gray-900">{escape(str(registry_summary.get(key, 0)))}</div>'
+            f'<div class="text-xs text-gray-500 mt-0.5">{escape(label)} prouvés</div></div>'
+        )
+    registry_rows = ""
+    for item in registry_items[:12] if isinstance(registry_items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "objet")
+        title = item.get("title") or item.get("url") or item.get("path") or item.get("number") or kind
+        status = item.get("status") or item.get("state") or "—"
+        ref = item.get("id") or item.get("url") or item.get("path") or "—"
+        registry_rows += (
+            '<div class="grid md:grid-cols-[90px_1fr_120px_1fr] gap-2 px-4 py-3 border-b border-gray-100 last:border-0 text-sm">'
+            f'<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{escape(kind)}</div>'
+            f'<div class="font-semibold text-gray-900">{escape(str(title))}</div>'
+            f'<div class="text-xs text-gray-600">{escape(str(status))}</div>'
+            f'<div class="text-xs font-mono text-gray-500 break-all">{escape(str(ref))}</div>'
+            '</div>'
+        )
+    if not registry_rows:
+        registry_rows = '<div class="px-4 py-5 text-sm text-gray-500">Aucune boucle prouvée publiée dans le registry.</div>'
+
     return (
         '<div class="flex items-center justify-between mb-6"><div>'
         '<h1 class="text-xl font-bold text-gray-900">Audit anti-orphelins</h1>'
         f'<p class="text-sm text-gray-500 mt-0.5">Issue ↔ Kanban ↔ PR ↔ Gate — dernier scan {escape(str(checked_at))}.</p></div>'
-        '<a href="/api/agent-loop-audit.json" class="text-xs text-blue-500 hover:underline">API JSON</a></div>'
+        '<div class="flex gap-3"><a href="/api/agent-loop-registry.json" class="text-xs text-blue-500 hover:underline">API registry</a><a href="/api/agent-loop-audit.json" class="text-xs text-blue-500 hover:underline">API audit</a></div></div>'
         '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">'
         f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold {"text-red-600" if total else "text-gray-900"}">{total}</div><div class="text-xs text-gray-500 mt-0.5">Total orphelins</div></div>'
         + card("Issues agent-ok sans carte", "issues_without_card", "text-red-600")
@@ -1998,7 +2041,10 @@ def page_agent_loop_audit(report: dict) -> str:
         + card("Review-required sans Athena", "builder_cards_without_gate", "text-red-600")
         + card("Blocked sans action", "blocked_without_next_action", "text-amber-600")
         + card("Scheduled périmés", "stale_scheduled", "text-amber-600")
-        + '</div><div class="bg-white rounded-xl border border-gray-200 overflow-hidden">'
+        + '</div><div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+        '<div class="px-4 py-3 border-b border-gray-100"><div class="text-sm font-bold text-gray-900">Boucles prouvées — registry P4</div><div class="text-xs text-gray-400">Source: artefacts H-Omar/Builder/Athena déjà vérifiés.</div></div>'
+        '<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 p-4 bg-gray-50">' + registry_cards + '</div>'
+        + registry_rows + '</div><div class="bg-white rounded-xl border border-gray-200 overflow-hidden">'
         '<div class="px-4 py-3 border-b border-gray-100"><div class="text-sm font-bold text-gray-900">Orphelins et actions à prendre</div></div>'
         + rows + '</div>' + errors_html
     )
@@ -2220,6 +2266,22 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(agent_loop_audit, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    try:
+        agent_loop_registry = _load_agent_loop_registry().collect()
+    except Exception as exc:  # ne casse jamais le build QG
+        agent_loop_registry = {
+            "schema": "oa.agent-loop-registry/1",
+            "status": "degraded",
+            "generated_at": built_at,
+            "source": "scripts/agent_loop_registry.py",
+            "summary": {"issues": 0, "cards": 0, "prs": 0, "gates": 0, "merges": 0, "artifacts": 0},
+            "items": [],
+            "errors": [f"agent-loop-registry unavailable: {exc.__class__.__name__}"],
+        }
+    (tmp / "api" / "agent-loop-registry.json").write_text(
+        json.dumps(agent_loop_registry, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
     # Repo Health v0 — snapshot canonique pour éviter la redécouverte manuelle.
     try:
         repo_health = _load_repo_health().collect()
@@ -2251,7 +2313,7 @@ def main(argv: list[str] | None = None) -> None:
     pages = [
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
-        ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit)),
+        ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),

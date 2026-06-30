@@ -198,3 +198,45 @@ def test_qg_repo_health_api_and_ops_surface():
     ops = (PUBLIC / "ops" / "index.html").read_text(encoding="utf-8")
     assert "Repo Health" in ops
     assert "/api/repo-health.json" in ops
+
+
+def test_qg_agent_loop_registry_api_and_surface(tmp_path, monkeypatch):
+    seed = tmp_path / "agent-loop-seed.json"
+    seed.write_text(json.dumps({
+        "schema": "oa.registry.min.test",
+        "github_pr": {
+            "number": 48,
+            "state": "MERGED",
+            "title": "feat(app): devis PDF + provisioning dry-run",
+            "url": "https://github.com/omar-paris/omar-app/pull/48",
+            "mergedAt": "2026-06-30T18:03:16Z",
+            "mergeCommit": {"oid": "f399b9074d576d2ce7db9caa885d094fcf27c0a6"},
+        },
+        "kanban_tasks": [
+            {"id": "t_builder", "title": "Builder fixed PR #48", "status": "done"},
+            {"id": "t_review", "title": "Athena review PR #48", "status": "done"},
+        ],
+        "artifacts": ["/tmp/review_result.json"],
+    }), encoding="utf-8")
+    monkeypatch.setenv("OA_AGENT_LOOP_REGISTRY_SEED", str(seed))
+
+    build()
+    api = PUBLIC / "api" / "agent-loop-registry.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.agent-loop-registry/1"
+    assert payload["status"] == "healthy"
+    assert payload["source"] == str(seed)
+    assert payload["summary"]["prs"] >= 1
+    assert payload["summary"]["cards"] >= 1
+    assert payload["summary"]["gates"] >= 1
+    assert payload["summary"]["merges"] >= 1
+    assert payload["summary"]["artifacts"] >= 1
+    assert any(item.get("kind") == "pr" and item.get("number") == 48 for item in payload["items"])
+    assert any(item.get("kind") == "merge" for item in payload["items"])
+
+    page = (PUBLIC / "agent-loop" / "index.html").read_text(encoding="utf-8")
+    assert "Boucles prouvées" in page
+    assert "registry P4" in page
+    assert "feat(app): devis PDF + provisioning dry-run" in page
+    assert "/api/agent-loop-registry.json" in page

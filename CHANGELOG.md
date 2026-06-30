@@ -1,5 +1,11 @@
 # Changelog
 
+## V0.8.3 — 2026-06-30
+
+- Page `/agent-loop/` enrichie avec les boucles prouvées du registry P4 : PR, cartes Kanban, gates, merge et artefacts issus du run réel AppOmar PR#48.
+- Nouvel endpoint `/api/agent-loop-registry.json` généré read-only depuis `scripts/agent_loop_registry.py`, sans requête SQLite directe côté QG, avec seed injectable en test via `OA_AGENT_LOOP_REGISTRY_SEED`.
+- Tests de surface et d'API pour garantir que la preuve PR#48 reste visible dans QG.
+
 ## V0.8.2 — 2026-06-15
 
 - Audit anti-orphelins Issue↔Kanban↔PR↔Gate : commande read-only `scripts/agent_loop_audit.py`, endpoint `/api/agent-loop-audit.json`, page `/agent-loop/` et tuile QG pour actions à prendre.
