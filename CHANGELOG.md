@@ -1,5 +1,10 @@
 # Changelog
 
+## V0.8.5 — 2026-06-30
+
+- QG `/ops/` qualifie désormais le signal Docker : `theoretical_reclaimable_hint` reste visible mais ne devient une action que si des images dangling, containers arrêtés ou volumes orphelins sont prouvés.
+- Correction anti-faux positif : le `18 GB reclaimable` Docker n’est plus traité comme gain actionnable quand toutes les grosses images sont référencées par des containers actifs.
+
 ## V0.8.4 — 2026-06-30
 
 - Page `/ops/` enrichie avec un bloc read-only `Stockage & sauvegardes` : root VPS, volumes Hetzner, swap, backups Hermes DB, remotes rclone et actions recommandées.

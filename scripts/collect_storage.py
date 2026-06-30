@@ -182,6 +182,86 @@ def rclone_remotes() -> dict[str, Any]:
         return {"status": "warning", "remotes": [], "note": str(exc)[:160]}
 
 
+def _parse_size_to_bytes(value: str) -> int | None:
+    value = (value or "").strip()
+    if not value or value == "0B":
+        return 0
+    units = {"B": 1, "kB": 1000, "KB": 1000, "MB": 1000**2, "GB": 1000**3, "TB": 1000**4,
+             "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3, "TiB": 1024**4}
+    import re
+    m = re.match(r"^([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)$", value)
+    if not m:
+        return None
+    unit = m.group(2)
+    if unit not in units:
+        return None
+    return int(float(m.group(1)) * units[unit])
+
+
+def docker_summary() -> dict[str, Any]:
+    """Return Docker image cleanup signal without treating Docker's raw reclaimable as actionable.
+
+    `docker system df` can report large reclaimable bytes even when images are referenced by
+    running containers or compose stacks. QG therefore separates theoretical hints from safe
+    prune candidates proven by dangling images / stopped containers / unlinked volumes.
+    """
+    try:
+        images_raw = subprocess.check_output(
+            ["docker", "image", "ls", "--format", "{{json .}}"],
+            text=True, stderr=subprocess.DEVNULL, timeout=20,
+        )
+        containers_raw = subprocess.check_output(
+            ["docker", "ps", "-a", "--format", "{{json .}}"],
+            text=True, stderr=subprocess.DEVNULL, timeout=20,
+        )
+        dangling_raw = subprocess.check_output(
+            ["docker", "image", "ls", "--filter", "dangling=true", "--format", "{{json .}}"],
+            text=True, stderr=subprocess.DEVNULL, timeout=20,
+        )
+        df_raw = subprocess.check_output(["docker", "system", "df"], text=True, stderr=subprocess.DEVNULL, timeout=20)
+    except FileNotFoundError:
+        return {"status": "unknown", "note": "docker absent"}
+    except Exception as exc:
+        return {"status": "warning", "note": str(exc)[:160]}
+
+    image_rows = [json.loads(line) for line in images_raw.splitlines() if line.strip()]
+    container_rows = [json.loads(line) for line in containers_raw.splitlines() if line.strip()]
+    dangling_rows = [json.loads(line) for line in dangling_raw.splitlines() if line.strip()]
+    active_image_refs = {c.get("Image") for c in container_rows if c.get("Image")}
+    running = [c for c in container_rows if str(c.get("State", "")).lower() == "running"]
+    stopped = [c for c in container_rows if str(c.get("State", "")).lower() != "running"]
+
+    dangling_bytes = 0
+    for row in dangling_rows:
+        dangling_bytes += _parse_size_to_bytes(str(row.get("Size", ""))) or 0
+
+    theoretical = None
+    for line in df_raw.splitlines():
+        if line.startswith("Images"):
+            parts = line.split()
+            # Docker prints: Images TOTAL ACTIVE SIZE RECLAIMABLE...
+            if len(parts) >= 5:
+                theoretical = " ".join(parts[4:])
+            break
+
+    safe_to_prune = len(dangling_rows) > 0 or len(stopped) > 0
+    status = "warning" if safe_to_prune else "ok"
+    return {
+        "status": status,
+        "images_total": len(image_rows),
+        "containers_total": len(container_rows),
+        "containers_running": len(running),
+        "containers_stopped": len(stopped),
+        "active_image_refs": len(active_image_refs),
+        "dangling_images": len(dangling_rows),
+        "dangling_bytes": dangling_bytes,
+        "dangling_h": bytes_h(dangling_bytes),
+        "safe_to_prune": safe_to_prune,
+        "theoretical_reclaimable_hint": theoretical,
+        "interpretation": "Docker reclaimable brut non actionnable sans images dangling ou containers arrêtés prouvés.",
+    }
+
+
 def rollup_status(parts: Sequence[str | None]) -> str:
     if "critical" in parts:
         return "critical"
@@ -198,6 +278,7 @@ def collect() -> dict[str, Any]:
     backups = [backup_summary()]
     mem = free_summary()
     cloud = {"rclone": rclone_remotes()}
+    docker = docker_summary()
     risks = []
     for m in mounts:
         if m.get("status") in {"warning", "critical"}:
@@ -207,8 +288,10 @@ def collect() -> dict[str, Any]:
             risks.append({"level": "warning", "code": "DIR_OVER_BUDGET", "message": f"{d['label']} {d.get('size_h')} > budget {d.get('budget_mb')}MB"})
     if mem.get("swap", {}).get("status") in {"warning", "critical"}:
         risks.append({"level": mem["swap"]["status"], "code": "SWAP_PRESSURE", "message": f"Swap utilisée à {mem['swap'].get('used_pct')}%"})
+    if docker.get("safe_to_prune"):
+        risks.append({"level": "warning", "code": "DOCKER_SAFE_PRUNE", "message": f"Docker a {docker.get('dangling_images')} images dangling et {docker.get('containers_stopped')} containers arrêtés"})
 
-    statuses = [m.get("status") for m in mounts] + [b.get("status") for b in backups] + [mem.get("swap", {}).get("status")]
+    statuses = [m.get("status") for m in mounts] + [b.get("status") for b in backups] + [mem.get("swap", {}).get("status"), docker.get("status")]
     recommended_actions = []
     if any(m.get("path") == "/mnt/HC_Volume_105618057" and m.get("status") != "ok" for m in mounts):
         recommended_actions.append("Réduire caches/offload ou archiver froid vers rclone:gog-crypt")
@@ -216,6 +299,8 @@ def collect() -> dict[str, Any]:
         recommended_actions.append("Revue caches offload home avant suppression ciblée")
     if mem.get("swap", {}).get("status") in {"warning", "critical"}:
         recommended_actions.append("Re-mesurer processus lourds puis recycler services ciblés avant swapoff/swappon")
+    if docker.get("safe_to_prune"):
+        recommended_actions.append("Docker: prune ciblé autorisable seulement sur dangling/stopped prouvés")
 
     return {
         "meta": {"schema_version": "0.1", "mode": "dynamic-readonly", "generated_at": now_iso(), "source": "scripts/collect_storage.py"},
@@ -225,6 +310,7 @@ def collect() -> dict[str, Any]:
         "tracked_dirs": dirs,
         "backup_sets": backups,
         "cloud_archives": cloud,
+        "docker": docker,
         "risks": risks,
         "recommended_actions": recommended_actions,
     }
