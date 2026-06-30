@@ -1784,9 +1784,13 @@ def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None
         backups = storage.get("backup_sets", []) or []
         b0 = backups[0] if backups else {}
         remotes = ((storage.get("cloud_archives", {}) or {}).get("rclone", {}) or {}).get("remotes", []) or []
-        html += '<div class="grid md:grid-cols-3 gap-3 px-4 pb-3">'
+        docker = storage.get("docker", {}) or {}
+        safe_prune = "oui" if docker.get("safe_to_prune") else "non"
+        docker_sub = f"hint brut {docker.get('theoretical_reclaimable_hint') or '—'} · dangling {docker.get('dangling_images', '—')} · stopped {docker.get('containers_stopped', '—')}"
+        html += '<div class="grid md:grid-cols-4 gap-3 px-4 pb-3">'
         html += f'<div class="rounded-lg bg-gray-50 px-3 py-2"><div class="text-xs text-gray-500">Swap</div><div class="text-lg font-bold text-gray-900">{escape(str(swap.get("used_pct", "—")))}%</div><div class="text-xs text-gray-400">{escape(str(swap.get("used_h", "—")))} / {escape(str(swap.get("total_h", "—")))}</div></div>'
         html += f'<div class="rounded-lg bg-gray-50 px-3 py-2"><div class="text-xs text-gray-500">Backups Hermes DB</div><div class="text-lg font-bold text-gray-900">{escape(str(b0.get("count", "—")))} archives</div><div class="text-xs text-gray-400">{escape(str(b0.get("total_h", "—")))} · {escape(str(b0.get("retention_policy", "—")))}</div></div>'
+        html += f'<div class="rounded-lg bg-gray-50 px-3 py-2"><div class="text-xs text-gray-500">Docker prune sûr</div><div class="text-lg font-bold text-gray-900">{escape(safe_prune)}</div><div class="text-xs text-gray-400">{escape(docker_sub)}</div></div>'
         html += f'<div class="rounded-lg bg-gray-50 px-3 py-2"><div class="text-xs text-gray-500">Archives cloud</div><div class="text-lg font-bold text-gray-900">{escape(str(len(remotes)))} remotes</div><div class="text-xs text-gray-400">{escape(", ".join(map(str, remotes)) or "non mesuré")}</div></div>'
         html += '</div>'
         risks = storage.get("risks", []) or []
