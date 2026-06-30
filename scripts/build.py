@@ -60,6 +60,20 @@ def _load_agent_loop_registry():
     spec.loader.exec_module(mod)
     return mod
 
+
+def _load_storage_collector():
+    """Importe scripts/collect_storage.py pour publier le snapshot stockage QG."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "collect_storage", Path(__file__).resolve().parent / "collect_storage.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("collect_storage.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 VERSION = "V" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 DOMAIN = "qg.omar.paris"
 STATE_DB = Path("/home/omar/.hermes/state.db")
@@ -1693,7 +1707,7 @@ def _num(v) -> int:
         return 0
 
 
-def page_ops(ledger: dict, repo_health: dict | None = None) -> str:
+def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None) -> str:
     gh = ledger.get("github_totals", {})
     hermes = ledger.get("sessions", {}).get("hermes", {})
     cc = ledger.get("sessions", {}).get("ccusage", {})
@@ -1703,6 +1717,7 @@ def page_ops(ledger: dict, repo_health: dict | None = None) -> str:
     alerts = ledger.get("alerts", [])
     repo_health = repo_health or {}
     repo_totals = repo_health.get("totals", {}) if isinstance(repo_health, dict) else {}
+    storage = storage or {}
 
     def card(label: str, value: object, sub: str = "") -> str:
         sub_html = f'<div class="text-xs text-gray-400 mt-1">{escape(sub)}</div>' if sub else ""
@@ -1744,6 +1759,55 @@ def page_ops(ledger: dict, repo_health: dict | None = None) -> str:
                 '</div>'
             )
         html += '</div>'
+
+    if isinstance(storage, dict) and storage:
+        st_status = str(storage.get("status", "unknown"))
+        st_cls = {"ok": "border-green-200 bg-green-50 text-green-800", "warning": "border-yellow-200 bg-yellow-50 text-yellow-800", "critical": "border-red-200 bg-red-50 text-red-800"}.get(st_status, "border-gray-200 bg-gray-50 text-gray-700")
+        html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Stockage &amp; sauvegardes</h2><p class="text-xs text-gray-500">Read-only · VPS root, volumes, backups Hermes DB, rclone.</p></div>'
+        html += f'<span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold {st_cls}">{escape(st_status.upper())}</span>'
+        html += '</div>'
+        html += '<div class="grid md:grid-cols-3 gap-3 px-4 py-3">'
+        for m in storage.get("mounts", [])[:3]:
+            s = str(m.get("status", "unknown"))
+            pct = m.get("used_pct")
+            cls = "text-green-700" if s == "ok" else ("text-red-700" if s == "critical" else "text-amber-700")
+            html += '<div class="rounded-lg border border-gray-100 px-3 py-2">'
+            html += f'<div class="flex items-center justify-between"><div class="text-xs font-semibold text-gray-900">{escape(str(m.get("label") or m.get("path") or ""))}</div><div class="text-xs font-bold {cls}">{escape(str(pct)) if pct is not None else "—"}%</div></div>'
+            html += f'<div class="text-xs text-gray-400 font-mono mt-1">{escape(str(m.get("path", "")))}</div>'
+            html += f'<div class="text-xs text-gray-500 mt-1">libre {escape(str(m.get("free_h", "—")))} · cible {escape(str(m.get("target_pct", "—")))}%</div>'
+            html += '</div>'
+        html += '</div>'
+        mem = storage.get("memory", {}) or {}
+        swap = mem.get("swap", {}) or {}
+        backups = storage.get("backup_sets", []) or []
+        b0 = backups[0] if backups else {}
+        remotes = ((storage.get("cloud_archives", {}) or {}).get("rclone", {}) or {}).get("remotes", []) or []
+        html += '<div class="grid md:grid-cols-3 gap-3 px-4 pb-3">'
+        html += f'<div class="rounded-lg bg-gray-50 px-3 py-2"><div class="text-xs text-gray-500">Swap</div><div class="text-lg font-bold text-gray-900">{escape(str(swap.get("used_pct", "—")))}%</div><div class="text-xs text-gray-400">{escape(str(swap.get("used_h", "—")))} / {escape(str(swap.get("total_h", "—")))}</div></div>'
+        html += f'<div class="rounded-lg bg-gray-50 px-3 py-2"><div class="text-xs text-gray-500">Backups Hermes DB</div><div class="text-lg font-bold text-gray-900">{escape(str(b0.get("count", "—")))} archives</div><div class="text-xs text-gray-400">{escape(str(b0.get("total_h", "—")))} · {escape(str(b0.get("retention_policy", "—")))}</div></div>'
+        html += f'<div class="rounded-lg bg-gray-50 px-3 py-2"><div class="text-xs text-gray-500">Archives cloud</div><div class="text-lg font-bold text-gray-900">{escape(str(len(remotes)))} remotes</div><div class="text-xs text-gray-400">{escape(", ".join(map(str, remotes)) or "non mesuré")}</div></div>'
+        html += '</div>'
+        risks = storage.get("risks", []) or []
+        actions = storage.get("recommended_actions", []) or []
+        if risks or actions:
+            html += '<div class="grid md:grid-cols-2 gap-3 px-4 pb-4">'
+            html += '<div><div class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Risques</div>'
+            if risks:
+                for r in risks[:5]:
+                    html += f'<div class="text-xs text-gray-600 py-1 border-t border-gray-50"><span class="font-semibold">{escape(str(r.get("code", "RISK")))}</span> — {escape(str(r.get("message", "")))}</div>'
+            else:
+                html += '<div class="text-xs text-green-700">Aucun risque stockage critique.</div>'
+            html += '</div><div><div class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Actions recommandées</div>'
+            if actions:
+                for a in actions[:5]:
+                    html += f'<div class="text-xs text-gray-600 py-1 border-t border-gray-50">{escape(str(a))}</div>'
+            else:
+                html += '<div class="text-xs text-green-700">Pas d’action immédiate.</div>'
+            html += '</div></div>'
+        html += '<div class="px-4 py-2 border-t border-gray-100"><a href="/api/ops/storage-summary.json" class="text-xs text-blue-500 hover:underline">API storage-summary</a></div>'
+        html += '</section>'
 
     if alerts:
         html += '<div class="space-y-2 mb-6">'
@@ -2298,6 +2362,25 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(repo_health, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    # Stockage & sauvegardes — read-only pour /ops/ et API QG.
+    try:
+        storage = _load_storage_collector().collect()
+    except Exception as exc:  # ne casse jamais le build QG
+        storage = {
+            "meta": {"schema_version": "0.1", "mode": "dynamic-readonly", "source": "scripts/collect_storage.py"},
+            "status": "unknown",
+            "mounts": [],
+            "memory": {},
+            "backup_sets": [],
+            "cloud_archives": {},
+            "risks": [{"level": "warning", "code": "STORAGE_UNAVAILABLE", "message": f"Collecte stockage indisponible: {exc.__class__.__name__}"}],
+            "recommended_actions": [],
+        }
+    (tmp / "api" / "ops").mkdir(parents=True, exist_ok=True)
+    (tmp / "api" / "ops" / "storage-summary.json").write_text(
+        json.dumps(storage, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
     # Builds du jour (commits par repo, 7 j) → public/api/builds.json
     try:
         builds = _load_build_ledger().collect_builds()
@@ -2314,7 +2397,7 @@ def main(argv: list[str] | None = None) -> None:
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
-        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health)),
+        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),
         ("/builds/",      "builds",      "Builds du jour",           page_builds(builds)),
