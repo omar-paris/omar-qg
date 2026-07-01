@@ -1,0 +1,98 @@
+{
+  "schema": "oa.capabilities-eval/1",
+  "generated_at": "2026-07-01T21:22:11.743239+00:00",
+  "source": "/home/omar/11-Pilotage/sujets-actifs/oa-os/tool-eval-capability-registry/2026-07-01-tool-eval-capability-registry.json",
+  "source_generated_at": "2026-07-01T22:52:49+02:00",
+  "source_task_id": "t_a9eed08e",
+  "stale": false,
+  "age_hours": 0.49,
+  "stale_after_hours": 48,
+  "status": "fresh",
+  "counts": {
+    "installed": 19,
+    "reachable": 10,
+    "integrated": 11,
+    "used": 13,
+    "measured": 4
+  },
+  "capabilities_total": 21,
+  "top_gaps": [
+    {
+      "rank": 1,
+      "area": "Langfuse/LiteLLM",
+      "gap": "Installed and healthy, but not proven as the default trace path for Hermes/Kanban/AppOmar LLM calls.",
+      "impact": "No measured agent/tool-call quality loop; repeated tâtonnement persists.",
+      "short_fix": "oa-vps-operator smoke: one non-secret LiteLLM call with Langfuse trace id and documented callback config."
+    },
+    {
+      "rank": 2,
+      "area": "Capability context injection",
+      "gap": "Registry exists, but missions do not automatically receive filtered relevant capability entries.",
+      "impact": "Agents rediscover tools or ignore installed services.",
+      "short_fix": "Add mission template field capability_context_ids + small extractor script."
+    },
+    {
+      "rank": 3,
+      "area": "QG cockpit",
+      "gap": "QG/HermesUI reachable but capability adoption is not a first-class widget with stale/fresh status.",
+      "impact": "Alex cannot see installed→used→measured gaps without asking H-Omar.",
+      "short_fix": "oa-builder surface /api/capabilities-eval.json + compact /ops card."
+    },
+    {
+      "rank": 4,
+      "area": "Kanban quality",
+      "gap": "Kanban is measured by counts but not by capability outcomes/artifact-contract failures.",
+      "impact": "Autonomy blocked by backlog noise and invisible systemic causes.",
+      "short_fix": "oa-qa-officer daily metric: blocked_by_capability, done_without_artifact, review-required aging."
+    },
+    {
+      "rank": 5,
+      "area": "Profile hygiene",
+      "gap": "Stopped legacy h-omar profile exists; board also references historical/nonspawnable assignees.",
+      "impact": "Phantom identity and dispatch drift.",
+      "short_fix": "Inventory nonspawnable assignees and mark/decommission or alias explicitly."
+    }
+  ],
+  "next_action": "Dispatch/complete parent then run t_752c3d43 first: LiteLLM→Langfuse non-secret trace smoke.",
+  "agent_context_contract": {
+    "field": "capability_context_ids",
+    "principle": "Injecter uniquement les capacités nécessaires à la mission, jamais tout le registry.",
+    "selection_rules": [
+      "Partir du contrat de mission: domaine, outils requis, preuves attendues.",
+      "Sélectionner 3 à 8 ids maximum, liés aux preuves ou aux risques de la mission.",
+      "Inclure qg-static-api quand la mission doit publier un artefact QG.",
+      "Inclure agent-registry quand la mission doit choisir ou vérifier des capacités.",
+      "Ne jamais injecter evidence brute contenant sorties de commandes, tokens, chemins secrets ou données client non requises."
+    ],
+    "allowed_fields_per_capability": [
+      "id",
+      "name",
+      "type",
+      "status",
+      "owner",
+      "known_gaps",
+      "how_to_use",
+      "proof_command",
+      "security_scope",
+      "last_checked"
+    ],
+    "recommended_initial_ids": [
+      "langfuse",
+      "litellm",
+      "kanban",
+      "profiles",
+      "agent-registry",
+      "hermes-default",
+      "qg-static-api",
+      "qg-hermesui"
+    ],
+    "example": {
+      "mission": "Publier le résumé capability-eval dans QG",
+      "capability_context_ids": [
+        "qg-static-api",
+        "qg-hermesui",
+        "agent-registry"
+      ]
+    }
+  }
+}

@@ -1,5 +1,11 @@
 # Changelog
 
+## V0.8.6 — 2026-07-01
+
+- Page `/ops/` enrichie avec un bloc `Capability eval` non sensible: freshness, counts installed/reachable/integrated/used/measured, top gaps autonomie.
+- Nouveaux artefacts `/api/capabilities-eval.json` et `/api/capabilities-eval.md`, générés depuis le registre tool-eval source sans samples bruts ni secrets.
+- Contrat `capability_context_ids` documenté pour injecter aux agents seulement les capacités pertinentes, pas tout le registry.
+
 ## V0.8.5 — 2026-06-30
 
 - QG `/ops/` qualifie désormais le signal Docker : `theoretical_reclaimable_hint` reste visible mais ne devient une action que si des images dangling, containers arrêtés ou volumes orphelins sont prouvés.

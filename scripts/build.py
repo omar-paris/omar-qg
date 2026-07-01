@@ -74,6 +74,20 @@ def _load_storage_collector():
     spec.loader.exec_module(mod)
     return mod
 
+
+def _load_capabilities_eval():
+    """Importe scripts/capabilities_eval.py pour publier le résumé capability-eval."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "capabilities_eval", Path(__file__).resolve().parent / "capabilities_eval.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("capabilities_eval.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 VERSION = "V" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 DOMAIN = "qg.omar.paris"
 STATE_DB = Path("/home/omar/.hermes/state.db")
@@ -1707,7 +1721,7 @@ def _num(v) -> int:
         return 0
 
 
-def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None) -> str:
+def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None, capabilities_eval: dict | None = None) -> str:
     gh = ledger.get("github_totals", {})
     hermes = ledger.get("sessions", {}).get("hermes", {})
     cc = ledger.get("sessions", {}).get("ccusage", {})
@@ -1718,6 +1732,7 @@ def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None
     repo_health = repo_health or {}
     repo_totals = repo_health.get("totals", {}) if isinstance(repo_health, dict) else {}
     storage = storage or {}
+    capabilities_eval = capabilities_eval or {}
 
     def card(label: str, value: object, sub: str = "") -> str:
         sub_html = f'<div class="text-xs text-gray-400 mt-1">{escape(sub)}</div>' if sub else ""
@@ -1740,6 +1755,35 @@ def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None
     html += card("Repos dirty", repo_totals.get("dirty", sum(1 for r in ledger.get("repos", []) if (r.get("git") or {}).get("dirty"))), f"{repo_totals.get('p0', 0)} P0 · {repo_totals.get('p1', 0)} P1 · {repo_totals.get('p2', 0)} P2")
     html += card("Alertes", len(alerts) + len(repo_health.get("alerts", []) if isinstance(repo_health, dict) else []), "ledger + repo-health")
     html += '</div>'
+
+    if isinstance(capabilities_eval, dict) and capabilities_eval:
+        counts = capabilities_eval.get("counts", {}) or {}
+        top_gaps = capabilities_eval.get("top_gaps", []) or []
+        contract = capabilities_eval.get("agent_context_contract", {}) or {}
+        st_status = str(capabilities_eval.get("status", "unknown"))
+        st_cls = "border-green-200 bg-green-50 text-green-800" if st_status == "fresh" else "border-yellow-200 bg-yellow-50 text-yellow-800"
+        html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Capability eval</h2><p class="text-xs text-gray-500">Registre non sensible: installed → reachable → integrated → used → measured.</p></div>'
+        html += f'<span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold {st_cls}">{escape(st_status.upper())}</span>'
+        html += '</div>'
+        html += '<div class="grid md:grid-cols-6 gap-3 px-4 py-3">'
+        html += f'<div class="rounded-lg bg-gray-50 px-3 py-2"><div class="text-xs text-gray-500">Total</div><div class="text-lg font-bold text-gray-900">{escape(str(capabilities_eval.get("capabilities_total", "—")))}</div><div class="text-xs text-gray-400">âge {escape(str(capabilities_eval.get("age_hours", "—")))}h</div></div>'
+        for key in ("installed", "reachable", "integrated", "used", "measured"):
+            html += f'<div class="rounded-lg bg-gray-50 px-3 py-2"><div class="text-xs text-gray-500">{escape(key)}</div><div class="text-lg font-bold text-gray-900">{escape(str(counts.get(key, 0)))}</div></div>'
+        html += '</div>'
+        if top_gaps:
+            html += '<div class="px-4 pb-3"><div class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Top gaps autonomie</div>'
+            for gap in top_gaps[:3]:
+                html += f'<div class="text-xs text-gray-600 py-1 border-t border-gray-50"><span class="font-semibold">#{escape(str(gap.get("rank", "")))} {escape(str(gap.get("area", "")))}</span> — {escape(str(gap.get("gap", "")))}</div>'
+            html += '</div>'
+        ids = contract.get("recommended_initial_ids") or []
+        html += '<div class="px-4 pb-3 text-xs text-gray-600"><span class="font-semibold">Contexte agent filtré:</span> champ <code>capability_context_ids</code>, 3–8 ids max, champs non sensibles seulement.'
+        if ids:
+            html += f' Reco initiale: <span class="font-mono">{escape(", ".join(map(str, ids)))}</span>.'
+        html += '</div>'
+        html += '<div class="px-4 py-2 border-t border-gray-100 flex gap-3"><a href="/api/capabilities-eval.json" class="text-xs text-blue-500 hover:underline">API capabilities-eval</a><a href="/api/capabilities-eval.md" class="text-xs text-blue-500 hover:underline">Résumé MD</a></div>'
+        html += '</section>'
 
     if isinstance(repo_health, dict) and repo_health.get("repos"):
         html += '<div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
@@ -2385,6 +2429,32 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(storage, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    # Capability eval — résumé non sensible pour QG + contrat de contexte agent filtré.
+    try:
+        cap_mod = _load_capabilities_eval()
+        capabilities_eval = cap_mod.collect()
+        capabilities_eval_md = cap_mod.render_markdown(capabilities_eval)
+    except Exception as exc:  # ne casse jamais le build QG
+        capabilities_eval = {
+            "schema": "oa.capabilities-eval/1",
+            "generated_at": built_at,
+            "source": "scripts/capabilities_eval.py",
+            "source_generated_at": None,
+            "stale": True,
+            "status": "unavailable",
+            "counts": {"installed": 0, "reachable": 0, "integrated": 0, "used": 0, "measured": 0},
+            "capabilities_total": 0,
+            "top_gaps": [],
+            "next_action": "Relancer scripts/capabilities_eval.py et vérifier le registre source.",
+            "agent_context_contract": {"field": "capability_context_ids", "recommended_initial_ids": [], "selection_rules": []},
+            "errors": [f"capabilities-eval unavailable: {exc.__class__.__name__}"],
+        }
+        capabilities_eval_md = "# QG capability eval summary\n\nstatus: unavailable\n"
+    (tmp / "api" / "capabilities-eval.json").write_text(
+        json.dumps(capabilities_eval, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (tmp / "api" / "capabilities-eval.md").write_text(capabilities_eval_md, encoding="utf-8")
+
     # Builds du jour (commits par repo, 7 j) → public/api/builds.json
     try:
         builds = _load_build_ledger().collect_builds()
@@ -2401,7 +2471,7 @@ def main(argv: list[str] | None = None) -> None:
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
-        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage)),
+        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage, capabilities_eval)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),
         ("/builds/",      "builds",      "Builds du jour",           page_builds(builds)),

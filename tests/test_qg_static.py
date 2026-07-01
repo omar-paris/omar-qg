@@ -272,3 +272,37 @@ def test_qg_storage_summary_api_and_ops_surface():
     assert "Docker prune sûr" in ops
     assert "/api/ops/storage-summary.json" in ops
     assert "Backups Hermes DB" in ops
+
+def test_qg_capabilities_eval_api_md_and_ops_surface():
+    build()
+    api = PUBLIC / "api" / "capabilities-eval.json"
+    md = PUBLIC / "api" / "capabilities-eval.md"
+    assert api.exists()
+    assert md.exists()
+
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.capabilities-eval/1"
+    assert payload["source_generated_at"]
+    assert payload["stale"] in {True, False}
+    assert payload["capabilities_total"] >= 1
+    assert {"installed", "reachable", "integrated", "used", "measured"} <= set(payload["counts"])
+    assert payload["counts"]["installed"] >= payload["counts"]["measured"]
+    assert payload["top_gaps"]
+    assert payload["next_action"]
+
+    contract = payload["agent_context_contract"]
+    assert contract["field"] == "capability_context_ids"
+    assert "selection_rules" in contract
+    assert "allowed_fields_per_capability" in contract
+    assert "evidence" not in contract["allowed_fields_per_capability"]
+    assert 0 < len(contract["recommended_initial_ids"]) <= 8
+
+    md_text = md.read_text(encoding="utf-8")
+    assert "# QG capability eval summary" in md_text
+    assert "capability_context_ids" in md_text
+
+    ops = (PUBLIC / "ops" / "index.html").read_text(encoding="utf-8")
+    assert "Capability eval" in ops
+    assert "/api/capabilities-eval.json" in ops
+    assert "/api/capabilities-eval.md" in ops
+    assert "capability_context_ids" in ops
