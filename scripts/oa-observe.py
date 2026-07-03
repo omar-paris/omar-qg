@@ -24,6 +24,7 @@ Usage :
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -79,6 +80,9 @@ REPO_DIRTY_H = 24            # fichiers non commités depuis > 24h -> P1
 CERT_EXPIRY_DAYS = 14        # cert expirant dans < 14j -> P1
 DEFAULT_TIMEOUT = 30
 SSH_OPTS = ["-o", "ConnectTimeout=10", "-o", "BatchMode=yes"]
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_KANBAN_STATE = ROOT / "var" / "oa-observe-kanban-state.json"
+HERMES = Path.home() / ".local/bin/hermes"
 
 # Répertoires exclus de la bloat : dépendances build (node_modules/venv) ET
 # copies volontaires (backups, snapshots, incidents) qui dupliquent une base
@@ -108,6 +112,187 @@ class Observation:
     """Phrase qui ouvre une conversation avec Alex (pas une alarme)."""
     texte: str
     vps: str = ""
+
+
+# --------------------------------------------------------------------------- #
+# STRUCTURATION + SINK KANBAN
+# --------------------------------------------------------------------------- #
+def _slug_part(value: str) -> str:
+    """Segment sûr pour idempotency_key Hermes (lisible, stable, sans espaces)."""
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip())
+    return slug.strip("-") or "unknown"
+
+
+def finding_fingerprint(f: Finding) -> str:
+    """Empreinte stable d'un finding logique."""
+    payload = {
+        "severite": f.severite,
+        "titre": f.titre,
+        "detail": f.detail,
+        "vps": f.vps,
+        "detecteur": f.detecteur or "unknown",
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def finding_idempotency_key(f: Finding) -> str:
+    return "oa-observe:{target}:{detector}:{fingerprint}".format(
+        target=_slug_part(f.vps),
+        detector=_slug_part(f.detecteur or "unknown"),
+        fingerprint=finding_fingerprint(f),
+    )
+
+
+def structured_finding(f: Finding) -> dict:
+    payload = asdict(f)
+    payload["schema"] = "oa.observe.finding/1"
+    payload["fingerprint"] = finding_fingerprint(f)
+    payload["idempotency_key"] = finding_idempotency_key(f)
+    return payload
+
+
+def _card_title(f: Finding) -> str:
+    return f"[OBS][{f.severite}] {f.vps} — {f.titre}"[:120]
+
+
+def _card_body(f: Finding, *, key: str, now_ts: int) -> str:
+    return "\n".join([
+        "Alerte persistante créée par oa-observe.",
+        "",
+        f"idempotency_key: {key}",
+        f"detector: {f.detecteur or 'unknown'}",
+        f"target: {f.vps}",
+        f"severity: {f.severite}",
+        f"first_seen_or_updated_at: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(now_ts))}",
+        "",
+        "## Détail",
+        f.detail,
+        "",
+        "## Remédiation proposée",
+        f.remediation,
+        "",
+        "## Protocole résolution",
+        "Quand oa-observe ne revoit plus cette alerte, il commente la carte puis la clôture automatiquement.",
+    ])
+
+
+def load_kanban_state(path: Path = DEFAULT_KANBAN_STATE) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def save_kanban_state(state: dict, path: Path = DEFAULT_KANBAN_STATE) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def plan_kanban_sync(findings: list[Finding], previous: dict | None = None,
+                     now_ts: int | None = None) -> tuple[list[dict], dict]:
+    """Planifie create/update/resolve sans toucher au Kanban."""
+    previous = previous or {}
+    now_ts = int(now_ts or time.time())
+    state = dict(previous)
+    plan: list[dict] = []
+    active_keys: set[str] = set()
+    for f in findings:
+        key = finding_idempotency_key(f)
+        active_keys.add(key)
+        prev = previous.get(key, {}) if isinstance(previous.get(key), dict) else {}
+        action = "update" if prev.get("status") == "active" else "create"
+        plan.append({
+            "action": action,
+            "idempotency_key": key,
+            "task_id": prev.get("task_id"),
+            "title": _card_title(f),
+            "finding": structured_finding(f),
+        })
+        state[key] = {
+            "status": "active",
+            "task_id": prev.get("task_id"),
+            "title": f.titre,
+            "target": f.vps,
+            "detector": f.detecteur or "unknown",
+            "severity": f.severite,
+            "first_seen_at": prev.get("first_seen_at", now_ts),
+            "last_seen_at": now_ts,
+        }
+    for key, prev in previous.items():
+        if key in active_keys or not isinstance(prev, dict) or prev.get("status") != "active":
+            continue
+        plan.append({
+            "action": "resolve",
+            "idempotency_key": key,
+            "task_id": prev.get("task_id"),
+            "title": prev.get("title", key),
+        })
+        resolved = dict(prev)
+        resolved["status"] = "resolved"
+        resolved["resolved_at"] = now_ts
+        state[key] = resolved
+    return plan, state
+
+
+def _parse_task_id(stdout: str) -> str | None:
+    text = (stdout or "").strip()
+    if not text:
+        return None
+    try:
+        payload = json.loads(text)
+        for k in ("task_id", "id"):
+            if payload.get(k):
+                return str(payload[k])
+        if isinstance(payload.get("task"), dict) and payload["task"].get("id"):
+            return str(payload["task"]["id"])
+    except Exception:  # noqa: BLE001
+        pass
+    m = re.search(r"\bt_[0-9a-fA-F]+\b", text)
+    return m.group(0) if m else None
+
+
+def apply_kanban_plan(plan: list[dict], state: dict, findings_by_key: dict[str, Finding],
+                      *, dry_run: bool = False, assignee: str = "default",
+                      priority: int = 85, runner=subprocess.run) -> tuple[list[dict], dict]:
+    results: list[dict] = []
+    for op in plan:
+        if dry_run:
+            results.append({k: op.get(k) for k in ("action", "idempotency_key", "task_id", "title")})
+            continue
+        action = op["action"]
+        key = op["idempotency_key"]
+        if action in {"create", "update"}:
+            finding = findings_by_key[key]
+            cmd = [str(HERMES), "kanban", "create", _card_title(finding),
+                   "--assignee", assignee, "--priority", str(priority),
+                   "--idempotency-key", key, "--body",
+                   _card_body(finding, key=key, now_ts=int(time.time())),
+                   "--created-by", "oa-observe", "--json"]
+            cp = runner(cmd, capture_output=True, text=True, timeout=30)
+            task_id = _parse_task_id(getattr(cp, "stdout", "")) or op.get("task_id")
+            if task_id:
+                state.setdefault(key, {})["task_id"] = task_id
+            results.append({"action": action, "idempotency_key": key, "task_id": task_id,
+                            "returncode": getattr(cp, "returncode", None)})
+        elif action == "resolve" and op.get("task_id"):
+            comment = ("oa-observe ne retrouve plus cette alerte au dernier scan; "
+                       "clôture automatique selon protocole de résolution.")
+            c1 = runner([str(HERMES), "kanban", "comment", op["task_id"], comment,
+                         "--author", "oa-observe"], capture_output=True, text=True, timeout=30)
+            c2 = runner([str(HERMES), "kanban", "complete", op["task_id"],
+                         "--summary", f"Résolu automatiquement par oa-observe: {op.get('title', key)}"],
+                        capture_output=True, text=True, timeout=30)
+            results.append({"action": action, "idempotency_key": key, "task_id": op["task_id"],
+                            "returncode": max(getattr(c1, "returncode", 0), getattr(c2, "returncode", 0))})
+    return results, state
+
+
+def load_fixture(path: Path) -> tuple[list[Finding], list[str]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    findings = [Finding(**item) for item in payload.get("findings", [])]
+    notes = [str(n) for n in payload.get("notes", [])]
+    return findings, notes
 
 
 # --------------------------------------------------------------------------- #
@@ -816,6 +1001,14 @@ def main() -> int:
     ap.add_argument("--out-dir",
                     default="/home/omar/11-Pilotage/journal/observateur",
                     help="répertoire de sortie des briefings")
+    ap.add_argument("--fixture", help="fixture JSON de findings pour tests/smoke (ne scanne pas la flotte)")
+    ap.add_argument("--kanban", action="store_true", help="synchronise les findings vers Hermes Kanban")
+    ap.add_argument("--kanban-dry-run", action="store_true",
+                    help="affiche le plan create/update/resolve sans mutation Kanban ni état local")
+    ap.add_argument("--kanban-state", default=str(DEFAULT_KANBAN_STATE),
+                    help="fichier état local oa-observe -> Kanban")
+    ap.add_argument("--kanban-assignee", default="default", help="assignee des cartes Kanban créées")
+    ap.add_argument("--kanban-priority", type=int, default=85, help="priorité des cartes Kanban créées")
     args = ap.parse_args()
 
     only = [s.strip() for s in args.only.split(",") if s.strip()] or None
@@ -826,14 +1019,54 @@ def main() -> int:
                   f"Disponibles : {', '.join(DETECTORS)}", file=sys.stderr)
             return 2
 
-    findings, notes = scan(only)
+    if args.fixture:
+        findings, notes = load_fixture(Path(args.fixture))
+    else:
+        findings, notes = scan(only)
     obs = build_observations(findings)
 
+    kanban_result = None
+    if args.kanban or args.kanban_dry_run:
+        state_path = Path(args.kanban_state)
+        previous = load_kanban_state(state_path)
+        plan, next_state = plan_kanban_sync(findings, previous)
+        by_key = {finding_idempotency_key(f): f for f in findings}
+        results, next_state = apply_kanban_plan(
+            plan, next_state, by_key, dry_run=args.kanban_dry_run,
+            assignee=args.kanban_assignee, priority=args.kanban_priority)
+        kanban_result = {
+            "schema": "oa.observe.kanban-sync/1",
+            "dry_run": bool(args.kanban_dry_run),
+            "state_path": str(state_path),
+            "operations": results,
+        }
+        failures = [r for r in results if r.get("returncode") not in (None, 0)]
+        if failures:
+            kanban_result["status"] = "error"
+            kanban_result["failures"] = failures
+        else:
+            kanban_result["status"] = "ok"
+        if args.kanban and not args.kanban_dry_run and not failures:
+            save_kanban_state(next_state, state_path)
+
     if args.json:
-        print(json.dumps({"findings": [asdict(f) for f in findings],
-                          "observations": [asdict(o) for o in obs],
-                          "notes": notes}, ensure_ascii=False, indent=2))
+        payload = {"schema": "oa.observe.scan/1",
+                   "findings": [structured_finding(f) for f in findings],
+                   "observations": [asdict(o) for o in obs],
+                   "notes": notes}
+        if kanban_result is not None:
+            payload["kanban"] = kanban_result
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        if kanban_result and kanban_result.get("status") == "error":
+            return 1
         return 0
+
+    if kanban_result is not None:
+        print(json.dumps(kanban_result, ensure_ascii=False, indent=2))
+        if kanban_result.get("status") == "error":
+            return 1
+        if args.kanban_dry_run:
+            return 0
 
     briefing = render_briefing(findings, obs, notes)
     if not args.stdout_only:

@@ -45,12 +45,42 @@ cd /home/omar/23-Offre/actifs/omar-qg
 python3 scripts/oa-observe.py                 # scan complet + briefing + résumé
 python3 scripts/oa-observe.py --stdout-only    # pas d'écriture fichier
 python3 scripts/oa-observe.py --only file_bloat,ram_swap
-python3 scripts/oa-observe.py --json           # dump JSON (debug)
+python3 scripts/oa-observe.py --json           # dump JSON structuré (debug/API)
+python3 scripts/oa-observe.py --kanban-dry-run # plan create/update/resolve sans mutation
+python3 scripts/oa-observe.py --kanban         # sink primaire : cartes Kanban idempotentes
 ```
 
 Idempotent et ré-exécutable : le briefing du jour est ré-écrit à chaque passage.
 Si rien de grave (0 P0/P1) le briefing le dit clairement et donne quand même 2-3
 observations.
+
+## Sink Kanban primaire
+
+Agora est archivé comme ancien canal d'exécution : `oa-observe` transforme
+désormais les findings persistants en cartes Hermes Kanban, avec une clé stable :
+
+```txt
+oa-observe:<target>:<detector>:<fingerprint>
+```
+
+- `--json` expose des findings structurés (`schema: oa.observe.finding/1`) avec
+  `fingerprint` et `idempotency_key` ;
+- `--kanban-dry-run` affiche les opérations prévues (`create`, `update`,
+  `resolve`) sans créer de carte ni écrire l'état local ;
+- `--kanban` appelle `hermes kanban create --idempotency-key ... --json` pour
+  créer ou retrouver la carte existante sans doublon ;
+- l'état local `var/oa-observe-kanban-state.json` permet de reconnaître les
+  alertes déjà vues et de clôturer une carte quand le finding disparaît ;
+- à la résolution, le protocole est : commentaire `oa-observe` sur la carte puis
+  `hermes kanban complete` avec un résumé de clôture automatique.
+
+Smoke builder :
+
+```bash
+cd /home/omar/23-Offre/actifs/omar-qg
+python3 -m pytest tests/test_oa_observe_kanban.py -q
+bash scripts/smoke-oa-observe-kanban.sh
+```
 
 ## Ajouter un VPS
 
@@ -79,10 +109,10 @@ toi de décider. Deux options de branchement (non mutuellement exclusives) :
   /usr/bin/python3 scripts/oa-observe.py >> /home/omar/11-Pilotage/journal/observateur/cron.log 2>&1
 ```
 
-### Option B — poster le résumé dans les canaux existants
+### Option B — poster le résumé dans les canaux existants (secondaire)
 
-Le tool n'écrit volontairement que le briefing. Pour pousser le résumé, brancher
-sur les mécanismes déjà en place dans omar-qg :
+Le tool écrit le briefing et peut créer/mettre à jour les cartes Kanban. Pour
+pousser aussi un résumé conversationnel, brancher sur les mécanismes existants :
 
 1. **Telegram** (comme `alerts.py`) — réutiliser
    `~/omar-alex-vps/scripts/send-telegram.sh` :
@@ -91,21 +121,17 @@ sur les mécanismes déjà en place dans omar-qg :
    ~/omar-alex-vps/scripts/send-telegram.sh "🔭 Observateur flotte :\n$SUMMARY"
    ```
 
-2. **Boîte de décisions** (`scripts/oa_ask.py`, qg#27) — pour transformer un P0
-   récurrent en question tranchable par Alex :
-   ```bash
-   python3 scripts/oa_ask.py --group observateur \
-     --open "google_token.json world-readable depuis le scan du matin — chmod 600 ?" \
-     --context "Détecté par oa-observe (secret_exposure)" --par oa-observe
-   ```
+2. **Ancien flux Agora / boîte de décisions** — à archiver/désactiver sans
+   suppression dangereuse. Ne plus l'utiliser comme canal primaire pour les
+   alertes persistantes `oa-observe` ; Kanban est la source d'action.
 
 3. **Digest h-omar** — le digest quotidien de h-omar peut simplement `cat` le
    briefing du jour (`~/11-Pilotage/journal/observateur/$(date +%F).md`) et
-   l'inclure dans son bilan Agora.
+   l'inclure comme contexte, sans remplacer les cartes Kanban.
 
-**Recommandation** : activer d'abord l'option A (le briefing fichier suffit à
-sortir du « Alex remarque à la main »), puis brancher l'option B-1 (Telegram du
-résumé P0/P1) une fois la qualité des findings calibrée sur quelques jours.
+**Recommandation** : activer le scan quotidien via `scripts/oa-observe-morning.sh`
+qui appelle `oa-observe.py --kanban`, puis garder Telegram comme notification
+secondaire une fois la qualité des findings calibrée sur quelques jours.
 
 ## Garanties
 

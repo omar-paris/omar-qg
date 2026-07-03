@@ -1,7 +1,7 @@
 {
-  "version": "V0.8.2",
+  "version": "V0.8.5",
   "domain": "qg.omar.paris",
-  "built_at": "2026-06-15T14:20:45Z",
+  "built_at": "2026-07-03T04:12:07Z",
   "items": [
     {
       "id": "landing",
@@ -16,24 +16,27 @@
       "next": "P0 · #13 — Conversion stack: RDV, analytics sobre, suivi leads et conformité RGPD",
       "git": {
         "exists": true,
-        "branch": "main",
-        "dirty": false,
-        "head": "dde0533 feat(header): date = dernier push git (fini '9 juin 2026' codé en dur)",
-        "status_short": []
+        "branch": "feat/prepub-pricing-pc-smoke",
+        "dirty": true,
+        "head": "557fc58 fix(landing): remove public next preview",
+        "status_short": [
+          "?? public/next/",
+          "?? scripts/build_next.py"
+        ]
       },
       "github": {
         "open_issues": 28,
         "open_prs": 0,
         "last_merged_pr": {
-          "title": "feat: add June conversion CTA landing",
-          "number": 16,
-          "merged_at": "2026-06-10T01:38:45Z"
+          "title": "feat(landing): prépublique prix, coupons et option PC",
+          "number": 34,
+          "merged_at": "2026-07-02T14:11:36Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 19
+        "latency_ms": 18
       },
       "triage": {
         "p0": 1,
@@ -116,39 +119,38 @@
       "role": "Portail client : onboarding, config, buy, SAV, factures.",
       "version": "version non mesurée",
       "changelog": "https://app.omar.paris/changelog/",
-      "next": "P0 · #38 — ops: durcir la gestion des secrets (Vault root token → policies/Infisical) avant prod",
+      "next": "P0 · #30 — feat: auto-ajout du domaine client à la config OAuth (redirect URIs + whitelist) au provisioning",
       "git": {
         "exists": true,
-        "branch": "main",
-        "dirty": false,
-        "head": "db79da5 feat(footer): affiche la date du dernier push git dans les footers",
-        "status_short": []
+        "branch": "work/t_7cbf6d37-pr51",
+        "dirty": true,
+        "head": "56932c2 chore(appomar): preserve audit v2 and catalogue mapping work",
+        "status_short": [
+          "M pages-app/audit-v2.html",
+          " M src/proposal_server.py",
+          "?? docs/fable/business/oa-audit-profile-spec.md",
+          "?? src/oa_audit_prompt.md"
+        ]
       },
       "github": {
-        "open_issues": 40,
-        "open_prs": 0,
+        "open_issues": 36,
+        "open_prs": 1,
         "last_merged_pr": {
-          "title": "feat(app): isolation multi-tenant + SAV read-only reel (app#13/#14/#31)",
-          "number": 42,
-          "merged_at": "2026-06-14T21:00:05Z"
+          "title": "fix(appomar): align devis with Catalogue V1 IDs",
+          "number": 52,
+          "merged_at": "2026-07-02T22:37:13Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 177
+        "latency_ms": 20
       },
       "triage": {
-        "p0": 5,
+        "p0": 2,
         "p1": 24,
         "p2": 11,
         "top": [
-          {
-            "number": 38,
-            "title": "ops: durcir la gestion des secrets (Vault root token → policies/Infisical) avant prod",
-            "prio": "P0",
-            "url": "https://github.com/omar-paris/omar-app/issues/38"
-          },
           {
             "number": 30,
             "title": "feat: auto-ajout du domaine client à la config OAuth (redirect URIs + whitelist) au provisioning",
@@ -160,18 +162,6 @@
             "title": "feat: OAuth Microsoft en parallèle de Google (multi-provider)",
             "prio": "P0",
             "url": "https://github.com/omar-paris/omar-app/issues/28"
-          },
-          {
-            "number": 14,
-            "title": "[night][secu] IDs de proposition prévisibles + lecture non authentifiée = énumération de PII",
-            "prio": "P0",
-            "url": "https://github.com/omar-paris/omar-app/issues/14"
-          },
-          {
-            "number": 13,
-            "title": "[night][secu][P0] Aucune authentification sur un portail client public exposant config/proposals/PII",
-            "prio": "P0",
-            "url": "https://github.com/omar-paris/omar-app/issues/13"
           },
           {
             "number": 41,
@@ -202,6 +192,24 @@
             "title": "feat: wizard achat fournisseurs RÉEL (Hetzner/OVH/Telnyx) — acheter les produits pour le client",
             "prio": "P1",
             "url": "https://github.com/omar-paris/omar-app/issues/36"
+          },
+          {
+            "number": 35,
+            "title": "feat: onboarding persistant + reprise + mode simulation console (comme devis)",
+            "prio": "P1",
+            "url": "https://github.com/omar-paris/omar-app/issues/35"
+          },
+          {
+            "number": 34,
+            "title": "ops: activation Stripe LIVE — profil entreprise Omar & Alex + compte bancaire (avant 1er client payant)",
+            "prio": "P1",
+            "url": "https://github.com/omar-paris/omar-app/issues/34"
+          },
+          {
+            "number": 33,
+            "title": "SAV : détecter et proposer la remédiation d'un VPS famille/client incomplet (cas Pantheos)",
+            "prio": "P1",
+            "url": "https://github.com/omar-paris/omar-app/issues/33"
           }
         ]
       },
@@ -224,31 +232,31 @@
         "exists": true,
         "branch": "main",
         "dirty": true,
-        "head": "d878e34 Merge pull request #4 from omar-paris/feat/local-capability-icons-generator",
+        "head": "371d3b0 Merge pull request #44 from omar-paris/builder/catalogue-37-client-exposure",
         "status_short": [
-          "M apps/llm-observability-langfuse/.env.example",
-          " M apps/llm-observability-langfuse/docker-compose.yml",
-          " M apps/llm-observability-langfuse/recipe.yaml",
-          " M public/agents/index.html",
-          " M public/api/apps/emailing-listmonk.json",
-          " M public/api/apps/llm-gateway-litellm.json",
-          " M public/api/apps/llm-observability-langfuse.json",
-          " M public/apps/acces-distant-rustdesk/index.html"
+          "M public/agents/index.html",
+          " M public/api/catalogue-site.json",
+          " M public/apps/index.html",
+          " M public/bundles/index.html",
+          " M public/changelog/index.html",
+          " M public/index.html",
+          " M public/mcp/index.html",
+          " M public/recommandations/index.html"
         ]
       },
       "github": {
         "open_issues": 11,
         "open_prs": 0,
         "last_merged_pr": {
-          "title": "fix(catalogue): enforce Standard 2 disk footprint",
-          "number": 35,
-          "merged_at": "2026-06-15T01:59:33Z"
+          "title": "feat(catalogue): add AppOmar v1 modules",
+          "number": 44,
+          "merged_at": "2026-07-02T15:42:39Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 14
+        "latency_ms": 17
       },
       "triage": {
         "p0": 0,
@@ -347,7 +355,7 @@
       "health": {
         "status": "error",
         "http_code": 502,
-        "latency_ms": 12
+        "latency_ms": 17
       },
       "version_source": "unmeasured",
       "has_contract_source": false,
@@ -361,41 +369,34 @@
       "path": "omar-qg",
       "scope": "CORE OA",
       "role": "Registry opérationnel : versions, health, issues, PRs.",
-      "version": "V0.8.0",
+      "version": "V0.8.5",
       "changelog": "https://qg.omar.paris/changelog/",
       "next": "P0 · #30 — Page Accès : collecter les logs oauth2-proxy → qui se connecte où (brique doctrine OAuth)",
       "git": {
         "exists": true,
-        "branch": "review/pr-37",
-        "dirty": true,
+        "branch": "main",
+        "dirty": false,
         "head": "current qg build",
-        "status_short": [
-          "M CHANGELOG.md",
-          " M VERSION",
-          " M scripts/alerts.py",
-          " M scripts/vps_doctor.py",
-          "?? .review-worktrees/",
-          "?? reviews/"
-        ]
+        "status_short": []
       },
       "github": {
-        "open_issues": 20,
-        "open_prs": 0,
+        "open_issues": 19,
+        "open_prs": 1,
         "last_merged_pr": {
-          "title": "fix: reduce noisy QG runtime alerts",
-          "number": 43,
-          "merged_at": "2026-06-15T13:57:30Z"
+          "title": "fix(qg): qualify docker storage signals",
+          "number": 50,
+          "merged_at": "2026-06-30T20:24:10Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 18
       },
       "triage": {
-        "p0": 5,
+        "p0": 4,
         "p1": 3,
-        "p2": 14,
+        "p2": 12,
         "top": [
           {
             "number": 30,
@@ -420,12 +421,6 @@
             "title": "ops: rollout oauth2-proxy + forward_auth sur *.omar.paris sauf exemptions (STANDARD-OAUTH-OA)",
             "prio": "P0",
             "url": "https://github.com/omar-paris/omar-qg/issues/23"
-          },
-          {
-            "number": 13,
-            "title": "[night][secu] CERT_NONE désactive la vérification TLS sur des appels API porteurs de tokens (MITM)",
-            "prio": "P0",
-            "url": "https://github.com/omar-paris/omar-qg/issues/13"
           },
           {
             "number": 31,
@@ -456,6 +451,12 @@
             "title": "feat: /decisions/ — boîte de décisions Alex (questions uniques, groupées, boutons, déblocage kanban)",
             "prio": "P2",
             "url": "https://github.com/omar-paris/omar-qg/issues/27"
+          },
+          {
+            "number": 25,
+            "title": "feat: agents Build & Contrôle nightly — le système s'améliore seul (review gate humain)",
+            "prio": "P2",
+            "url": "https://github.com/omar-paris/omar-qg/issues/25"
           }
         ]
       },
@@ -480,34 +481,27 @@
         "dirty": true,
         "head": "9ffb398 test: cover vault scanner secret redaction",
         "status_short": [
-          "M public/api/apps.json",
-          " M public/api/mcp.json",
-          " M public/api/omartop.json",
-          " M public/api/skills.json",
-          " M public/api/skills/autonomous-ai-agents-hermes-agent.json",
-          " M public/api/skills/devops-kanban-operations.json",
-          " M public/api/skills/devops-kanban-worker.json",
-          " M public/api/skills/devops-oa-operations-playbook.json"
+          "M public/api/omartop.json"
         ]
       },
       "github": {
         "open_issues": 13,
         "open_prs": 2,
         "last_merged_pr": {
-          "title": "feat(maturity): vue flotte 3-VPS (omar mesuré, jab/pantheos indéterminés)",
-          "number": 55,
-          "merged_at": "2026-06-14T21:03:32Z"
+          "title": "feat: add AI surfaces launcher",
+          "number": 59,
+          "merged_at": "2026-06-29T19:56:15Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 13
+        "latency_ms": 12
       },
       "triage": {
-        "p0": 2,
-        "p1": 1,
-        "p2": 12,
+        "p0": 1,
+        "p1": 2,
+        "p2": 10,
         "top": [
           {
             "number": 44,
@@ -516,22 +510,16 @@
             "url": "https://github.com/omar-paris/omar-hub/issues/44"
           },
           {
-            "number": 43,
-            "title": "[night][secu] public/api/vault.json publie l'inventaire des secrets hors-Vault (chemins SSH, .env, username GitHub)",
-            "prio": "P0",
-            "url": "https://github.com/omar-paris/omar-hub/issues/43"
+            "number": 58,
+            "title": "A2Z: Hub statut agent/connecteurs/santé environnement client",
+            "prio": "P1",
+            "url": "https://github.com/omar-paris/omar-hub/issues/58"
           },
           {
             "number": 53,
             "title": "Home : 4 sections métier + favoris épinglables + voyants reconnectés (retours client 11/06)",
             "prio": "P1",
             "url": "https://github.com/omar-paris/omar-hub/issues/53"
-          },
-          {
-            "number": 52,
-            "title": "Maturité dans le Hub : spec de fonctionnement bout-en-bout (oa-doctor → affichage par VPS)",
-            "prio": "P2",
-            "url": "https://github.com/omar-paris/omar-hub/issues/52"
           },
           {
             "number": 51,
@@ -564,10 +552,16 @@
             "url": "https://github.com/omar-paris/omar-hub/issues/47"
           },
           {
-            "number": 46,
-            "title": "[night][coherence] apps-catalogue.json : duplicata mort (109 items) jamais consommé par l'UI",
+            "number": 38,
+            "title": "Hub consistency backlog: classify VPS mirror and Capacités-Catalogue gaps from nightly V4",
             "prio": "P2",
-            "url": "https://github.com/omar-paris/omar-hub/issues/46"
+            "url": "https://github.com/omar-paris/omar-hub/issues/38"
+          },
+          {
+            "number": 21,
+            "title": "Align Hub with Catalogue capacity relations strategy",
+            "prio": "P2",
+            "url": "https://github.com/omar-paris/omar-hub/issues/21"
           }
         ]
       },
@@ -583,29 +577,29 @@
       "path": "omar-top",
       "scope": "CORE OA",
       "role": "Référence/doctrine : standards, maturité, contrôles (L0→L3 par VPS).",
-      "version": "V0.3.0-rc1",
+      "version": "V0.4.0-alpha.1",
       "changelog": "https://top.omar.paris/changelog/",
       "next": "Stabiliser rc1.",
       "git": {
         "exists": true,
-        "branch": "fix/maturity-sav-doctor-coverage",
+        "branch": "builder/t_6f75b869-rdel-pilot",
         "dirty": false,
-        "head": "a4609fd fix(omartop): cover maturity SAV doctor loop",
+        "head": "f44b806 feat(standards): harden delivery readiness contracts",
         "status_short": []
       },
       "github": {
-        "open_issues": 44,
-        "open_prs": 1,
+        "open_issues": 45,
+        "open_prs": 7,
         "last_merged_pr": {
-          "title": "docs: mandat opérationnel autonome H-Omar",
-          "number": 50,
-          "merged_at": "2026-06-14T23:38:59Z"
+          "title": "feat(omartop): require skill_trace in agent outputs",
+          "number": 61,
+          "merged_at": "2026-07-02T22:37:41Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 15
+        "latency_ms": 22
       },
       "version_source": "VERSION",
       "has_contract_source": true,
@@ -617,8 +611,8 @@
     "core": 7,
     "vps": 0,
     "healthy": 6,
-    "open_issues_total": 156,
-    "open_prs_total": 3
+    "open_issues_total": 152,
+    "open_prs_total": 11
   },
   "catalog": [
     {
@@ -877,7 +871,7 @@
       "color": "#d50c2d",
       "url": "https://www.hetzner.com",
       "vault_key": "secret/integrations/hetzner/prod",
-      "api_status": "key_missing"
+      "api_status": "ok"
     },
     "ovh": {
       "name": "OVH",
@@ -885,7 +879,7 @@
       "color": "#0050d7",
       "url": "https://www.ovh.com/fr/",
       "vault_key": "secret/integrations/ovh",
-      "api_status": "key_missing"
+      "api_status": "ok"
     },
     "infomaniak": {
       "name": "Infomaniak",
@@ -893,7 +887,7 @@
       "color": "#00b04f",
       "url": "https://www.infomaniak.com/fr",
       "vault_key": "secret/integrations/infomaniak",
-      "api_status": "key_missing"
+      "api_status": "ok"
     },
     "telnyx": {
       "name": "Telnyx",
@@ -901,18 +895,283 @@
       "color": "#00c89c",
       "url": "https://telnyx.com",
       "vault_key": "secret/integrations/telnyx",
-      "api_status": "key_missing"
+      "api_status": "ok"
     }
   },
   "live": {
     "ovh": {
-      "domains": [],
-      "email_domains_with_accounts": []
+      "domains": [
+        "alexgo.eu",
+        "alexgo.fr",
+        "break-free-now.net",
+        "buildwithclaw.fr",
+        "buildwithclaw.paris",
+        "deployclaw.fr",
+        "edugame.fr",
+        "lobsterbuilders.com",
+        "omar-alex.fr",
+        "omar-alex.paris",
+        "omar.paris",
+        "omaralex.fr",
+        "omaralex.paris",
+        "omaretalex.fr",
+        "omaretalex.paris",
+        "omarparis.com",
+        "omarparis.fr",
+        "openclawfieldbook.com",
+        "openclawfieldplaybook.com",
+        "openclawforbuilders.com",
+        "rebelia.fr",
+        "rebellia.fr",
+        "thelobstercrew.com",
+        "willemetz.xyz"
+      ],
+      "email_domains_with_accounts": [
+        {
+          "domain": "alexgo.eu",
+          "count": 1
+        },
+        {
+          "domain": "joel.paris",
+          "count": 4
+        },
+        {
+          "domain": "ladb.fr",
+          "count": 13
+        },
+        {
+          "domain": "ladb.paris",
+          "count": 4
+        },
+        {
+          "domain": "laprincesse.paris",
+          "count": 1
+        }
+      ]
     }
   },
-  "fleet": [],
+  "fleet": [
+    {
+      "name": "ubuntu-16gb-omar",
+      "label": "VPS-Omar",
+      "role": "CORE OA",
+      "role_color": "#0050d7",
+      "owner": "OA / Alex",
+      "purpose": "Infra centrale : agents Hermes, Caddy, Vault, sites CORE OA, QG.",
+      "links": [
+        {
+          "kind": "hub",
+          "label": "Hub local",
+          "url": "https://hub.omar.paris/",
+          "status": "live"
+        },
+        {
+          "kind": "hermesui",
+          "label": "Hermes UI",
+          "url": "http://100.79.68.6:9119/",
+          "status": "live"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Glances",
+          "url": "http://100.79.68.6:61208/",
+          "status": "live"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Dashy",
+          "url": "http://100.79.68.6:8084/",
+          "status": "tailnet"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Console Hetzner",
+          "url": "https://console.hetzner.cloud/",
+          "status": "live"
+        }
+      ],
+      "tailnet": "100.79.68.6",
+      "access": {
+        "owner": "alex",
+        "viewers": [
+          "ccma",
+          "h-omar"
+        ],
+        "exposure": "tailnet",
+        "client_view": [],
+        "internal_only": [
+          "ip",
+          "hetzner_id",
+          "price_eur",
+          "tailnet",
+          "specs",
+          "cost"
+        ]
+      },
+      "id": 124825569,
+      "status": "running",
+      "type": "ccx23",
+      "vcpu": 4,
+      "ram_gb": 16,
+      "disk_gb": 160,
+      "ip": "195.201.20.17",
+      "datacenter": "",
+      "location": "",
+      "os": "ubuntu-24.04",
+      "created": "2026-03-24",
+      "price_eur": null,
+      "backups": "on",
+      "traffic_out_gb": 2.9,
+      "traffic_inc_tb": 22.0
+    },
+    {
+      "name": "ubuntu-16gb-pan",
+      "label": "VPS-Pantheos",
+      "role": "STUDIO",
+      "role_color": "#7c3aed",
+      "owner": "OA / Alex",
+      "purpose": "Studio Pantheos : editing.alexgo.eu. Cible : H-Aurel + apps L1.",
+      "links": [
+        {
+          "kind": "site",
+          "label": "editing.alexgo.eu",
+          "url": "https://editing.alexgo.eu/",
+          "status": "live"
+        },
+        {
+          "kind": "hub",
+          "label": "Hub local",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "hermesui",
+          "label": "Hermes UI",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Glances",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Console Hetzner",
+          "url": "https://console.hetzner.cloud/",
+          "status": "live"
+        }
+      ],
+      "tailnet": "",
+      "access": {
+        "owner": "alex",
+        "viewers": [
+          "ccma",
+          "h-aurel"
+        ],
+        "exposure": "tailnet",
+        "client_view": [],
+        "internal_only": [
+          "ip",
+          "hetzner_id",
+          "price_eur",
+          "tailnet",
+          "specs",
+          "cost"
+        ]
+      },
+      "id": 118906691,
+      "status": "running",
+      "type": "ccx23",
+      "vcpu": 4,
+      "ram_gb": 16,
+      "disk_gb": 160,
+      "ip": "78.46.201.97",
+      "datacenter": "",
+      "location": "",
+      "os": "ubuntu-24.04",
+      "created": "2026-01-29",
+      "price_eur": null,
+      "backups": "on",
+      "traffic_out_gb": 1.0,
+      "traffic_inc_tb": 22.0
+    },
+    {
+      "name": "ubuntu-8gb-jab",
+      "label": "VPS-JAB",
+      "role": "CLIENT",
+      "role_color": "#16a34a",
+      "owner": "Client JAB",
+      "purpose": "Stack client JAB : facturation PennyLane, Maryse, Google MyBusiness.",
+      "links": [
+        {
+          "kind": "hub",
+          "label": "Hub local",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "hermesui",
+          "label": "Hermes UI",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Glances",
+          "url": "",
+          "status": "todo"
+        },
+        {
+          "kind": "monitoring",
+          "label": "Console Hetzner",
+          "url": "https://console.hetzner.cloud/",
+          "status": "live"
+        }
+      ],
+      "tailnet": "",
+      "access": {
+        "owner": "jab",
+        "viewers": [
+          "alex",
+          "ccma",
+          "h-omar"
+        ],
+        "exposure": "public-authenticated",
+        "client_view": [
+          "health",
+          "services",
+          "invoice"
+        ],
+        "internal_only": [
+          "ip",
+          "hetzner_id",
+          "price_eur",
+          "tailnet",
+          "specs",
+          "cost"
+        ]
+      },
+      "id": 127265089,
+      "status": "running",
+      "type": "cpx32",
+      "vcpu": 4,
+      "ram_gb": 8,
+      "disk_gb": 160,
+      "ip": "168.119.172.126",
+      "datacenter": "",
+      "location": "",
+      "os": "ubuntu-24.04",
+      "created": "2026-04-17",
+      "price_eur": null,
+      "backups": "on",
+      "traffic_out_gb": 0.0,
+      "traffic_inc_tb": 22.0
+    }
+  ],
   "vps": {
-    "built_at": "2026-06-13T06:40:03Z",
+    "built_at": "2026-07-02T04:40:07Z",
     "standard": "VPS Hermes OA (OmarTop phases-spec P0→P6)",
     "vps": [
       {
@@ -921,11 +1180,11 @@
         "status": "measured",
         "doctor": {
           "available": true,
-          "pass": 11,
-          "fail": 26,
-          "skip": 23,
-          "total": 37,
-          "score_pct": 30,
+          "pass": 15,
+          "fail": 33,
+          "skip": 12,
+          "total": 48,
+          "score_pct": 31,
           "phases": [
             {
               "phase": "P0",
@@ -937,9 +1196,9 @@
             {
               "phase": "P1",
               "name": "Provisioning",
-              "pass": 1,
+              "pass": 4,
               "fail": 0,
-              "skip": 4
+              "skip": 1
             },
             {
               "phase": "P1.5",
@@ -966,8 +1225,8 @@
               "phase": "P3.5",
               "name": "Infisical setup",
               "pass": 0,
-              "fail": 0,
-              "skip": 12
+              "fail": 7,
+              "skip": 5
             },
             {
               "phase": "P4",
@@ -979,29 +1238,28 @@
             {
               "phase": "P5",
               "name": "Maintenance",
-              "pass": 0,
-              "fail": 7,
+              "pass": 1,
+              "fail": 6,
               "skip": 0
             },
             {
               "phase": "P6",
               "name": "Export",
               "pass": 0,
-              "fail": 2,
-              "skip": 4
+              "fail": 3,
+              "skip": 3
             }
           ]
         },
         "system": {
-          "disk_root": "81%",
-          "swap_pct": 79,
+          "disk_root": "80%",
+          "swap_pct": 44,
           "claude_orphans": 0,
           "services": {
             "caddy": "active",
             "docker": "active",
             "tailscaled": "active",
             "hermes-gateway (user)": "unknown",
-            "openclaw-gateway (user)": "unknown",
             "oa-proposal-server (user)": "unknown"
           },
           "alerts": []
@@ -1022,8 +1280,8 @@
           "note": "oa-doctor sera installé avec OA-L1 (~22 juin)"
         },
         "system": {
-          "disk_root": "37%",
-          "swap_pct": 0,
+          "disk_root": "46%",
+          "swap_pct": 5,
           "hermes": "present",
           "services": {
             "nginx": "active",
@@ -1036,7 +1294,7 @@
     ]
   },
   "triage": {
-    "built_at": "2026-06-13T06:15:04Z",
+    "built_at": "2026-07-02T04:15:03Z",
     "llm_used": false,
     "top3": [
       {
@@ -1048,16 +1306,16 @@
       },
       {
         "number": 43,
-        "title": "[night][secu] public/api/vault.json publie l'inventaire des secrets hors-Vault (chemins SSH, .env, username GitHub)",
-        "prio": "P0",
-        "url": "https://github.com/omar-paris/omar-hub/issues/43",
-        "app": "hub"
-      },
-      {
-        "number": 43,
         "title": "doctrine: appliquer STANDARD-OAUTH-OA (doc publié docs/standards/oauth-oa.md)",
         "prio": "P0",
         "url": "https://github.com/omar-paris/omar-top/issues/43",
+        "app": "top"
+      },
+      {
+        "number": 42,
+        "title": "[O-Top] Standardiser les chemins secrets Vault puis préparer migration Infisical",
+        "prio": "P0",
+        "url": "https://github.com/omar-paris/omar-top/issues/42",
         "app": "top"
       }
     ]
