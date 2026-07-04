@@ -1,18 +1,18 @@
 {
-  "latest": "/api/daily-ledger/2026-07-03.json",
+  "latest": "/api/daily-ledger/2026-07-04.json",
   "items": [
     {
-      "date": "2026-07-03",
-      "generated_at": "2026-07-03T04:12:07Z",
+      "date": "2026-07-04",
+      "generated_at": "2026-07-04T00:47:22Z",
       "version": "V0.8.5",
       "sessions": {
         "hermes": {
-          "sessions": 14,
-          "messages": 548,
-          "tool_calls": 320,
-          "api_calls": 216,
+          "sessions": 9,
+          "messages": 328,
+          "tool_calls": 188,
+          "api_calls": 131,
           "by_source": {
-            "cli": 14
+            "cli": 9
           },
           "db": "/home/omar/.hermes/state.db",
           "error": null
@@ -20,12 +20,15 @@
         "ccusage": {
           "sessions_by_agent": {},
           "daily": {
-            "total_cost_usd": 14.7471,
-            "total_tokens": 13055883,
+            "total_cost_usd": 75.9404,
+            "total_tokens": 47052308,
             "agents": [
+              "claude",
               "hermes"
             ],
             "models_used": [
+              "claude-fable-5",
+              "claude-opus-4-8",
               "gpt-5.5"
             ]
           },
@@ -36,6 +39,333 @@
         "issues_created": 0,
         "issues_closed": 0,
         "prs_created": 0,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0,
+        "unknown_fields": 7,
+        "local_build_records": 0
+      },
+      "local_builds": {
+        "path": "/home/omar/11-Pilotage/ledgers/builds/2026-07-04.jsonl",
+        "count": 0,
+        "success": 0,
+        "failure": 0,
+        "blocked": 0,
+        "recent": []
+      },
+      "repos": [
+        {
+          "id": "landing",
+          "name": "Landing",
+          "repo": "omar-paris/omar-landing",
+          "health": {
+            "status": "ok",
+            "http_code": 200,
+            "latency_ms": 12
+          },
+          "git": {
+            "exists": true,
+            "branch": "feat/prepub-pricing-pc-smoke",
+            "dirty": true,
+            "head": "557fc58 fix(landing): remove public next preview",
+            "status_short": [
+              "?? public/next/",
+              "?? scripts/build_next.py"
+            ]
+          },
+          "github_open": {
+            "open_issues": 28,
+            "open_prs": 0,
+            "last_merged_pr": {
+              "title": "feat(landing): prépublique prix, coupons et option PC",
+              "number": 34,
+              "merged_at": "2026-07-02T14:11:36Z"
+            }
+          },
+          "activity": {
+            "issues_created": 0,
+            "issues_closed": 0,
+            "prs_created": 0,
+            "prs_merged": 0,
+            "build_runs": 0,
+            "build_success": 0,
+            "build_failed": 0
+          }
+        },
+        {
+          "id": "app",
+          "name": "AppOmar",
+          "repo": "omar-paris/omar-app",
+          "health": {
+            "status": "ok",
+            "http_code": 200,
+            "latency_ms": 14
+          },
+          "git": {
+            "exists": true,
+            "branch": "builder/t_ed453db7-app-audit-hermes-chat",
+            "dirty": true,
+            "head": "51f62af feat(appomar): route audit v2 through Hermes agent",
+            "status_short": [
+              "M public/aide/index.html",
+              " M public/changelog/index.html",
+              " M public/compte/index.html",
+              " M public/config/index.html",
+              " M public/devis/index.html",
+              " M public/factures/index.html",
+              " M public/index.html",
+              " M public/jab/index.html"
+            ]
+          },
+          "github_open": {
+            "open_issues": 36,
+            "open_prs": 2,
+            "last_merged_pr": {
+              "title": "fix(appomar): block JAB Google Workspace until Nango tenant proof",
+              "number": 50,
+              "merged_at": "2026-07-03T22:05:54Z"
+            }
+          },
+          "activity": {
+            "issues_created": 0,
+            "issues_closed": 0,
+            "prs_created": 0,
+            "prs_merged": 0,
+            "build_runs": 0,
+            "build_success": 0,
+            "build_failed": 0
+          }
+        },
+        {
+          "id": "catalogue",
+          "name": "Catalogue",
+          "repo": "omar-paris/omar-catalogue",
+          "health": {
+            "status": "ok",
+            "http_code": 200,
+            "latency_ms": 18
+          },
+          "git": {
+            "exists": true,
+            "branch": "builder/t_ed453db7-catalogue-capability-claims",
+            "dirty": false,
+            "head": "c367e57 chore(catalogue): refresh generated public catalogue",
+            "status_short": []
+          },
+          "github_open": {
+            "open_issues": 11,
+            "open_prs": 1,
+            "last_merged_pr": {
+              "title": "feat(catalogue): add AppOmar v1 modules",
+              "number": 44,
+              "merged_at": "2026-07-02T15:42:39Z"
+            }
+          },
+          "activity": {
+            "issues_created": 0,
+            "issues_closed": 0,
+            "prs_created": 0,
+            "prs_merged": 0,
+            "build_runs": 0,
+            "build_success": 0,
+            "build_failed": 0
+          }
+        },
+        {
+          "id": "lab",
+          "name": "Lab",
+          "repo": "",
+          "health": {
+            "status": "error",
+            "http_code": 502,
+            "latency_ms": 14
+          },
+          "git": {
+            "exists": true,
+            "branch": "no-git",
+            "dirty": false,
+            "head": "",
+            "status_short": []
+          },
+          "github_open": {
+            "open_issues": null,
+            "open_prs": null,
+            "last_merged_pr": null
+          },
+          "activity": {}
+        },
+        {
+          "id": "qg",
+          "name": "QG",
+          "repo": "omar-paris/omar-qg",
+          "health": {
+            "status": "ok",
+            "http_code": 200,
+            "latency_ms": 19
+          },
+          "git": {
+            "exists": true,
+            "branch": "fix/t_1f47f9c0-state-db-threshold",
+            "dirty": true,
+            "head": "current qg build",
+            "status_short": [
+              "M scripts/build.py",
+              "?? review_result_pr53_t_0fbc82c0.json",
+              "?? review_result_t_a808ad4b.json"
+            ]
+          },
+          "github_open": {
+            "open_issues": 19,
+            "open_prs": 3,
+            "last_merged_pr": {
+              "title": "fix(qg): qualify docker storage signals",
+              "number": 50,
+              "merged_at": "2026-06-30T20:24:10Z"
+            }
+          },
+          "activity": {
+            "issues_created": 0,
+            "issues_closed": 0,
+            "prs_created": 0,
+            "prs_merged": 0,
+            "build_runs": 0,
+            "build_success": 0,
+            "build_failed": 0
+          }
+        },
+        {
+          "id": "hub",
+          "name": "Hub",
+          "repo": "omar-paris/omar-hub",
+          "health": {
+            "status": "ok",
+            "http_code": 200,
+            "latency_ms": 22
+          },
+          "git": {
+            "exists": true,
+            "branch": "feat/issue-44",
+            "dirty": true,
+            "head": "9ffb398 test: cover vault scanner secret redaction",
+            "status_short": [
+              "M public/api/omartop.json",
+              "?? reviews/"
+            ]
+          },
+          "github_open": {
+            "open_issues": 13,
+            "open_prs": 2,
+            "last_merged_pr": {
+              "title": "feat: add AI surfaces launcher",
+              "number": 59,
+              "merged_at": "2026-06-29T19:56:15Z"
+            }
+          },
+          "activity": {
+            "issues_created": 0,
+            "issues_closed": 0,
+            "prs_created": 0,
+            "prs_merged": 0,
+            "build_runs": 0,
+            "build_success": 0,
+            "build_failed": 0
+          }
+        },
+        {
+          "id": "omartop",
+          "name": "OmarTop",
+          "repo": "omar-paris/omar-top",
+          "health": {
+            "status": "ok",
+            "http_code": 200,
+            "latency_ms": 18
+          },
+          "git": {
+            "exists": true,
+            "branch": "builder/t_6f75b869-rdel-pilot",
+            "dirty": true,
+            "head": "f44b806 feat(standards): harden delivery readiness contracts",
+            "status_short": [
+              "M phases-spec.json",
+              "?? reviews/"
+            ]
+          },
+          "github_open": {
+            "open_issues": 45,
+            "open_prs": 5,
+            "last_merged_pr": {
+              "title": "fix(readiness): add Hub/QG JSON status contract",
+              "number": 62,
+              "merged_at": "2026-07-03T22:12:41Z"
+            }
+          },
+          "activity": {
+            "issues_created": 0,
+            "issues_closed": 0,
+            "prs_created": 0,
+            "prs_merged": 0,
+            "build_runs": 0,
+            "build_success": 0,
+            "build_failed": 0
+          }
+        }
+      ],
+      "alerts": [
+        {
+          "level": "warning",
+          "code": "DIRTY_REPOS",
+          "message": "5 repo(s) locaux dirty dans le registry."
+        },
+        {
+          "level": "warning",
+          "code": "NO_BUILDS_RECORDED",
+          "message": "Aucun build GitHub Actions ou ledger local détecté aujourd'hui."
+        }
+      ]
+    },
+    {
+      "date": "2026-07-03",
+      "generated_at": "2026-07-03T21:30:01Z",
+      "version": "V0.8.5",
+      "sessions": {
+        "hermes": {
+          "sessions": 25,
+          "messages": 1064,
+          "tool_calls": 631,
+          "api_calls": 371,
+          "by_source": {
+            "cli": 16,
+            "cron": 7,
+            "telegram": 2
+          },
+          "db": "/home/omar/.hermes/state.db",
+          "error": null
+        },
+        "ccusage": {
+          "sessions_by_agent": {},
+          "daily": {
+            "total_cost_usd": 52.0401,
+            "total_tokens": 27898911,
+            "agents": [
+              "claude",
+              "hermes"
+            ],
+            "models_used": [
+              "claude-fable-5",
+              "claude-sonnet-4-6",
+              "gpt-5.3-codex-spark",
+              "gpt-5.4-mini",
+              "gpt-5.5"
+            ]
+          },
+          "error": null
+        }
+      },
+      "github_totals": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 2,
         "prs_merged": 0,
         "build_runs": 0,
         "build_success": 0,
@@ -59,7 +389,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 18
+            "latency_ms": 14
           },
           "git": {
             "exists": true,
@@ -137,7 +467,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 17
+            "latency_ms": 18
           },
           "git": {
             "exists": true,
@@ -204,18 +534,20 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 18
+            "latency_ms": 20
           },
           "git": {
             "exists": true,
-            "branch": "main",
-            "dirty": false,
+            "branch": "fix/t_1f47f9c0-state-db-threshold",
+            "dirty": true,
             "head": "current qg build",
-            "status_short": []
+            "status_short": [
+              "?? review_result_pr53_t_0fbc82c0.json"
+            ]
           },
           "github_open": {
             "open_issues": 19,
-            "open_prs": 1,
+            "open_prs": 3,
             "last_merged_pr": {
               "title": "fix(qg): qualify docker storage signals",
               "number": 50,
@@ -225,7 +557,7 @@
           "activity": {
             "issues_created": 0,
             "issues_closed": 0,
-            "prs_created": 0,
+            "prs_created": 2,
             "prs_merged": 0,
             "build_runs": 0,
             "build_success": 0,
@@ -239,7 +571,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 12
+            "latency_ms": 18
           },
           "git": {
             "exists": true,
@@ -276,7 +608,7 @@
           "health": {
             "status": "ok",
             "http_code": 200,
-            "latency_ms": 22
+            "latency_ms": 18
           },
           "git": {
             "exists": true,
@@ -309,7 +641,7 @@
         {
           "level": "warning",
           "code": "DIRTY_REPOS",
-          "message": "4 repo(s) locaux dirty dans le registry."
+          "message": "5 repo(s) locaux dirty dans le registry."
         },
         {
           "level": "warning",
@@ -317,9 +649,9 @@
           "message": "Aucun build GitHub Actions ou ledger local détecté aujourd'hui."
         },
         {
-          "level": "warning",
-          "code": "SESSIONS_WITHOUT_PRS",
-          "message": "Beaucoup de sessions détectées mais aucune PR créée aujourd'hui."
+          "level": "info",
+          "code": "PRS_NOT_MERGED",
+          "message": "PRs créées aujourd'hui mais aucune PR mergée détectée."
         }
       ]
     },

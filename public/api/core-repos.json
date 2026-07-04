@@ -1,7 +1,7 @@
 {
   "version": "V0.8.5",
   "domain": "qg.omar.paris",
-  "built_at": "2026-07-03T04:12:07Z",
+  "built_at": "2026-07-04T00:47:22Z",
   "items": [
     {
       "id": "landing",
@@ -36,7 +36,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 12
       },
       "triage": {
         "p0": 1,
@@ -122,33 +122,37 @@
       "next": "P0 · #30 — feat: auto-ajout du domaine client à la config OAuth (redirect URIs + whitelist) au provisioning",
       "git": {
         "exists": true,
-        "branch": "work/t_7cbf6d37-pr51",
+        "branch": "builder/t_ed453db7-app-audit-hermes-chat",
         "dirty": true,
-        "head": "56932c2 chore(appomar): preserve audit v2 and catalogue mapping work",
+        "head": "51f62af feat(appomar): route audit v2 through Hermes agent",
         "status_short": [
-          "M pages-app/audit-v2.html",
-          " M src/proposal_server.py",
-          "?? docs/fable/business/oa-audit-profile-spec.md",
-          "?? src/oa_audit_prompt.md"
+          "M public/aide/index.html",
+          " M public/changelog/index.html",
+          " M public/compte/index.html",
+          " M public/config/index.html",
+          " M public/devis/index.html",
+          " M public/factures/index.html",
+          " M public/index.html",
+          " M public/jab/index.html"
         ]
       },
       "github": {
         "open_issues": 36,
-        "open_prs": 1,
+        "open_prs": 2,
         "last_merged_pr": {
-          "title": "fix(appomar): align devis with Catalogue V1 IDs",
-          "number": 52,
-          "merged_at": "2026-07-02T22:37:13Z"
+          "title": "fix(appomar): block JAB Google Workspace until Nango tenant proof",
+          "number": 50,
+          "merged_at": "2026-07-03T22:05:54Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 20
+        "latency_ms": 14
       },
       "triage": {
         "p0": 2,
-        "p1": 24,
+        "p1": 23,
         "p2": 11,
         "top": [
           {
@@ -194,12 +198,6 @@
             "url": "https://github.com/omar-paris/omar-app/issues/36"
           },
           {
-            "number": 35,
-            "title": "feat: onboarding persistant + reprise + mode simulation console (comme devis)",
-            "prio": "P1",
-            "url": "https://github.com/omar-paris/omar-app/issues/35"
-          },
-          {
             "number": 34,
             "title": "ops: activation Stripe LIVE — profil entreprise Omar & Alex + compte bancaire (avant 1er client payant)",
             "prio": "P1",
@@ -210,6 +208,12 @@
             "title": "SAV : détecter et proposer la remédiation d'un VPS famille/client incomplet (cas Pantheos)",
             "prio": "P1",
             "url": "https://github.com/omar-paris/omar-app/issues/33"
+          },
+          {
+            "number": 32,
+            "title": "feat: Stripe — connexion test+prod, boucle Devis→Config→SAV facturée",
+            "prio": "P1",
+            "url": "https://github.com/omar-paris/omar-app/issues/32"
           }
         ]
       },
@@ -230,23 +234,14 @@
       "next": "P1 · #21 — [Feature] Skill automatisé d'onboarding d'apps — ajouter, référencer, analyser, peupler les fiches",
       "git": {
         "exists": true,
-        "branch": "main",
-        "dirty": true,
-        "head": "371d3b0 Merge pull request #44 from omar-paris/builder/catalogue-37-client-exposure",
-        "status_short": [
-          "M public/agents/index.html",
-          " M public/api/catalogue-site.json",
-          " M public/apps/index.html",
-          " M public/bundles/index.html",
-          " M public/changelog/index.html",
-          " M public/index.html",
-          " M public/mcp/index.html",
-          " M public/recommandations/index.html"
-        ]
+        "branch": "builder/t_ed453db7-catalogue-capability-claims",
+        "dirty": false,
+        "head": "c367e57 chore(catalogue): refresh generated public catalogue",
+        "status_short": []
       },
       "github": {
         "open_issues": 11,
-        "open_prs": 0,
+        "open_prs": 1,
         "last_merged_pr": {
           "title": "feat(catalogue): add AppOmar v1 modules",
           "number": 44,
@@ -256,7 +251,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 17
+        "latency_ms": 18
       },
       "triage": {
         "p0": 0,
@@ -355,7 +350,7 @@
       "health": {
         "status": "error",
         "http_code": 502,
-        "latency_ms": 17
+        "latency_ms": 14
       },
       "version_source": "unmeasured",
       "has_contract_source": false,
@@ -374,14 +369,18 @@
       "next": "P0 · #30 — Page Accès : collecter les logs oauth2-proxy → qui se connecte où (brique doctrine OAuth)",
       "git": {
         "exists": true,
-        "branch": "main",
-        "dirty": false,
+        "branch": "fix/t_1f47f9c0-state-db-threshold",
+        "dirty": true,
         "head": "current qg build",
-        "status_short": []
+        "status_short": [
+          "M scripts/build.py",
+          "?? review_result_pr53_t_0fbc82c0.json",
+          "?? review_result_t_a808ad4b.json"
+        ]
       },
       "github": {
         "open_issues": 19,
-        "open_prs": 1,
+        "open_prs": 3,
         "last_merged_pr": {
           "title": "fix(qg): qualify docker storage signals",
           "number": 50,
@@ -391,7 +390,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 19
       },
       "triage": {
         "p0": 4,
@@ -481,7 +480,8 @@
         "dirty": true,
         "head": "9ffb398 test: cover vault scanner secret redaction",
         "status_short": [
-          "M public/api/omartop.json"
+          "M public/api/omartop.json",
+          "?? reviews/"
         ]
       },
       "github": {
@@ -496,7 +496,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 12
+        "latency_ms": 22
       },
       "triage": {
         "p0": 1,
@@ -583,23 +583,26 @@
       "git": {
         "exists": true,
         "branch": "builder/t_6f75b869-rdel-pilot",
-        "dirty": false,
+        "dirty": true,
         "head": "f44b806 feat(standards): harden delivery readiness contracts",
-        "status_short": []
+        "status_short": [
+          "M phases-spec.json",
+          "?? reviews/"
+        ]
       },
       "github": {
         "open_issues": 45,
-        "open_prs": 7,
+        "open_prs": 5,
         "last_merged_pr": {
-          "title": "feat(omartop): require skill_trace in agent outputs",
-          "number": 61,
-          "merged_at": "2026-07-02T22:37:41Z"
+          "title": "fix(readiness): add Hub/QG JSON status contract",
+          "number": 62,
+          "merged_at": "2026-07-03T22:12:41Z"
         }
       },
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 22
+        "latency_ms": 18
       },
       "version_source": "VERSION",
       "has_contract_source": true,
@@ -612,7 +615,7 @@
     "vps": 0,
     "healthy": 6,
     "open_issues_total": 152,
-    "open_prs_total": 11
+    "open_prs_total": 13
   },
   "catalog": [
     {
@@ -1021,7 +1024,7 @@
       "created": "2026-03-24",
       "price_eur": null,
       "backups": "on",
-      "traffic_out_gb": 2.9,
+      "traffic_out_gb": 4.3,
       "traffic_inc_tb": 22.0
     },
     {
@@ -1094,7 +1097,7 @@
       "created": "2026-01-29",
       "price_eur": null,
       "backups": "on",
-      "traffic_out_gb": 1.0,
+      "traffic_out_gb": 1.5,
       "traffic_inc_tb": 22.0
     },
     {
@@ -1166,12 +1169,12 @@
       "created": "2026-04-17",
       "price_eur": null,
       "backups": "on",
-      "traffic_out_gb": 0.0,
+      "traffic_out_gb": 0.1,
       "traffic_inc_tb": 22.0
     }
   ],
   "vps": {
-    "built_at": "2026-07-02T04:40:07Z",
+    "built_at": "2026-07-03T04:40:06Z",
     "standard": "VPS Hermes OA (OmarTop phases-spec P0→P6)",
     "vps": [
       {
@@ -1252,8 +1255,8 @@
           ]
         },
         "system": {
-          "disk_root": "80%",
-          "swap_pct": 44,
+          "disk_root": "82%",
+          "swap_pct": 65,
           "claude_orphans": 0,
           "services": {
             "caddy": "active",
@@ -1281,7 +1284,7 @@
         },
         "system": {
           "disk_root": "46%",
-          "swap_pct": 5,
+          "swap_pct": 6,
           "hermes": "present",
           "services": {
             "nginx": "active",
@@ -1294,7 +1297,7 @@
     ]
   },
   "triage": {
-    "built_at": "2026-07-02T04:15:03Z",
+    "built_at": "2026-07-03T04:15:05Z",
     "llm_used": false,
     "top3": [
       {

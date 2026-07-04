@@ -1,11 +1,11 @@
 {
-  "built_at": "2026-07-02T04:15:03Z",
+  "built_at": "2026-07-03T04:15:05Z",
   "llm_used": false,
   "fetch_errors": [],
   "apps": {
     "app": {
       "p0": 2,
-      "p1": 24,
+      "p1": 23,
       "p2": 11,
       "top": [
         {
@@ -51,12 +51,6 @@
           "url": "https://github.com/omar-paris/omar-app/issues/36"
         },
         {
-          "number": 35,
-          "title": "feat: onboarding persistant + reprise + mode simulation console (comme devis)",
-          "prio": "P1",
-          "url": "https://github.com/omar-paris/omar-app/issues/35"
-        },
-        {
           "number": 34,
           "title": "ops: activation Stripe LIVE — profil entreprise Omar & Alex + compte bancaire (avant 1er client payant)",
           "prio": "P1",
@@ -67,6 +61,12 @@
           "title": "SAV : détecter et proposer la remédiation d'un VPS famille/client incomplet (cas Pantheos)",
           "prio": "P1",
           "url": "https://github.com/omar-paris/omar-app/issues/33"
+        },
+        {
+          "number": 32,
+          "title": "feat: Stripe — connexion test+prod, boucle Devis→Config→SAV facturée",
+          "prio": "P1",
+          "url": "https://github.com/omar-paris/omar-app/issues/32"
         }
       ],
       "next": "P0 · #30 — feat: auto-ajout du domaine client à la config OAuth (redirect URIs + whitelist) au provisioning"

@@ -269,5 +269,150 @@
     "reponse": "Maryse",
     "repondue_le": "2026-06-12T14:47:38Z",
     "deblocage": "no_ref"
+  },
+  {
+    "id": "fc872246b4",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "Parquer le PROFIL hermes 'h-omar' (doublon de 'default' qui EST H-Omar) + reassigner sa derniere carte t_aeed8c91 vers default ?",
+    "options": [
+      "GO parking",
+      "garder le profil"
+    ],
+    "contexte": "Decision 14/06 deja prise (tuer profil h-omar separe). Le profil crashe en 402 quand le dispatcher le spawne (95 crashs 01-02/07). H-Omar continue de vivre via default. Reversible par mv.",
+    "blocked_ref": "t_aeed8c91",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:39:26Z",
+    "statut": "ouverte",
+    "reponse": null
+  },
+  {
+    "id": "5818b8996b",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "Parquer le profil oa-newagent-test (0 run, auth vide, fixture de test) ?",
+    "options": [
+      "GO parking",
+      "garder"
+    ],
+    "contexte": "Audit calibration 04/07: jamais utilise, non spawnable.",
+    "blocked_ref": "",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:39:26Z",
+    "statut": "ouverte",
+    "reponse": null
+  },
+  {
+    "id": "16eceeac1e",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "Landing canonique: laquelle garder ?",
+    "options": [
+      "landing.omar.paris (VPS audit-first)",
+      "www.omar.paris (Vercel generique)",
+      "fusionner"
+    ],
+    "contexte": "PRODUCT-TRUTH 04/07: deux landings publiques concurrentes. Doctrine doc 2 interdit la formulation generique de la version Vercel.",
+    "blocked_ref": "",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:39:27Z",
+    "statut": "ouverte",
+    "reponse": null
+  },
+  {
+    "id": "d896914c81",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "Debloquer l'audit public (fix acces anonyme a app.omar.paris/audit/, aujourd'hui mur OAuth) ?",
+    "options": [
+      "GO",
+      "attendre"
+    ],
+    "contexte": "PRODUCT-TRUTH: le funnel est casse a l'etape 2 — aucun prospect anonyme ne peut acceder a l'echange gratuit promis par la landing. Fix estime S.",
+    "blocked_ref": "",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:39:27Z",
+    "statut": "ouverte",
+    "reponse": null
+  },
+  {
+    "id": "1d68cf5711",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "Fix Caddy origin_mismatch (1 ligne header_up dans vhost hermes.omar.paris, sudo requis) ?",
+    "options": [
+      "GO je le fais avec toi",
+      "NOPASSWD cible",
+      "plus tard"
+    ],
+    "contexte": "Spam errors.log toutes les 6s (6875+ occurrences), rend l'observabilite illisible.",
+    "blocked_ref": "",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:39:27Z",
+    "statut": "ouverte",
+    "reponse": null
+  },
+  {
+    "id": "88bbfa0ce0",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "Fusionner les 5 crons digest en UN digest 09h/18h avec section Cartes Alex ?",
+    "options": [
+      "GO fusion",
+      "garder separe"
+    ],
+    "contexte": "Design pret dans cron-rationalization.md. 31->26 jobs, pings Telegram ~10/j -> 2/j.",
+    "blocked_ref": "",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:39:27Z",
+    "statut": "ouverte",
+    "reponse": null
+  },
+  {
+    "id": "0038daba47",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "PR omar-app#50 (Nango JAB): merger ou fermer ?",
+    "options": [
+      "merger",
+      "fermer",
+      "revoir ensemble"
+    ],
+    "contexte": "PRODUCT-TRUTH: decision listee comme bloquante pour l'onboarding JAB.",
+    "blocked_ref": "",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:39:27Z",
+    "statut": "ouverte",
+    "reponse": null
+  },
+  {
+    "id": "f10278a6ce",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "Role du Hub: continuer ou parker ?",
+    "options": [
+      "continuer (app client)",
+      "parker",
+      "statuer plus tard"
+    ],
+    "contexte": "PRODUCT-TRUTH place le Hub en #8/8 de l'ordre de finition. Pivot V3 memoire: Hub=App.",
+    "blocked_ref": "",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:39:27Z",
+    "statut": "ouverte",
+    "reponse": null
+  },
+  {
+    "id": "c67bce19e9",
+    "groupe": "fable-rescue",
+    "type": "ouverte",
+    "texte": "Decision swap + acces smoke QG (carte t_d2bb1399): autoriser la maintenance proposee ?",
+    "options": [],
+    "contexte": "Carte HANDOFF H-OMAR VPS en attente depuis des semaines. Repondre oui/non suffit, l'execution sera dispatchee.",
+    "blocked_ref": "t_d2bb1399",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:39:27Z",
+    "statut": "ouverte",
+    "reponse": null
   }
 ]

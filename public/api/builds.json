@@ -1,40 +1,107 @@
 {
-  "generated_at": "2026-07-03T04:12:43Z",
-  "today": "2026-07-03",
+  "generated_at": "2026-07-04T00:47:56Z",
+  "today": "2026-07-04",
   "window_days": 7,
   "totals": {
-    "today": 1,
-    "window": 33,
-    "repos_today": 1,
+    "today": 3,
+    "window": 35,
+    "repos_today": 2,
     "repos_total": 8
   },
   "today_by_repo": [
     {
-      "repo": "omar-qg",
-      "name": "QG",
+      "repo": "omar-catalogue",
+      "name": "Catalogue",
+      "count": 2,
+      "commits": [
+        {
+          "hash": "c367e57",
+          "author": "cc-manager",
+          "date": "2026-07-04 00:13",
+          "day": "2026-07-04",
+          "message": "chore(catalogue): refresh generated public catalogue"
+        },
+        {
+          "hash": "cddf363",
+          "author": "cc-manager",
+          "date": "2026-07-04 00:13",
+          "day": "2026-07-04",
+          "message": "feat(catalogue): add capability claim guardrails"
+        }
+      ]
+    },
+    {
+      "repo": "omar-app",
+      "name": "AppOmar",
       "count": 1,
       "commits": [
         {
-          "hash": "572c806",
+          "hash": "51f62af",
           "author": "Claude Code",
-          "date": "2026-07-03 06:02",
-          "day": "2026-07-03",
-          "message": "feat(observe): persist kanban alert sink"
+          "date": "2026-07-04 00:13",
+          "day": "2026-07-04",
+          "message": "feat(appomar): route audit v2 through Hermes agent"
         }
       ]
     }
   ],
   "days": [
     {
+      "date": "2026-07-04",
+      "count": 3,
+      "repos": [
+        {
+          "repo": "omar-catalogue",
+          "name": "Catalogue",
+          "commits": [
+            {
+              "hash": "c367e57",
+              "author": "cc-manager",
+              "date": "2026-07-04 00:13",
+              "day": "2026-07-04",
+              "message": "chore(catalogue): refresh generated public catalogue"
+            },
+            {
+              "hash": "cddf363",
+              "author": "cc-manager",
+              "date": "2026-07-04 00:13",
+              "day": "2026-07-04",
+              "message": "feat(catalogue): add capability claim guardrails"
+            }
+          ]
+        },
+        {
+          "repo": "omar-app",
+          "name": "AppOmar",
+          "commits": [
+            {
+              "hash": "51f62af",
+              "author": "Claude Code",
+              "date": "2026-07-04 00:13",
+              "day": "2026-07-04",
+              "message": "feat(appomar): route audit v2 through Hermes agent"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "date": "2026-07-03",
-      "count": 1,
+      "count": 2,
       "repos": [
         {
           "repo": "omar-qg",
           "name": "QG",
           "commits": [
             {
-              "hash": "572c806",
+              "hash": "d76bf29",
+              "author": "Claude Code",
+              "date": "2026-07-03 06:17",
+              "day": "2026-07-03",
+              "message": "fix: tune oa-observe state db bloat threshold"
+            },
+            {
+              "hash": "7312200",
               "author": "Claude Code",
               "date": "2026-07-03 06:02",
               "day": "2026-07-03",
@@ -349,66 +416,40 @@
           ]
         }
       ]
-    },
-    {
-      "date": "2026-06-26",
-      "count": 2,
-      "repos": [
-        {
-          "repo": "omar-landing",
-          "name": "Landing",
-          "commits": [
-            {
-              "hash": "6c646e1",
-              "author": "Claude-Cockpit [bot]",
-              "date": "2026-06-26 17:09",
-              "day": "2026-06-26",
-              "message": "feat(landing): clarify prepublic pricing and PC option"
-            },
-            {
-              "hash": "2f4eedf",
-              "author": "alexwill87",
-              "date": "2026-06-26 16:30",
-              "day": "2026-06-26",
-              "message": "feat(landing): manifeste AppOmar onboarding V0.4.0"
-            }
-          ]
-        }
-      ]
     }
   ],
   "deploys": [
     {
       "path": "apps/omartop/index.html",
-      "mtime": "2026-07-03 06:12"
+      "mtime": "2026-07-04 02:42"
     },
     {
       "path": "apps/hub/index.html",
-      "mtime": "2026-07-03 06:12"
+      "mtime": "2026-07-04 02:42"
     },
     {
       "path": "apps/qg/index.html",
-      "mtime": "2026-07-03 06:12"
+      "mtime": "2026-07-04 02:42"
     },
     {
       "path": "apps/lab/index.html",
-      "mtime": "2026-07-03 06:12"
+      "mtime": "2026-07-04 02:42"
     },
     {
       "path": "apps/catalogue/index.html",
-      "mtime": "2026-07-03 06:12"
+      "mtime": "2026-07-04 02:42"
     },
     {
       "path": "apps/app/index.html",
-      "mtime": "2026-07-03 06:12"
+      "mtime": "2026-07-04 02:42"
     },
     {
       "path": "apps/landing/index.html",
-      "mtime": "2026-07-03 06:12"
+      "mtime": "2026-07-04 02:42"
     },
     {
       "path": "changelog/index.html",
-      "mtime": "2026-07-03 06:12"
+      "mtime": "2026-07-04 02:42"
     }
   ]
 }

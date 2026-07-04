@@ -1112,6 +1112,7 @@ FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;
 NAV_ITEMS = [
     ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
     ("/objectifs/",   "objectifs",   "Objectifs",   'M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418'),
+    ("/chantiers/",   "chantiers",   "Chantiers",   'M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z'),
     ("/agent-loop/",  "agent-loop",  "Agent loop",  'M3.75 12a8.25 8.25 0 0 1 14.49-5.42M20.25 6.75v-4.5m0 4.5h-4.5M20.25 12a8.25 8.25 0 0 1-14.49 5.42M3.75 17.25v4.5m0-4.5h4.5'),
     ("/ops/",         "ops",         "Ops",         'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125C16.5 3.504 17.004 3 17.625 3h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z'),
     ("/clients/",     "clients",     "Clients",     'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z'),
@@ -1956,9 +1957,69 @@ def objectifs_summary(objectifs: list) -> str:
     )
 
 
+def page_chantiers(chantiers: list) -> str:
+    """Tableau Now/Next/Later des 8 briques (PRODUCT-TRUTH, Fable 4D System Rescue).
+
+    Source statique : var/chantiers.json (republié en /api/chantiers.json). Chaque
+    brique = carte avec rang de finition, objectif, écart vs promesse, effort et
+    renvoi /decisions/ quand une décision Alex ouverte la bloque.
+    """
+    horizons = [
+        ("now",   "Now",   "text-blue-700",  "à finir en premier — débloque le client réel"),
+        ("next",  "Next",  "text-gray-700",  "juste après — funnel et outillage"),
+        ("later", "Later", "text-gray-500",  "cohérence interne — aucun client n'attend dessus"),
+    ]
+    effort_cls = {"S": "pill-ok", "M": "pill-warn"}
+    html = (
+        '<div class="mb-6">'
+        '<h1 class="text-xl font-bold text-gray-900">Chantiers — quoi finir, dans l\'ordre</h1>'
+        '<p class="text-sm text-gray-500 mt-0.5">8 briques classées par le test doctrine « livrable client réel cette semaine ? » '
+        '— source <a href="/api/chantiers.json" class="text-blue-500 hover:underline">chantiers.json</a> (PRODUCT-TRUTH 04/07).</p>'
+        '</div>'
+    )
+    if not chantiers:
+        return html + '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-700">Aucun chantier chargé — var/chantiers.json absent ou vide.</div>'
+    for key, label, title_cls, hint in horizons:
+        briques = sorted([c for c in chantiers if c.get("horizon") == key], key=lambda c: c.get("rang", 99))
+        if not briques:
+            continue
+        html += (
+            f'<div class="flex items-baseline gap-2 mt-6 mb-3"><h2 class="text-sm font-bold uppercase tracking-wide {title_cls}">{escape(label)}</h2>'
+            f'<span class="text-xs text-gray-400">{escape(hint)}</span></div>'
+            '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">'
+        )
+        for c in briques:
+            effort = str(c.get("effort") or "?")
+            pill = effort_cls.get(effort, "pill-warn")
+            nom = escape(str(c.get("nom") or "Brique"))
+            titre = (f'<a href="{escape(c["lien"])}" target="_blank" rel="noopener" class="hover:underline">{nom}</a>'
+                     if c.get("lien") else nom)
+            html += (
+                '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4 flex flex-col">'
+                '<div class="flex items-center justify-between mb-2">'
+                '<div class="flex items-center gap-2">'
+                f'<span class="w-6 h-6 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center">{c.get("rang", "?")}</span>'
+                f'<span class="text-sm font-semibold text-gray-900">{titre}</span></div>'
+                f'<span class="px-2 py-0.5 rounded text-xs font-medium {pill}">effort {escape(effort)}</span></div>'
+                f'<div class="text-sm text-gray-700 mb-2">{escape(str(c.get("objectif") or ""))}</div>'
+                f'<div class="text-xs text-gray-500 mb-2"><span class="font-medium text-gray-600">Écart :</span> {escape(str(c.get("ecart") or ""))}</div>'
+            )
+            if c.get("preuve"):
+                html += f'<div class="text-xs text-gray-400 mb-2"><span class="font-medium">Preuve :</span> <span class="font-mono">{escape(str(c["preuve"]))}</span></div>'
+            html += '<div class="mt-auto pt-2 flex items-center justify-between gap-2">'
+            html += f'<span class="text-xs text-gray-400">{escape(str(c.get("owner") or ""))}</span>'
+            if c.get("decision_attendue"):
+                html += '<a href="/decisions/" class="text-xs font-medium text-amber-600 hover:underline">décision en attente →</a>'
+            html += '</div></div>'
+        html += '</div>'
+    return html
+
+
 def page_decisions(decisions: list) -> str:
     """Boîte de décisions Alex (qg#27) — réponse = bouton → qg-api → déblocage kanban/issue."""
-    api = "http://100.79.68.6:8097/api/decisions/answer"
+    # URL relative: passe par le vhost qg.omar.paris (proxy Caddy /api/decisions* -> 8097).
+    # L'ancienne URL http:// en dur etait bloquee en mixed-content depuis la page https.
+    api = "/api/decisions/answer"
     ouvertes = [q for q in decisions if q.get("statut") == "ouverte"]
     repondues = [q for q in decisions if q.get("statut") == "répondue"][-5:]
     html = (
@@ -2273,7 +2334,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
-    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "builder-pr-autogate.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "builder-pr-autogate.json"):
         var_payload = _read_var_json(var_name)
         if var_payload:
             (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -2306,6 +2367,11 @@ def main(argv: list[str] | None = None) -> None:
     objectifs = _read_var_json("objectifs.json")
     if not isinstance(objectifs, list):
         objectifs = []
+
+    # Couche CHANTIERS (Fable 4D rescue) : ordre de finition Now/Next/Later des 8 briques.
+    chantiers = _read_var_json("chantiers.json")
+    if not isinstance(chantiers, list):
+        chantiers = []
 
     # Audit anti-orphelins Issue↔Kanban↔PR↔Gate : produit par scripts/agent_loop_audit.py.
     # Le build reste read-only et republie le dernier snapshot disponible.
@@ -2400,6 +2466,7 @@ def main(argv: list[str] | None = None) -> None:
     pages = [
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
+        ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),

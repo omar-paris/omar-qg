@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-07-02T04:40:07Z",
+  "built_at": "2026-07-03T04:40:06Z",
   "standard": "VPS Hermes OA (OmarTop phases-spec P0→P6)",
   "vps": [
     {
@@ -80,8 +80,8 @@
         ]
       },
       "system": {
-        "disk_root": "80%",
-        "swap_pct": 44,
+        "disk_root": "82%",
+        "swap_pct": 65,
         "claude_orphans": 0,
         "services": {
           "caddy": "active",
@@ -109,7 +109,7 @@
       },
       "system": {
         "disk_root": "46%",
-        "swap_pct": 5,
+        "swap_pct": 6,
         "hermes": "present",
         "services": {
           "nginx": "active",

@@ -2,7 +2,7 @@
   "meta": {
     "schema_version": "0.1",
     "mode": "dynamic-readonly",
-    "generated_at": "2026-07-03T04:12:43Z",
+    "generated_at": "2026-07-04T00:47:56Z",
     "source": "scripts/collect_storage.py"
   },
   "status": "warning",
@@ -16,13 +16,13 @@
       "role": "OS + runtime actif",
       "exists": true,
       "status": "warning",
-      "used_pct": 82,
+      "used_pct": 83,
       "total_bytes": 80307429376,
-      "used_bytes": 66218381312,
-      "free_bytes": 14089048064,
+      "used_bytes": 66505895936,
+      "free_bytes": 13801533440,
       "total_h": "74.8GB",
-      "used_h": "61.7GB",
-      "free_h": "13.1GB"
+      "used_h": "61.9GB",
+      "free_h": "12.9GB"
     },
     {
       "path": "/mnt/HC_Volume_105618057",
@@ -33,13 +33,13 @@
       "role": "offload chaud, caches, backups récents",
       "exists": true,
       "status": "ok",
-      "used_pct": 76,
+      "used_pct": 77,
       "total_bytes": 52521566208,
-      "used_bytes": 39950057472,
-      "free_bytes": 12571508736,
+      "used_bytes": 40250716160,
+      "free_bytes": 12270850048,
       "total_h": "48.9GB",
-      "used_h": "37.2GB",
-      "free_h": "11.7GB"
+      "used_h": "37.5GB",
+      "free_h": "11.4GB"
     },
     {
       "path": "/mnt/HC_Volume_105618059",
@@ -62,22 +62,22 @@
   "memory": {
     "memory": {
       "total_bytes": 16368996352,
-      "used_bytes": 6339919872,
-      "free_bytes": 2617192448,
-      "used_pct": 39,
+      "used_bytes": 5867892736,
+      "free_bytes": 3173584896,
+      "used_pct": 36,
       "total_h": "15.2GB",
-      "used_h": "5.9GB",
-      "free_h": "2.4GB",
+      "used_h": "5.5GB",
+      "free_h": "3.0GB",
       "status": "ok"
     },
     "swap": {
       "total_bytes": 6442442752,
-      "used_bytes": 4331864064,
-      "free_bytes": 2110578688,
-      "used_pct": 67,
+      "used_bytes": 4359204864,
+      "free_bytes": 2083237888,
+      "used_pct": 68,
       "total_h": "6.0GB",
-      "used_h": "4.0GB",
-      "free_h": "2.0GB",
+      "used_h": "4.1GB",
+      "free_h": "1.9GB",
       "status": "warning"
     }
   },
@@ -88,8 +88,8 @@
       "kind": "runtime",
       "budget_mb": 7500,
       "exists": true,
-      "size_mb": 13310,
-      "size_h": "13.0GB",
+      "size_mb": 13446,
+      "size_h": "13.1GB",
       "status": "warning"
     },
     {
@@ -98,7 +98,7 @@
       "kind": "backup",
       "budget_mb": 700,
       "exists": true,
-      "size_mb": 3795,
+      "size_mb": 3805,
       "size_h": "3.7GB",
       "status": "warning"
     },
@@ -108,7 +108,7 @@
       "kind": "workspace",
       "budget_mb": 2000,
       "exists": true,
-      "size_mb": 1811,
+      "size_mb": 1813,
       "size_h": "1.8GB",
       "status": "ok"
     },
@@ -118,8 +118,8 @@
       "kind": "cache",
       "budget_mb": 8000,
       "exists": true,
-      "size_mb": 9040,
-      "size_h": "8.8GB",
+      "size_mb": 9367,
+      "size_h": "9.1GB",
       "status": "warning"
     },
     {
@@ -128,8 +128,8 @@
       "kind": "backup",
       "budget_mb": 7000,
       "exists": true,
-      "size_mb": 8672,
-      "size_h": "8.5GB",
+      "size_mb": 8632,
+      "size_h": "8.4GB",
       "status": "warning"
     },
     {
@@ -159,9 +159,9 @@
       "exists": true,
       "retention_policy": "keep_last_14",
       "count": 14,
-      "total_bytes": 9092526943,
-      "total_h": "8.5GB",
-      "latest_age_hours": 5.9,
+      "total_bytes": 9050599800,
+      "total_h": "8.4GB",
+      "latest_age_hours": 2.5,
       "latest_checksum_exists": true,
       "status": "ok"
     }
@@ -195,12 +195,12 @@
     {
       "level": "warning",
       "code": "MOUNT_PRESSURE",
-      "message": "Root VPS à 82% — cible 75%"
+      "message": "Root VPS à 83% — cible 75%"
     },
     {
       "level": "warning",
       "code": "DIR_OVER_BUDGET",
-      "message": "Hermes runtime 13.0GB > budget 7500MB"
+      "message": "Hermes runtime 13.1GB > budget 7500MB"
     },
     {
       "level": "warning",
@@ -210,17 +210,17 @@
     {
       "level": "warning",
       "code": "DIR_OVER_BUDGET",
-      "message": "Caches offload home 8.8GB > budget 8000MB"
+      "message": "Caches offload home 9.1GB > budget 8000MB"
     },
     {
       "level": "warning",
       "code": "DIR_OVER_BUDGET",
-      "message": "Backups Hermes offload 8.5GB > budget 7000MB"
+      "message": "Backups Hermes offload 8.4GB > budget 7000MB"
     },
     {
       "level": "warning",
       "code": "SWAP_PRESSURE",
-      "message": "Swap utilisée à 67%"
+      "message": "Swap utilisée à 68%"
     }
   ],
   "recommended_actions": [

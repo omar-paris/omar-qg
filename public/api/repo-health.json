@@ -1,6 +1,6 @@
 {
   "schema": "oa.repo-health/1",
-  "generated_at": "2026-07-03T04:12:39Z",
+  "generated_at": "2026-07-04T00:47:52Z",
   "source": "scripts/repo_health.py",
   "thresholds": {
     "dirty_files_p1": ">0 source candidate OR oldest dirty >=24h OR local commits ahead",
@@ -11,13 +11,13 @@
     "repos": 5,
     "dirty": 4,
     "p0": 1,
-    "p1": 4,
+    "p1": 3,
     "p2": 0,
-    "ok": 0,
-    "open_prs": 11,
-    "conflict_prs": 2,
-    "source_candidates": 15,
-    "generated_or_runtime": 30
+    "ok": 1,
+    "open_prs": 13,
+    "conflict_prs": 1,
+    "source_candidates": 16,
+    "generated_or_runtime": 28
   },
   "alerts": [
     {
@@ -39,40 +39,31 @@
       "repo": "omar-paris/omar-top",
       "path": "/home/omar/23-Offre/actifs/omar-top",
       "exists": true,
-      "checked_at": "2026-07-03T04:12:38Z",
+      "checked_at": "2026-07-04T00:47:52Z",
       "branch": "builder/t_6f75b869-rdel-pilot",
       "upstream": "origin/builder/t_6f75b869-rdel-pilot",
       "head": "f44b806 feat(standards): harden delivery readiness contracts",
       "ahead": 0,
       "behind": 0,
-      "dirty_count": 0,
-      "generated_or_runtime_count": 0,
-      "source_candidate_count": 0,
-      "oldest_dirty_age_hours": null,
-      "dirty_entries": [],
+      "dirty_count": 2,
+      "generated_or_runtime_count": 1,
+      "source_candidate_count": 1,
+      "oldest_dirty_age_hours": 0.6,
+      "dirty_entries": [
+        {
+          "code": "M ",
+          "path": "hases-spec.json",
+          "class": "source_candidate",
+          "age_hours": null
+        },
+        {
+          "code": "??",
+          "path": "reviews/",
+          "class": "generated_or_runtime",
+          "age_hours": 0.6
+        }
+      ],
       "open_prs": [
-        {
-          "baseRefName": "feat/release-closure-gate",
-          "headRefName": "feat/t_9c713284-crd-status-contract-wt",
-          "isDraft": true,
-          "mergeStateStatus": "CLEAN",
-          "number": 62,
-          "reviewDecision": "",
-          "title": "fix(readiness): add Hub/QG JSON status contract",
-          "updatedAt": "2026-07-02T22:41:37Z",
-          "url": "https://github.com/omar-paris/omar-top/pull/62"
-        },
-        {
-          "baseRefName": "feat/release-closure-gate",
-          "headRefName": "builder/t_6f75b869-rdel-pilot",
-          "isDraft": true,
-          "mergeStateStatus": "DIRTY",
-          "number": 60,
-          "reviewDecision": "",
-          "title": "feat(delivery-gates): pilot repo live closure gate",
-          "updatedAt": "2026-07-03T04:05:32Z",
-          "url": "https://github.com/omar-paris/omar-top/pull/60"
-        },
         {
           "baseRefName": "main",
           "headRefName": "feat/t_1394fb28-agent-artifacts",
@@ -85,14 +76,14 @@
           "url": "https://github.com/omar-paris/omar-top/pull/59"
         },
         {
-          "baseRefName": "feat/agent-output-contract",
+          "baseRefName": "main",
           "headRefName": "feat/release-closure-gate",
           "isDraft": true,
           "mergeStateStatus": "CLEAN",
           "number": 58,
           "reviewDecision": "",
           "title": "feat(delivery-gates): add release closure gate contract",
-          "updatedAt": "2026-07-02T04:04:07Z",
+          "updatedAt": "2026-07-03T22:12:43Z",
           "url": "https://github.com/omar-paris/omar-top/pull/58"
         },
         {
@@ -129,31 +120,8 @@
           "url": "https://github.com/omar-paris/omar-top/pull/53"
         }
       ],
-      "branch_prs": [
-        {
-          "baseRefName": "feat/release-closure-gate",
-          "headRefName": "builder/t_6f75b869-rdel-pilot",
-          "isDraft": true,
-          "mergeStateStatus": "DIRTY",
-          "number": 60,
-          "reviewDecision": "",
-          "title": "feat(delivery-gates): pilot repo live closure gate",
-          "updatedAt": "2026-07-03T04:05:32Z",
-          "url": "https://github.com/omar-paris/omar-top/pull/60"
-        }
-      ],
+      "branch_prs": [],
       "conflict_prs": [
-        {
-          "baseRefName": "feat/release-closure-gate",
-          "headRefName": "builder/t_6f75b869-rdel-pilot",
-          "isDraft": true,
-          "mergeStateStatus": "DIRTY",
-          "number": 60,
-          "reviewDecision": "",
-          "title": "feat(delivery-gates): pilot repo live closure gate",
-          "updatedAt": "2026-07-03T04:05:32Z",
-          "url": "https://github.com/omar-paris/omar-top/pull/60"
-        },
         {
           "baseRefName": "main",
           "headRefName": "feat/pc-assisted-install-smoke",
@@ -167,8 +135,8 @@
         }
       ],
       "risk": "P0",
-      "health": "clean",
-      "next_action": "Résoudre conflit PR #60, #53, puis relancer gate Athena."
+      "health": "dirty",
+      "next_action": "Résoudre conflit PR #53, puis relancer gate Athena."
     },
     {
       "id": "qg",
@@ -177,16 +145,16 @@
       "repo": "omar-paris/omar-qg",
       "path": "/home/omar/23-Offre/actifs/omar-qg",
       "exists": true,
-      "checked_at": "2026-07-03T04:12:38Z",
-      "branch": "main",
-      "upstream": "origin/main",
-      "head": "572c806 feat(observe): persist kanban alert sink",
-      "ahead": 1,
+      "checked_at": "2026-07-04T00:47:51Z",
+      "branch": "fix/t_1f47f9c0-state-db-threshold",
+      "upstream": "origin/fix/t_1f47f9c0-state-db-threshold",
+      "head": "d76bf29 fix: tune oa-observe state db bloat threshold",
+      "ahead": 0,
       "behind": 0,
-      "dirty_count": 24,
-      "generated_or_runtime_count": 21,
-      "source_candidate_count": 2,
-      "oldest_dirty_age_hours": 0.0,
+      "dirty_count": 31,
+      "generated_or_runtime_count": 25,
+      "source_candidate_count": 5,
+      "oldest_dirty_age_hours": 20.5,
       "dirty_entries": [
         {
           "code": "M ",
@@ -198,142 +166,206 @@
           "code": " M",
           "path": "public/api/agent-loop-registry.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/api/builds.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/api/core-repos.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/api/daily-ledger/2026-07-03.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/api/daily-ledger/index.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
+        },
+        {
+          "code": " M",
+          "path": "public/api/decisions.json",
+          "class": "generated_or_runtime",
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/api/ops/storage-summary.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/api/repo-health.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
+        },
+        {
+          "code": " M",
+          "path": "public/api/triage.json",
+          "class": "generated_or_runtime",
+          "age_hours": 0.1
+        },
+        {
+          "code": " M",
+          "path": "public/api/vps.json",
+          "class": "generated_or_runtime",
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/apps/app/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/apps/catalogue/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/apps/hub/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/apps/lab/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/apps/landing/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/apps/omartop/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/apps/qg/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/builds/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/changelog/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/clients/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/decisions/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/index.html",
           "class": "source_candidate",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/objectifs/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/ops/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.0
+          "age_hours": 0.1
         },
         {
           "code": " M",
           "path": "public/partenaires/index.html",
           "class": "generated_or_runtime",
+          "age_hours": 0.1
+        },
+        {
+          "code": " M",
+          "path": "scripts/build.py",
+          "class": "source",
           "age_hours": 0.0
+        },
+        {
+          "code": "??",
+          "path": "public/api/daily-ledger/2026-07-04.json",
+          "class": "generated_or_runtime",
+          "age_hours": 0.1
         },
         {
           "code": "??",
           "path": "public_build_tmp/",
           "class": "unknown",
           "age_hours": 0.0
+        },
+        {
+          "code": "??",
+          "path": "review_result_pr53_t_0fbc82c0.json",
+          "class": "source_candidate",
+          "age_hours": 20.5
+        },
+        {
+          "code": "??",
+          "path": "review_result_t_a808ad4b.json",
+          "class": "source_candidate",
+          "age_hours": 0.5
         }
       ],
       "open_prs": [
+        {
+          "baseRefName": "main",
+          "headRefName": "fix/t_1f47f9c0-state-db-threshold",
+          "isDraft": true,
+          "mergeStateStatus": "CLEAN",
+          "number": 53,
+          "reviewDecision": "",
+          "title": "fix: tune oa-observe state.db bloat threshold",
+          "updatedAt": "2026-07-03T04:17:50Z",
+          "url": "https://github.com/omar-paris/omar-qg/pull/53"
+        },
+        {
+          "baseRefName": "main",
+          "headRefName": "backup/observe-kanban-alert-sink-t-f018987d",
+          "isDraft": true,
+          "mergeStateStatus": "CLEAN",
+          "number": 52,
+          "reviewDecision": "",
+          "title": "feat(observe): persist kanban alert sink",
+          "updatedAt": "2026-07-03T04:13:43Z",
+          "url": "https://github.com/omar-paris/omar-qg/pull/52"
+        },
         {
           "baseRefName": "main",
           "headRefName": "feat/qg-capability-eval-surface-t571ceac7",
@@ -346,135 +378,19 @@
           "url": "https://github.com/omar-paris/omar-qg/pull/51"
         }
       ],
-      "branch_prs": [],
-      "conflict_prs": [],
-      "risk": "P1",
-      "health": "dirty",
-      "next_action": "Inspecter diff, séparer source utile vs généré, puis commit/PR ou clean documenté."
-    },
-    {
-      "id": "catalogue",
-      "name": "Catalogue",
-      "slug": "omar-catalogue",
-      "repo": "omar-paris/omar-catalogue",
-      "path": "/home/omar/23-Offre/actifs/omar-catalogue",
-      "exists": true,
-      "checked_at": "2026-07-03T04:12:37Z",
-      "branch": "main",
-      "upstream": "origin/main",
-      "head": "371d3b0 Merge pull request #44 from omar-paris/builder/catalogue-37-client-exposure",
-      "ahead": 0,
-      "behind": 0,
-      "dirty_count": 17,
-      "generated_or_runtime_count": 9,
-      "source_candidate_count": 8,
-      "oldest_dirty_age_hours": 5.5,
-      "dirty_entries": [
+      "branch_prs": [
         {
-          "code": "M ",
-          "path": "ublic/agents/index.html",
-          "class": "source_candidate",
-          "age_hours": null
-        },
-        {
-          "code": " M",
-          "path": "public/api/catalogue-site.json",
-          "class": "generated_or_runtime",
-          "age_hours": 5.4
-        },
-        {
-          "code": " M",
-          "path": "public/apps/index.html",
-          "class": "generated_or_runtime",
-          "age_hours": 5.4
-        },
-        {
-          "code": " M",
-          "path": "public/bundles/index.html",
-          "class": "source_candidate",
-          "age_hours": 5.4
-        },
-        {
-          "code": " M",
-          "path": "public/changelog/index.html",
-          "class": "generated_or_runtime",
-          "age_hours": 5.4
-        },
-        {
-          "code": " M",
-          "path": "public/index.html",
-          "class": "source_candidate",
-          "age_hours": 5.4
-        },
-        {
-          "code": " M",
-          "path": "public/mcp/index.html",
-          "class": "source_candidate",
-          "age_hours": 5.4
-        },
-        {
-          "code": " M",
-          "path": "public/recommandations/index.html",
-          "class": "source_candidate",
-          "age_hours": 5.4
-        },
-        {
-          "code": " M",
-          "path": "public/tools/index.html",
-          "class": "source_candidate",
-          "age_hours": 5.4
-        },
-        {
-          "code": " M",
-          "path": "scripts/export-to-hub.py",
-          "class": "source",
-          "age_hours": 5.5
-        },
-        {
-          "code": " M",
-          "path": "tests/test_catalogue_export_contract.py",
-          "class": "source",
-          "age_hours": 5.5
-        },
-        {
-          "code": "??",
-          "path": "public/apps/secretaire-comprendre-trier/",
-          "class": "generated_or_runtime",
-          "age_hours": 5.4
-        },
-        {
-          "code": "??",
-          "path": "public/apps/secretaire-connecter-surveiller/",
-          "class": "generated_or_runtime",
-          "age_hours": 5.4
-        },
-        {
-          "code": "??",
-          "path": "public/apps/secretaire-organiser-journee/",
-          "class": "generated_or_runtime",
-          "age_hours": 5.4
-        },
-        {
-          "code": "??",
-          "path": "public/apps/secretaire-produire-documents/",
-          "class": "generated_or_runtime",
-          "age_hours": 5.4
-        },
-        {
-          "code": "??",
-          "path": "public/apps/secretaire-rediger-reponses/",
-          "class": "generated_or_runtime",
-          "age_hours": 5.4
-        },
-        {
-          "code": "??",
-          "path": "public/apps/secretaire-v1/",
-          "class": "generated_or_runtime",
-          "age_hours": 5.4
+          "baseRefName": "main",
+          "headRefName": "fix/t_1f47f9c0-state-db-threshold",
+          "isDraft": true,
+          "mergeStateStatus": "CLEAN",
+          "number": 53,
+          "reviewDecision": "",
+          "title": "fix: tune oa-observe state.db bloat threshold",
+          "updatedAt": "2026-07-03T04:17:50Z",
+          "url": "https://github.com/omar-paris/omar-qg/pull/53"
         }
       ],
-      "open_prs": [],
-      "branch_prs": [],
       "conflict_prs": [],
       "risk": "P1",
       "health": "dirty",
@@ -487,56 +403,115 @@
       "repo": "omar-paris/omar-app",
       "path": "/home/omar/23-Offre/actifs/omar-app",
       "exists": true,
-      "checked_at": "2026-07-03T04:12:37Z",
-      "branch": "work/t_7cbf6d37-pr51",
-      "upstream": "origin/safety/t_6fc7fccd-appomar-repo-idle-56932c2b0ed9",
-      "head": "56932c2 chore(appomar): preserve audit v2 and catalogue mapping work",
+      "checked_at": "2026-07-04T00:47:50Z",
+      "branch": "builder/t_ed453db7-app-audit-hermes-chat",
+      "upstream": "origin/builder/t_ed453db7-app-audit-hermes-chat",
+      "head": "51f62af feat(appomar): route audit v2 through Hermes agent",
       "ahead": 0,
       "behind": 0,
-      "dirty_count": 4,
-      "generated_or_runtime_count": 0,
-      "source_candidate_count": 4,
-      "oldest_dirty_age_hours": 12.7,
+      "dirty_count": 10,
+      "generated_or_runtime_count": 1,
+      "source_candidate_count": 9,
+      "oldest_dirty_age_hours": 2.4,
       "dirty_entries": [
         {
           "code": "M ",
-          "path": "ages-app/audit-v2.html",
+          "path": "ublic/aide/index.html",
           "class": "source_candidate",
           "age_hours": null
         },
         {
           "code": " M",
-          "path": "src/proposal_server.py",
-          "class": "source",
-          "age_hours": 12.6
+          "path": "public/changelog/index.html",
+          "class": "generated_or_runtime",
+          "age_hours": 2.4
         },
         {
-          "code": "??",
-          "path": "docs/fable/business/oa-audit-profile-spec.md",
-          "class": "source",
-          "age_hours": 12.6
+          "code": " M",
+          "path": "public/compte/index.html",
+          "class": "source_candidate",
+          "age_hours": 2.4
         },
         {
-          "code": "??",
-          "path": "src/oa_audit_prompt.md",
-          "class": "source",
-          "age_hours": 12.7
+          "code": " M",
+          "path": "public/config/index.html",
+          "class": "source_candidate",
+          "age_hours": 2.4
+        },
+        {
+          "code": " M",
+          "path": "public/devis/index.html",
+          "class": "source_candidate",
+          "age_hours": 2.4
+        },
+        {
+          "code": " M",
+          "path": "public/factures/index.html",
+          "class": "source_candidate",
+          "age_hours": 2.4
+        },
+        {
+          "code": " M",
+          "path": "public/index.html",
+          "class": "source_candidate",
+          "age_hours": 2.4
+        },
+        {
+          "code": " M",
+          "path": "public/jab/index.html",
+          "class": "source_candidate",
+          "age_hours": 2.4
+        },
+        {
+          "code": " M",
+          "path": "public/onboarding/index.html",
+          "class": "source_candidate",
+          "age_hours": 2.4
+        },
+        {
+          "code": " M",
+          "path": "public/sav/index.html",
+          "class": "source_candidate",
+          "age_hours": 2.4
         }
       ],
       "open_prs": [
         {
           "baseRefName": "main",
-          "headRefName": "fix/jab-google-workspace-nango-gate",
-          "isDraft": true,
+          "headRefName": "builder/t_ed453db7-app-audit-hermes-chat",
+          "isDraft": false,
           "mergeStateStatus": "CLEAN",
-          "number": 50,
+          "number": 54,
           "reviewDecision": "",
-          "title": "fix(appomar): block JAB Google Workspace until Nango tenant proof",
-          "updatedAt": "2026-07-02T22:45:59Z",
-          "url": "https://github.com/omar-paris/omar-app/pull/50"
+          "title": "feat(appomar): route audit v2 through Hermes agent",
+          "updatedAt": "2026-07-03T22:15:09Z",
+          "url": "https://github.com/omar-paris/omar-app/pull/54"
+        },
+        {
+          "baseRefName": "main",
+          "headRefName": "test/proposals-caddy-contract",
+          "isDraft": false,
+          "mergeStateStatus": "CLEAN",
+          "number": 53,
+          "reviewDecision": "",
+          "title": "test(appomar): cover proposals Caddy auth handles",
+          "updatedAt": "2026-07-03T22:11:48Z",
+          "url": "https://github.com/omar-paris/omar-app/pull/53"
         }
       ],
-      "branch_prs": [],
+      "branch_prs": [
+        {
+          "baseRefName": "main",
+          "headRefName": "builder/t_ed453db7-app-audit-hermes-chat",
+          "isDraft": false,
+          "mergeStateStatus": "CLEAN",
+          "number": 54,
+          "reviewDecision": "",
+          "title": "feat(appomar): route audit v2 through Hermes agent",
+          "updatedAt": "2026-07-03T22:15:09Z",
+          "url": "https://github.com/omar-paris/omar-app/pull/54"
+        }
+      ],
       "conflict_prs": [],
       "risk": "P1",
       "health": "dirty",
@@ -549,22 +524,28 @@
       "repo": "omar-paris/omar-hub",
       "path": "/home/omar/23-Offre/actifs/omar-hub",
       "exists": true,
-      "checked_at": "2026-07-03T04:12:37Z",
+      "checked_at": "2026-07-04T00:47:51Z",
       "branch": "feat/issue-44",
       "upstream": "origin/feat/issue-44",
       "head": "9ffb398 test: cover vault scanner secret redaction",
       "ahead": 0,
       "behind": 0,
-      "dirty_count": 1,
-      "generated_or_runtime_count": 0,
+      "dirty_count": 2,
+      "generated_or_runtime_count": 1,
       "source_candidate_count": 1,
-      "oldest_dirty_age_hours": null,
+      "oldest_dirty_age_hours": 0.6,
       "dirty_entries": [
         {
           "code": "M ",
           "path": "ublic/api/omartop.json",
           "class": "source_candidate",
           "age_hours": null
+        },
+        {
+          "code": "??",
+          "path": "reviews/",
+          "class": "generated_or_runtime",
+          "age_hours": 0.6
         }
       ],
       "open_prs": [
@@ -608,6 +589,55 @@
       "risk": "P1",
       "health": "dirty",
       "next_action": "Inspecter diff, séparer source utile vs généré, puis commit/PR ou clean documenté."
+    },
+    {
+      "id": "catalogue",
+      "name": "Catalogue",
+      "slug": "omar-catalogue",
+      "repo": "omar-paris/omar-catalogue",
+      "path": "/home/omar/23-Offre/actifs/omar-catalogue",
+      "exists": true,
+      "checked_at": "2026-07-04T00:47:50Z",
+      "branch": "builder/t_ed453db7-catalogue-capability-claims",
+      "upstream": "origin/builder/t_ed453db7-catalogue-capability-claims",
+      "head": "c367e57 chore(catalogue): refresh generated public catalogue",
+      "ahead": 0,
+      "behind": 0,
+      "dirty_count": 0,
+      "generated_or_runtime_count": 0,
+      "source_candidate_count": 0,
+      "oldest_dirty_age_hours": null,
+      "dirty_entries": [],
+      "open_prs": [
+        {
+          "baseRefName": "main",
+          "headRefName": "builder/t_ed453db7-catalogue-capability-claims",
+          "isDraft": false,
+          "mergeStateStatus": "CLEAN",
+          "number": 45,
+          "reviewDecision": "",
+          "title": "feat(catalogue): add capability claim guardrails",
+          "updatedAt": "2026-07-03T22:15:05Z",
+          "url": "https://github.com/omar-paris/omar-catalogue/pull/45"
+        }
+      ],
+      "branch_prs": [
+        {
+          "baseRefName": "main",
+          "headRefName": "builder/t_ed453db7-catalogue-capability-claims",
+          "isDraft": false,
+          "mergeStateStatus": "CLEAN",
+          "number": 45,
+          "reviewDecision": "",
+          "title": "feat(catalogue): add capability claim guardrails",
+          "updatedAt": "2026-07-03T22:15:05Z",
+          "url": "https://github.com/omar-paris/omar-catalogue/pull/45"
+        }
+      ],
+      "conflict_prs": [],
+      "risk": "OK",
+      "health": "clean",
+      "next_action": "Vérifier gate Athena / merge decision pour PR ouverte."
     }
   ]
 }

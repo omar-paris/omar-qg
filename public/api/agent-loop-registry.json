@@ -1,7 +1,7 @@
 {
   "schema": "oa.agent-loop-registry/1",
   "status": "healthy",
-  "generated_at": "2026-07-03T04:12:37Z",
+  "generated_at": "2026-07-04T00:47:50Z",
   "source": "/home/omar/11-Pilotage/sujets-actifs/oa-consolidation-production/oa_registry_min_p4_seed_2026-06-30.json",
   "seed_schema": "oa.registry.min.v0",
   "summary": {
