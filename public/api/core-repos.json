@@ -1,7 +1,7 @@
 {
   "version": "V0.8.5",
   "domain": "qg.omar.paris",
-  "built_at": "2026-07-04T00:47:22Z",
+  "built_at": "2026-07-04T10:20:13Z",
   "items": [
     {
       "id": "landing",
@@ -16,13 +16,10 @@
       "next": "P0 · #13 — Conversion stack: RDV, analytics sobre, suivi leads et conformité RGPD",
       "git": {
         "exists": true,
-        "branch": "feat/prepub-pricing-pc-smoke",
-        "dirty": true,
-        "head": "557fc58 fix(landing): remove public next preview",
-        "status_short": [
-          "?? public/next/",
-          "?? scripts/build_next.py"
-        ]
+        "branch": "feat/landing-versions",
+        "dirty": false,
+        "head": "2284458 fix(landing): drop preversion label from canonical root footer",
+        "status_short": []
       },
       "github": {
         "open_issues": 28,
@@ -36,7 +33,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 12
+        "latency_ms": 19
       },
       "triage": {
         "p0": 1,
@@ -123,18 +120,9 @@
       "git": {
         "exists": true,
         "branch": "builder/t_ed453db7-app-audit-hermes-chat",
-        "dirty": true,
+        "dirty": false,
         "head": "51f62af feat(appomar): route audit v2 through Hermes agent",
-        "status_short": [
-          "M public/aide/index.html",
-          " M public/changelog/index.html",
-          " M public/compte/index.html",
-          " M public/config/index.html",
-          " M public/devis/index.html",
-          " M public/factures/index.html",
-          " M public/index.html",
-          " M public/jab/index.html"
-        ]
+        "status_short": []
       },
       "github": {
         "open_issues": 36,
@@ -148,7 +136,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 14
+        "latency_ms": 30
       },
       "triage": {
         "p0": 2,
@@ -350,7 +338,7 @@
       "health": {
         "status": "error",
         "http_code": 502,
-        "latency_ms": 14
+        "latency_ms": 21
       },
       "version_source": "unmeasured",
       "has_contract_source": false,
@@ -369,7 +357,7 @@
       "next": "P0 · #30 — Page Accès : collecter les logs oauth2-proxy → qui se connecte où (brique doctrine OAuth)",
       "git": {
         "exists": true,
-        "branch": "fix/t_1f47f9c0-state-db-threshold",
+        "branch": "feat/page-chantiers",
         "dirty": true,
         "head": "current qg build",
         "status_short": [
@@ -390,7 +378,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 19
+        "latency_ms": 20
       },
       "triage": {
         "p0": 4,
@@ -496,7 +484,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 22
+        "latency_ms": 18
       },
       "triage": {
         "p0": 1,
@@ -1024,7 +1012,7 @@
       "created": "2026-03-24",
       "price_eur": null,
       "backups": "on",
-      "traffic_out_gb": 4.3,
+      "traffic_out_gb": 4.9,
       "traffic_inc_tb": 22.0
     },
     {
@@ -1097,7 +1085,7 @@
       "created": "2026-01-29",
       "price_eur": null,
       "backups": "on",
-      "traffic_out_gb": 1.5,
+      "traffic_out_gb": 1.6,
       "traffic_inc_tb": 22.0
     },
     {
@@ -1174,7 +1162,7 @@
     }
   ],
   "vps": {
-    "built_at": "2026-07-03T04:40:06Z",
+    "built_at": "2026-07-04T04:40:05Z",
     "standard": "VPS Hermes OA (OmarTop phases-spec P0→P6)",
     "vps": [
       {
@@ -1255,8 +1243,8 @@
           ]
         },
         "system": {
-          "disk_root": "82%",
-          "swap_pct": 65,
+          "disk_root": "83%",
+          "swap_pct": 63,
           "claude_orphans": 0,
           "services": {
             "caddy": "active",
@@ -1283,7 +1271,7 @@
           "note": "oa-doctor sera installé avec OA-L1 (~22 juin)"
         },
         "system": {
-          "disk_root": "46%",
+          "disk_root": "47%",
           "swap_pct": 6,
           "hermes": "present",
           "services": {
@@ -1297,7 +1285,7 @@
     ]
   },
   "triage": {
-    "built_at": "2026-07-03T04:15:05Z",
+    "built_at": "2026-07-04T04:15:04Z",
     "llm_used": false,
     "top3": [
       {

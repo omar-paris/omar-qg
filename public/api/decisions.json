@@ -283,8 +283,10 @@
     "blocked_ref": "t_aeed8c91",
     "posee_par": "fable-rescue",
     "posee_le": "2026-07-04T00:39:26Z",
-    "statut": "ouverte",
-    "reponse": null
+    "statut": "répondue",
+    "reponse": "GO parking",
+    "repondue_le": "2026-07-04T09:45:30Z",
+    "deblocage": "kanban_unblocked"
   },
   {
     "id": "5818b8996b",
@@ -299,8 +301,10 @@
     "blocked_ref": "",
     "posee_par": "fable-rescue",
     "posee_le": "2026-07-04T00:39:26Z",
-    "statut": "ouverte",
-    "reponse": null
+    "statut": "répondue",
+    "reponse": "GO parking",
+    "repondue_le": "2026-07-04T09:45:38Z",
+    "deblocage": "no_ref"
   },
   {
     "id": "16eceeac1e",
@@ -316,8 +320,10 @@
     "blocked_ref": "",
     "posee_par": "fable-rescue",
     "posee_le": "2026-07-04T00:39:27Z",
-    "statut": "ouverte",
-    "reponse": null
+    "statut": "répondue",
+    "reponse": "landing.omar.paris (VPS audit-first) — On utilise plus Vercel. C'est terminé. Notre landing active doit être la copie de https://landing.omar.paris/next mais je ne le retrouve pas. Moi je verrais bien le fait d'avoir plein de versions différentes à chaque fois d'en avoir une qui est la version active Et que toutes les versions soient accessibles disponibles et qu'on puisse les regarder",
+    "repondue_le": "2026-07-04T09:48:49Z",
+    "deblocage": "no_ref"
   },
   {
     "id": "d896914c81",
@@ -332,8 +338,10 @@
     "blocked_ref": "",
     "posee_par": "fable-rescue",
     "posee_le": "2026-07-04T00:39:27Z",
-    "statut": "ouverte",
-    "reponse": null
+    "statut": "répondue",
+    "reponse": "GO — Trompe l'idée c'est qu'on puisse n'importe qui puisse faire l'audit public faire l'audit mais il faut s'enregistrer sur via Google C'est tout Il faut qu'on arrive à pouvoir s'inscrire via Google Via un Google **** Et ensuite il faut qu'on que le que le tunnel soit fonctionnel de cette façon là",
+    "repondue_le": "2026-07-04T09:49:36Z",
+    "deblocage": "no_ref"
   },
   {
     "id": "1d68cf5711",
@@ -349,8 +357,10 @@
     "blocked_ref": "",
     "posee_par": "fable-rescue",
     "posee_le": "2026-07-04T00:39:27Z",
-    "statut": "ouverte",
-    "reponse": null
+    "statut": "répondue",
+    "reponse": "NOPASSWD cible — J'ai déjà fait le Sudo je crois mais j'aimerais bien qu'effectivement tu sois en opassword Sachant que caddie a déjà a du no password",
+    "repondue_le": "2026-07-04T09:49:59Z",
+    "deblocage": "no_ref"
   },
   {
     "id": "88bbfa0ce0",
@@ -365,8 +375,10 @@
     "blocked_ref": "",
     "posee_par": "fable-rescue",
     "posee_le": "2026-07-04T00:39:27Z",
-    "statut": "ouverte",
-    "reponse": null
+    "statut": "répondue",
+    "reponse": "GO fusion",
+    "repondue_le": "2026-07-04T09:50:05Z",
+    "deblocage": "no_ref"
   },
   {
     "id": "0038daba47",
@@ -382,8 +394,10 @@
     "blocked_ref": "",
     "posee_par": "fable-rescue",
     "posee_le": "2026-07-04T00:39:27Z",
-    "statut": "ouverte",
-    "reponse": null
+    "statut": "répondue",
+    "reponse": "revoir ensemble — Ca c'est un élément central de notre système Il va falloir que on le qu'on le voit comment on doit le réactiver Mais en fait Quand un client a payé il passe à l'onboarding pendant l'onboarding on lui pose des questions sur les différents univers les écosystèmes dans lequel il est et en fonction des écosystèmes et de ses volontés de connexion ou même d'inscription On peut l'idée c'est qu'on puisse faire des connexions via via Nango mais il faut que Je sais pas il faut estce que il faut Pour chaque onboard Collonboarding normalement l'onboarding d'abord la première chose C'est de créer un de de créer 1VPS de l'installer le configurer et ensuite de commencer à y installer des des des applications Une des implications les plus importantes à installer ce serait peu Notre ISO ou notre Enfin notre ISO mais en tout cas de faire une copie De notre version de nang Pour que on puisse avoir un Mang Avec toutes les avec mais avec toutes les configurations possibles Branché sur le VPS Directement sur le VPS cible et que On puisse continuer l'onboarding Donc toujours sur app.homparis Et que Sur l'onboarding la personne puisse effectivement profiter de toutes les intégrations d'amgo qu'on a mis en place Et et se brancher sur Google Microsoft ou autre Estce que tu vois ce que je veux ce qu'on va faire avec l'idée que On doit utiliser JAB pour pouvoir Un médecin en place Donc j'aimerais bien effectivement bien cibler ce qui va devoir parce qu'on va devoir faire et quelle est la meilleure stratégie La chose la plus Estce que Nang Doit être local Où estce que il doit être global",
+    "repondue_le": "2026-07-04T09:53:01Z",
+    "deblocage": "no_ref"
   },
   {
     "id": "f10278a6ce",
@@ -399,8 +413,10 @@
     "blocked_ref": "",
     "posee_par": "fable-rescue",
     "posee_le": "2026-07-04T00:39:27Z",
-    "statut": "ouverte",
-    "reponse": null
+    "statut": "répondue",
+    "reponse": "continuer (app client) — Le hub est hyper import Pour en fait Normalement il permet pour chaque vps d'être La car C'est une C'est une carte de d'application où on doit pouvoir voir tout ce qui existe et à partir du hub on doit pouvoir accéder au catalogue Chaque VPS Doit avoir un hub et c'est la page principale A la fin de l'onboarding qui permet Au user de ne plus avoir besoin de passer App.omareparis et de passer uniquement à travers son hub Pour pouvoir Voir ces applications pour pouvoir voir le catalogue Pour pouvoir voir différentes choses et ce hub va s'améliorer avec le temps On va faire en sorte qu'effectivement il Il tout tout passe par là Et on doit l'améliorer Nous ce qui se passe c'est qu'on travaille sur le QG parce que le QG il gère Le système À travers les VPS et donc en fait c'est c'est pl C'est mais il y en a qu'un seul il y a comme moi qui fait qui qui est ça Mais le hub est hyper important et et on l'a un peu délaissé ces derniers jours Mais j'aimerais bien qu'effectivement tu arrives à voir Comment estce que on va pouvoir L'utiliser à la fois pour nous sur le vps homard sur le VPS Aurel sur le VPSJAB Et potentiellement même il faudrait voir si on pourrait pas l'utiliser sur les les PC de nos clients Sur le PC Mar Il pourrait sur le PC sur mon PC peutêtre Sur le PC Mehdi",
+    "repondue_le": "2026-07-04T09:55:11Z",
+    "deblocage": "no_ref"
   },
   {
     "id": "c67bce19e9",
@@ -412,6 +428,44 @@
     "blocked_ref": "t_d2bb1399",
     "posee_par": "fable-rescue",
     "posee_le": "2026-07-04T00:39:27Z",
+    "statut": "répondue",
+    "reponse": "Plus je regrette que dans ta question tu m'expliques pas l'intérêt ou l'avantage ou qu'estce que ça fait Où estce que je je n'ai pas beaucoup d'informations donc pour le moment je moi ce que je te dis c' Fait la chose la plus fluide si jamais ça permet de débloquer vasy si jamais c'est compliqué arrête mais en tout cas je veux je veux Je veux que soit c'est utile et effectivement ça permet on on continue soit ce n'est pas utile",
+    "repondue_le": "2026-07-04T09:56:05Z",
+    "deblocage": "kanban_unblocked"
+  },
+  {
+    "id": "80bab3989d",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "Restart omi-bridge.service pour aligner RAM=disque=git (prod OMI, uptime 12j sur code anterieur) ?",
+    "options": [
+      "GO restart",
+      "attendre"
+    ],
+    "contexte": "Le code disque est commite et pousse (PR preserve->master creee). Le process en memoire date du 22/06. Restart = quelques secondes de coupure du webhook OMI.",
+    "blocked_ref": "",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T00:58:18Z",
+    "statut": "répondue",
+    "reponse": "GO restart — J'aimerais vraiment que tu me que que tu que tu réalignes mon application omy qui est très importante j'ai mon micro j'ai mon système J'espère que les bases de données se remplissent J'espère que la conversation se remplit J'espère que je peux accéder à mes à mes conversations J'espère que tout est en place C'est c'est important pour moi de pouvoir créer ce canal où en fait continuellement tout ce que je dis peut être enregistré par Mais c'est vrai que Il faut pas faut que Là par exemple il est éteint Mais il est resté allumé hier pas mal d'heures et là je vais le réallumer aujourd'hui et demain et j'ai et il faut que ce soit allumé Estce que tu",
+    "repondue_le": "2026-07-04T09:57:09Z",
+    "deblocage": "no_ref"
+  },
+  {
+    "id": "3f7d86e712",
+    "groupe": "fable-rescue",
+    "type": "fermée",
+    "texte": "Pricing officiel OA: quelle grille fait foi ?",
+    "options": [
+      "67 EUR/mois unique (landing actuelle)",
+      "50/100/200 (manifeste 02bis)",
+      "29/59/89 HT (ta reponse D9)",
+      "a retravailler ensemble"
+    ],
+    "contexte": "3 grilles differentes circulent en ce moment: la landing publique affiche 67EUR/mois tout compris (-30% a vie), le manifeste valide du 28/05 dit Starter 50/Pro 100/Pro+ 200, et ta reponse D9 du QG evoquait 29/59/89 HT. INTERET de trancher: la landing est maintenant LA porte d'entree publique du funnel — un prospect qui compare landing et devis verra l'incoherence, et le devis (brique #2) ne peut pas etre construit sans grille officielle. Si on ne tranche pas: le funnel reste incoherent entre l'etape 1 et l'etape 3. Cout de la correction: 1h (landing + manifeste + proposal_server).",
+    "blocked_ref": "",
+    "posee_par": "fable-rescue",
+    "posee_le": "2026-07-04T10:11:16Z",
     "statut": "ouverte",
     "reponse": null
   }

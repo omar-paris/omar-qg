@@ -1,6 +1,6 @@
 {
   "schema": "oa.repo-health/1",
-  "generated_at": "2026-07-04T00:47:52Z",
+  "generated_at": "2026-07-04T10:20:43Z",
   "source": "scripts/repo_health.py",
   "thresholds": {
     "dirty_files_p1": ">0 source candidate OR oldest dirty >=24h OR local commits ahead",
@@ -9,15 +9,15 @@
   },
   "totals": {
     "repos": 5,
-    "dirty": 4,
+    "dirty": 3,
     "p0": 1,
-    "p1": 3,
+    "p1": 2,
     "p2": 0,
-    "ok": 1,
+    "ok": 2,
     "open_prs": 13,
     "conflict_prs": 1,
-    "source_candidates": 16,
-    "generated_or_runtime": 28
+    "source_candidates": 8,
+    "generated_or_runtime": 27
   },
   "alerts": [
     {
@@ -28,7 +28,7 @@
     {
       "level": "P1",
       "code": "DIRTY_REPOS",
-      "message": "4 repo(s) locaux dirty — action propriétaire obligatoire."
+      "message": "3 repo(s) locaux dirty — action propriétaire obligatoire."
     }
   ],
   "repos": [
@@ -39,7 +39,7 @@
       "repo": "omar-paris/omar-top",
       "path": "/home/omar/23-Offre/actifs/omar-top",
       "exists": true,
-      "checked_at": "2026-07-04T00:47:52Z",
+      "checked_at": "2026-07-04T10:20:43Z",
       "branch": "builder/t_6f75b869-rdel-pilot",
       "upstream": "origin/builder/t_6f75b869-rdel-pilot",
       "head": "f44b806 feat(standards): harden delivery readiness contracts",
@@ -48,7 +48,7 @@
       "dirty_count": 2,
       "generated_or_runtime_count": 1,
       "source_candidate_count": 1,
-      "oldest_dirty_age_hours": 0.6,
+      "oldest_dirty_age_hours": 10.1,
       "dirty_entries": [
         {
           "code": "M ",
@@ -60,7 +60,7 @@
           "code": "??",
           "path": "reviews/",
           "class": "generated_or_runtime",
-          "age_hours": 0.6
+          "age_hours": 10.1
         }
       ],
       "open_prs": [
@@ -145,16 +145,16 @@
       "repo": "omar-paris/omar-qg",
       "path": "/home/omar/23-Offre/actifs/omar-qg",
       "exists": true,
-      "checked_at": "2026-07-04T00:47:51Z",
-      "branch": "fix/t_1f47f9c0-state-db-threshold",
-      "upstream": "origin/fix/t_1f47f9c0-state-db-threshold",
-      "head": "d76bf29 fix: tune oa-observe state db bloat threshold",
+      "checked_at": "2026-07-04T10:20:42Z",
+      "branch": "feat/page-chantiers",
+      "upstream": "origin/feat/page-chantiers",
+      "head": "7fc612d feat(qg): add chantiers page (Now/Next/Later finish order)",
       "ahead": 0,
       "behind": 0,
-      "dirty_count": 31,
+      "dirty_count": 32,
       "generated_or_runtime_count": 25,
-      "source_candidate_count": 5,
-      "oldest_dirty_age_hours": 20.5,
+      "source_candidate_count": 6,
+      "oldest_dirty_age_hours": 30.0,
       "dirty_entries": [
         {
           "code": "M ",
@@ -176,13 +176,19 @@
         },
         {
           "code": " M",
+          "path": "public/api/chantiers.json",
+          "class": "generated_or_runtime",
+          "age_hours": 0.1
+        },
+        {
+          "code": " M",
           "path": "public/api/core-repos.json",
           "class": "generated_or_runtime",
           "age_hours": 0.1
         },
         {
           "code": " M",
-          "path": "public/api/daily-ledger/2026-07-03.json",
+          "path": "public/api/daily-ledger/2026-07-04.json",
           "class": "generated_or_runtime",
           "age_hours": 0.1
         },
@@ -278,6 +284,12 @@
         },
         {
           "code": " M",
+          "path": "public/chantiers/index.html",
+          "class": "source_candidate",
+          "age_hours": 0.1
+        },
+        {
+          "code": " M",
           "path": "public/clients/index.html",
           "class": "generated_or_runtime",
           "age_hours": 0.1
@@ -320,12 +332,6 @@
         },
         {
           "code": "??",
-          "path": "public/api/daily-ledger/2026-07-04.json",
-          "class": "generated_or_runtime",
-          "age_hours": 0.1
-        },
-        {
-          "code": "??",
           "path": "public_build_tmp/",
           "class": "unknown",
           "age_hours": 0.0
@@ -334,13 +340,13 @@
           "code": "??",
           "path": "review_result_pr53_t_0fbc82c0.json",
           "class": "source_candidate",
-          "age_hours": 20.5
+          "age_hours": 30.0
         },
         {
           "code": "??",
           "path": "review_result_t_a808ad4b.json",
           "class": "source_candidate",
-          "age_hours": 0.5
+          "age_hours": 10.0
         }
       ],
       "open_prs": [
@@ -378,140 +384,7 @@
           "url": "https://github.com/omar-paris/omar-qg/pull/51"
         }
       ],
-      "branch_prs": [
-        {
-          "baseRefName": "main",
-          "headRefName": "fix/t_1f47f9c0-state-db-threshold",
-          "isDraft": true,
-          "mergeStateStatus": "CLEAN",
-          "number": 53,
-          "reviewDecision": "",
-          "title": "fix: tune oa-observe state.db bloat threshold",
-          "updatedAt": "2026-07-03T04:17:50Z",
-          "url": "https://github.com/omar-paris/omar-qg/pull/53"
-        }
-      ],
-      "conflict_prs": [],
-      "risk": "P1",
-      "health": "dirty",
-      "next_action": "Inspecter diff, séparer source utile vs généré, puis commit/PR ou clean documenté."
-    },
-    {
-      "id": "app",
-      "name": "AppOmar",
-      "slug": "omar-app",
-      "repo": "omar-paris/omar-app",
-      "path": "/home/omar/23-Offre/actifs/omar-app",
-      "exists": true,
-      "checked_at": "2026-07-04T00:47:50Z",
-      "branch": "builder/t_ed453db7-app-audit-hermes-chat",
-      "upstream": "origin/builder/t_ed453db7-app-audit-hermes-chat",
-      "head": "51f62af feat(appomar): route audit v2 through Hermes agent",
-      "ahead": 0,
-      "behind": 0,
-      "dirty_count": 10,
-      "generated_or_runtime_count": 1,
-      "source_candidate_count": 9,
-      "oldest_dirty_age_hours": 2.4,
-      "dirty_entries": [
-        {
-          "code": "M ",
-          "path": "ublic/aide/index.html",
-          "class": "source_candidate",
-          "age_hours": null
-        },
-        {
-          "code": " M",
-          "path": "public/changelog/index.html",
-          "class": "generated_or_runtime",
-          "age_hours": 2.4
-        },
-        {
-          "code": " M",
-          "path": "public/compte/index.html",
-          "class": "source_candidate",
-          "age_hours": 2.4
-        },
-        {
-          "code": " M",
-          "path": "public/config/index.html",
-          "class": "source_candidate",
-          "age_hours": 2.4
-        },
-        {
-          "code": " M",
-          "path": "public/devis/index.html",
-          "class": "source_candidate",
-          "age_hours": 2.4
-        },
-        {
-          "code": " M",
-          "path": "public/factures/index.html",
-          "class": "source_candidate",
-          "age_hours": 2.4
-        },
-        {
-          "code": " M",
-          "path": "public/index.html",
-          "class": "source_candidate",
-          "age_hours": 2.4
-        },
-        {
-          "code": " M",
-          "path": "public/jab/index.html",
-          "class": "source_candidate",
-          "age_hours": 2.4
-        },
-        {
-          "code": " M",
-          "path": "public/onboarding/index.html",
-          "class": "source_candidate",
-          "age_hours": 2.4
-        },
-        {
-          "code": " M",
-          "path": "public/sav/index.html",
-          "class": "source_candidate",
-          "age_hours": 2.4
-        }
-      ],
-      "open_prs": [
-        {
-          "baseRefName": "main",
-          "headRefName": "builder/t_ed453db7-app-audit-hermes-chat",
-          "isDraft": false,
-          "mergeStateStatus": "CLEAN",
-          "number": 54,
-          "reviewDecision": "",
-          "title": "feat(appomar): route audit v2 through Hermes agent",
-          "updatedAt": "2026-07-03T22:15:09Z",
-          "url": "https://github.com/omar-paris/omar-app/pull/54"
-        },
-        {
-          "baseRefName": "main",
-          "headRefName": "test/proposals-caddy-contract",
-          "isDraft": false,
-          "mergeStateStatus": "CLEAN",
-          "number": 53,
-          "reviewDecision": "",
-          "title": "test(appomar): cover proposals Caddy auth handles",
-          "updatedAt": "2026-07-03T22:11:48Z",
-          "url": "https://github.com/omar-paris/omar-app/pull/53"
-        }
-      ],
-      "branch_prs": [
-        {
-          "baseRefName": "main",
-          "headRefName": "builder/t_ed453db7-app-audit-hermes-chat",
-          "isDraft": false,
-          "mergeStateStatus": "CLEAN",
-          "number": 54,
-          "reviewDecision": "",
-          "title": "feat(appomar): route audit v2 through Hermes agent",
-          "updatedAt": "2026-07-03T22:15:09Z",
-          "url": "https://github.com/omar-paris/omar-app/pull/54"
-        }
-      ],
+      "branch_prs": [],
       "conflict_prs": [],
       "risk": "P1",
       "health": "dirty",
@@ -524,7 +397,7 @@
       "repo": "omar-paris/omar-hub",
       "path": "/home/omar/23-Offre/actifs/omar-hub",
       "exists": true,
-      "checked_at": "2026-07-04T00:47:51Z",
+      "checked_at": "2026-07-04T10:20:42Z",
       "branch": "feat/issue-44",
       "upstream": "origin/feat/issue-44",
       "head": "9ffb398 test: cover vault scanner secret redaction",
@@ -533,7 +406,7 @@
       "dirty_count": 2,
       "generated_or_runtime_count": 1,
       "source_candidate_count": 1,
-      "oldest_dirty_age_hours": 0.6,
+      "oldest_dirty_age_hours": 10.1,
       "dirty_entries": [
         {
           "code": "M ",
@@ -545,7 +418,7 @@
           "code": "??",
           "path": "reviews/",
           "class": "generated_or_runtime",
-          "age_hours": 0.6
+          "age_hours": 10.1
         }
       ],
       "open_prs": [
@@ -591,13 +464,73 @@
       "next_action": "Inspecter diff, séparer source utile vs généré, puis commit/PR ou clean documenté."
     },
     {
+      "id": "app",
+      "name": "AppOmar",
+      "slug": "omar-app",
+      "repo": "omar-paris/omar-app",
+      "path": "/home/omar/23-Offre/actifs/omar-app",
+      "exists": true,
+      "checked_at": "2026-07-04T10:20:41Z",
+      "branch": "builder/t_ed453db7-app-audit-hermes-chat",
+      "upstream": "origin/builder/t_ed453db7-app-audit-hermes-chat",
+      "head": "51f62af feat(appomar): route audit v2 through Hermes agent",
+      "ahead": 0,
+      "behind": 0,
+      "dirty_count": 0,
+      "generated_or_runtime_count": 0,
+      "source_candidate_count": 0,
+      "oldest_dirty_age_hours": null,
+      "dirty_entries": [],
+      "open_prs": [
+        {
+          "baseRefName": "main",
+          "headRefName": "builder/t_ed453db7-app-audit-hermes-chat",
+          "isDraft": false,
+          "mergeStateStatus": "CLEAN",
+          "number": 54,
+          "reviewDecision": "",
+          "title": "feat(appomar): route audit v2 through Hermes agent",
+          "updatedAt": "2026-07-03T22:15:09Z",
+          "url": "https://github.com/omar-paris/omar-app/pull/54"
+        },
+        {
+          "baseRefName": "main",
+          "headRefName": "test/proposals-caddy-contract",
+          "isDraft": false,
+          "mergeStateStatus": "CLEAN",
+          "number": 53,
+          "reviewDecision": "",
+          "title": "test(appomar): cover proposals Caddy auth handles",
+          "updatedAt": "2026-07-03T22:11:48Z",
+          "url": "https://github.com/omar-paris/omar-app/pull/53"
+        }
+      ],
+      "branch_prs": [
+        {
+          "baseRefName": "main",
+          "headRefName": "builder/t_ed453db7-app-audit-hermes-chat",
+          "isDraft": false,
+          "mergeStateStatus": "CLEAN",
+          "number": 54,
+          "reviewDecision": "",
+          "title": "feat(appomar): route audit v2 through Hermes agent",
+          "updatedAt": "2026-07-03T22:15:09Z",
+          "url": "https://github.com/omar-paris/omar-app/pull/54"
+        }
+      ],
+      "conflict_prs": [],
+      "risk": "OK",
+      "health": "clean",
+      "next_action": "Vérifier gate Athena / merge decision pour PR ouverte."
+    },
+    {
       "id": "catalogue",
       "name": "Catalogue",
       "slug": "omar-catalogue",
       "repo": "omar-paris/omar-catalogue",
       "path": "/home/omar/23-Offre/actifs/omar-catalogue",
       "exists": true,
-      "checked_at": "2026-07-04T00:47:50Z",
+      "checked_at": "2026-07-04T10:20:41Z",
       "branch": "builder/t_ed453db7-catalogue-capability-claims",
       "upstream": "origin/builder/t_ed453db7-catalogue-capability-claims",
       "head": "c367e57 chore(catalogue): refresh generated public catalogue",

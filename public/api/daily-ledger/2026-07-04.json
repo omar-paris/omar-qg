@@ -1,15 +1,16 @@
 {
   "date": "2026-07-04",
-  "generated_at": "2026-07-04T00:47:22Z",
+  "generated_at": "2026-07-04T10:20:13Z",
   "version": "V0.8.5",
   "sessions": {
     "hermes": {
-      "sessions": 9,
-      "messages": 328,
-      "tool_calls": 188,
-      "api_calls": 131,
+      "sessions": 16,
+      "messages": 468,
+      "tool_calls": 276,
+      "api_calls": 176,
       "by_source": {
-        "cli": 9
+        "cli": 11,
+        "cron": 5
       },
       "db": "/home/omar/.hermes/state.db",
       "error": null
@@ -17,8 +18,8 @@
     "ccusage": {
       "sessions_by_agent": {},
       "daily": {
-        "total_cost_usd": 75.9404,
-        "total_tokens": 47052308,
+        "total_cost_usd": 121.5315,
+        "total_tokens": 70979922,
         "agents": [
           "claude",
           "hermes"
@@ -26,6 +27,8 @@
         "models_used": [
           "claude-fable-5",
           "claude-opus-4-8",
+          "gpt-5.3-codex-spark",
+          "gpt-5.4-mini",
           "gpt-5.5"
         ]
       },
@@ -59,17 +62,14 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 12
+        "latency_ms": 19
       },
       "git": {
         "exists": true,
-        "branch": "feat/prepub-pricing-pc-smoke",
-        "dirty": true,
-        "head": "557fc58 fix(landing): remove public next preview",
-        "status_short": [
-          "?? public/next/",
-          "?? scripts/build_next.py"
-        ]
+        "branch": "feat/landing-versions",
+        "dirty": false,
+        "head": "2284458 fix(landing): drop preversion label from canonical root footer",
+        "status_short": []
       },
       "github_open": {
         "open_issues": 28,
@@ -97,23 +97,14 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 14
+        "latency_ms": 30
       },
       "git": {
         "exists": true,
         "branch": "builder/t_ed453db7-app-audit-hermes-chat",
-        "dirty": true,
+        "dirty": false,
         "head": "51f62af feat(appomar): route audit v2 through Hermes agent",
-        "status_short": [
-          "M public/aide/index.html",
-          " M public/changelog/index.html",
-          " M public/compte/index.html",
-          " M public/config/index.html",
-          " M public/devis/index.html",
-          " M public/factures/index.html",
-          " M public/index.html",
-          " M public/jab/index.html"
-        ]
+        "status_short": []
       },
       "github_open": {
         "open_issues": 36,
@@ -176,7 +167,7 @@
       "health": {
         "status": "error",
         "http_code": 502,
-        "latency_ms": 14
+        "latency_ms": 21
       },
       "git": {
         "exists": true,
@@ -199,11 +190,11 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 19
+        "latency_ms": 20
       },
       "git": {
         "exists": true,
-        "branch": "fix/t_1f47f9c0-state-db-threshold",
+        "branch": "feat/page-chantiers",
         "dirty": true,
         "head": "current qg build",
         "status_short": [
@@ -238,7 +229,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 22
+        "latency_ms": 18
       },
       "git": {
         "exists": true,
@@ -312,12 +303,17 @@
     {
       "level": "warning",
       "code": "DIRTY_REPOS",
-      "message": "5 repo(s) locaux dirty dans le registry."
+      "message": "3 repo(s) locaux dirty dans le registry."
     },
     {
       "level": "warning",
       "code": "NO_BUILDS_RECORDED",
       "message": "Aucun build GitHub Actions ou ledger local détecté aujourd'hui."
+    },
+    {
+      "level": "warning",
+      "code": "SESSIONS_WITHOUT_PRS",
+      "message": "Beaucoup de sessions détectées mais aucune PR créée aujourd'hui."
     }
   ]
 }

@@ -1110,6 +1110,7 @@ TAILWIND = "https://cdn.tailwindcss.com"
 FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
 
 NAV_ITEMS = [
+    ("/manifeste/",   "manifeste",   "Manifeste",   'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25'),
     ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
     ("/objectifs/",   "objectifs",   "Objectifs",   'M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418'),
     ("/chantiers/",   "chantiers",   "Chantiers",   'M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z'),
@@ -1957,6 +1958,133 @@ def objectifs_summary(objectifs: list) -> str:
     )
 
 
+def page_manifeste(manifeste: dict) -> str:
+    """Page 1 du QG — le manifeste rendu (handbook-first, Fable 4D System Rescue).
+
+    Source de vérité = docs 02/02bis/INDEX du dossier « Renew OA V2 - validated
+    by Claude » (28/05/2026). Cette page les REND, elle ne les réécrit pas :
+    var/manifeste.json (republié en /api/manifeste.json) est un extrait fidèle,
+    toute évolution de fond passe par le doc 02 d'abord.
+    """
+    if not manifeste:
+        return ('<h1 class="text-xl font-bold text-gray-900 mb-4">Manifeste</h1>'
+                '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-700">'
+                'var/manifeste.json absent ou vide — le manifeste source reste '
+                '<span class="font-mono">11-Pilotage/Renew OA V2 - validated by Claude/02-manifeste-business-interne.md</span>.</div>')
+
+    offre = manifeste.get("offre") or {}
+    footer = manifeste.get("footer") or {}
+
+    # ── En-tête : promesse + règle handbook-first + fichiers sources ──────────
+    sources_html = "".join(
+        '<div class="flex items-baseline gap-2 text-xs py-0.5">'
+        f'<span class="text-gray-500 shrink-0">{escape(str(s.get("label") or ""))}</span>'
+        f'<span class="font-mono text-gray-400 break-all">{escape(str(s.get("path") or ""))}</span></div>'
+        for s in manifeste.get("sources", [])
+    )
+    html = (
+        '<div class="mb-6">'
+        '<h1 class="text-xl font-bold text-gray-900">Manifeste — la boussole OA</h1>'
+        '<p class="text-sm text-gray-500 mt-0.5">Page 1 du QG : l\'offre validée le 28/05/2026, rendue depuis les docs 02 / 02bis '
+        '— source <a href="/api/manifeste.json" class="text-blue-500 hover:underline">manifeste.json</a>.</p>'
+        '</div>'
+        '<div class="bg-white rounded-xl border border-blue-200 px-6 py-5 mb-6">'
+        '<div class="text-xs font-semibold uppercase tracking-wide text-blue-600 mb-2">La promesse client</div>'
+        f'<div class="text-lg font-semibold text-gray-900 leading-snug">« {escape(str(manifeste.get("promesse") or ""))} »</div>'
+        f'<div class="mt-3 text-sm text-gray-600 border-l-2 border-blue-200 pl-3">{escape(str(manifeste.get("regle") or ""))} '
+        'Toute décision d\'offre est écrite dans le manifeste avant d\'être appliquée.</div>'
+        f'<div class="mt-3 pt-3 border-t border-gray-100">{sources_html}</div>'
+        '</div>'
+    )
+
+    # ── Funnel en 4 étapes ─────────────────────────────────────────────────────
+    html += (
+        '<div class="flex items-baseline gap-2 mb-3"><h2 class="text-sm font-bold uppercase tracking-wide text-gray-700">Le funnel</h2>'
+        '<span class="text-xs text-gray-400">4 étapes, chacune portée par une brique — rang de finition dans '
+        '<a href="/chantiers/" class="text-blue-500 hover:underline">/chantiers/</a></span></div>'
+        '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">'
+    )
+    for step in manifeste.get("funnel", []):
+        nom = escape(str(step.get("nom") or ""))
+        lien = str(step.get("lien") or "")
+        horizon = str(step.get("chantier_horizon") or "")
+        horizon_pill = "pill-ok" if horizon == "Now" else "pill-warn"
+        brique = (f'<a href="{escape(lien)}" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline break-all">{escape(lien.replace("https://", ""))}</a>'
+                  if lien else '<span class="text-xs text-gray-400">brique à livrer — pas encore live</span>')
+        html += (
+            '<div class="bg-white rounded-xl border border-gray-200 px-4 py-4 flex flex-col">'
+            '<div class="flex items-center justify-between mb-2">'
+            f'<span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">{step.get("etape", "?")}</span>'
+            f'<span class="px-2 py-0.5 rounded text-xs font-medium {horizon_pill}">{escape(horizon)} · rang {step.get("chantier_rang", "?")}</span></div>'
+            f'<div class="text-sm font-semibold text-gray-900 mb-1">{nom}</div>'
+            f'<div class="text-xs text-gray-600 mb-2 flex-1">{escape(str(step.get("role") or ""))}</div>'
+            f'{brique}</div>'
+        )
+    html += '</div>'
+
+    # ── L'offre : pour qui, quoi, différenciation ──────────────────────────────
+    pour_qui = "".join(
+        f'<div class="flex gap-2 text-sm text-gray-600 py-0.5"><span class="text-gray-300 shrink-0">—</span><span>{escape(str(p))}</span></div>'
+        for p in offre.get("pour_qui", [])
+    )
+    services = "".join(
+        '<div class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">'
+        f'<div class="text-xs font-semibold text-gray-800">{escape(str(s.get("nom") or ""))}</div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">{escape(str(s.get("raison") or ""))}</div></div>'
+        for s in offre.get("services_avant", [])
+    )
+    diff = "".join(
+        f'<div class="flex gap-2 text-sm text-gray-600 py-0.5"><span class="text-gray-300 shrink-0">—</span><span>{escape(str(d))}</span></div>'
+        for d in offre.get("differenciation", [])
+    )
+    html += (
+        '<h2 class="text-sm font-bold uppercase tracking-wide text-gray-700 mb-3">L\'offre <span class="font-normal normal-case text-xs text-gray-400">(résumé fidèle du doc 02)</span></h2>'
+        '<div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">'
+        '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4">'
+        '<div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Pour qui</div>'
+        f'{pour_qui}'
+        f'<div class="text-xs text-gray-500 mt-2">{escape(str(offre.get("profil") or ""))}</div>'
+        f'<div class="text-xs text-gray-400 mt-2"><span class="font-medium">Hors-cible :</span> {escape(str(offre.get("hors_cible") or ""))}</div></div>'
+        '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4">'
+        '<div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Ce qu\'on livre</div>'
+        f'<div class="text-sm text-gray-600 mb-3">{escape(str(offre.get("quoi") or ""))}</div>'
+        f'<div class="space-y-2">{services}</div></div>'
+        '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4">'
+        '<div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Différenciation</div>'
+        f'{diff}</div>'
+        '</div>'
+        '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 mb-6 text-sm text-amber-800">'
+        f'<span class="font-semibold">Pricing :</span> {escape(str(offre.get("pricing_note") or ""))} '
+        '<a href="/decisions/" class="font-medium text-amber-700 underline hover:no-underline">Voir la décision →</a></div>'
+    )
+
+    # ── Les 4 socles ───────────────────────────────────────────────────────────
+    html += (
+        '<div class="flex items-baseline gap-2 mb-3"><h2 class="text-sm font-bold uppercase tracking-wide text-gray-700">Les 4 socles</h2>'
+        '<span class="text-xs text-gray-400">l\'infrastructure qui porte le funnel</span></div>'
+        '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">'
+    )
+    for socle in manifeste.get("socles", []):
+        lien = str(socle.get("lien") or "")
+        html += (
+            '<div class="bg-white rounded-xl border border-gray-200 px-4 py-4">'
+            f'<div class="text-sm font-semibold text-gray-900 mb-1">{escape(str(socle.get("nom") or ""))}'
+            f'<span class="ml-2 text-xs font-normal text-gray-400">rang {socle.get("chantier_rang", "?")}</span></div>'
+            f'<div class="text-xs text-gray-600 mb-2">{escape(str(socle.get("role") or ""))}</div>'
+            f'<a href="{escape(lien)}" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline break-all">{escape(lien.replace("https://", "").rstrip("/"))}</a></div>'
+        )
+    html += '</div>'
+
+    # ── Footer doctrine ────────────────────────────────────────────────────────
+    html += (
+        '<div class="border-t border-gray-200 pt-4 text-xs text-gray-500">'
+        f'<div>{escape(str(footer.get("validation") or ""))}</div>'
+        f'<div class="mt-1"><span class="font-medium text-gray-600">Règle handbook-first :</span> {escape(str(footer.get("handbook_first") or ""))}</div>'
+        '</div>'
+    )
+    return html
+
+
 def page_chantiers(chantiers: list) -> str:
     """Tableau Now/Next/Later des 8 briques (PRODUCT-TRUTH, Fable 4D System Rescue).
 
@@ -2334,7 +2462,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
-    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "builder-pr-autogate.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "manifeste.json", "builder-pr-autogate.json"):
         var_payload = _read_var_json(var_name)
         if var_payload:
             (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -2372,6 +2500,12 @@ def main(argv: list[str] | None = None) -> None:
     chantiers = _read_var_json("chantiers.json")
     if not isinstance(chantiers, list):
         chantiers = []
+
+    # Couche MANIFESTE (Fable 4D rescue, handbook-first) : extrait fidèle des docs
+    # 02/02bis validés 28/05 — la page d'entrée conceptuelle du QG.
+    manifeste = _read_var_json("manifeste.json")
+    if not isinstance(manifeste, dict):
+        manifeste = {}
 
     # Audit anti-orphelins Issue↔Kanban↔PR↔Gate : produit par scripts/agent_loop_audit.py.
     # Le build reste read-only et republie le dernier snapshot disponible.
@@ -2464,6 +2598,7 @@ def main(argv: list[str] | None = None) -> None:
     builds_today = (builds.get("totals", {}) or {}).get("today", 0)
 
     pages = [
+        ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
