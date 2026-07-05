@@ -1,0 +1,42 @@
+{
+  "review_id": "t_0fbc82c0-pr53",
+  "task_ref": "t_1f47f9c0",
+  "pr": "https://github.com/omar-paris/omar-qg/pull/53",
+  "artifact": {
+    "type": "git_diff",
+    "branch": "fix/t_1f47f9c0-state-db-threshold",
+    "head": "d76bf2987e1faa000e4903044d065236b9499165",
+    "base": "main"
+  },
+  "checked_at": "2026-07-03T06:20:18+02:00",
+  "verdict": "pass",
+  "summary": "Le changement applique bien un seuil P1 spécifique à /home/*/.hermes/state.db à 768 MiB, conserve le seuil générique 500 MiB et le P0 2 GiB. Les tests ciblés et le smoke file_bloat JSON passent sans finding local.",
+  "blockers_count": 0,
+  "round": 1,
+  "findings": [],
+  "commands_run": [
+    {
+      "command": "git diff --stat main...HEAD && git diff --name-only main...HEAD",
+      "exit_code": 0,
+      "evidence": "2 files changed: scripts/oa-observe.py and tests/test_oa_observe_kanban.py"
+    },
+    {
+      "command": "python3 -m pytest tests/test_oa_observe_kanban.py -q",
+      "exit_code": 0,
+      "evidence": "6 passed in 0.11s"
+    },
+    {
+      "command": "python3 scripts/oa-observe.py --only file_bloat --json",
+      "exit_code": 0,
+      "evidence": "findings=[]"
+    },
+    {
+      "command": "git diff --check main...HEAD",
+      "exit_code": 0,
+      "evidence": "no whitespace errors"
+    }
+  ],
+  "merge_recommendation": "merge_allowed",
+  "escalate_to_human": false,
+  "escalation_reason": null
+}

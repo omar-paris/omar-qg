@@ -1,0 +1,39 @@
+{
+  "review_id": "athena-gate-t_a808ad4b-a2z-qg-cockpit-gates",
+  "task_ref": "t_a808ad4b",
+  "verdict": "reject",
+  "summary": "Gate Athena rejetée: le parent Builder déclaré n'a pas produit de livrable reviewable, et la livraison PR #48 référencée ne couvre qu'un registry agent-loop partiel sans surfacer les décisions Alex prix/paiement/PC demandées.",
+  "blockers_count": 1,
+  "round": 1,
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "blocker",
+      "axis": "conformity",
+      "location": "Kanban t_e3100b87 / t_a01d73d0",
+      "description": "La gate t_a808ad4b demande de reviewer le résultat du parent Builder t_e3100b87, mais ce parent n'a pas livré branch + PR draft + tests: ses deux runs ont terminé en protocol_violation, son résultat est un backfill OA-Dog marqué status: blocked, et la route Builder canonique t_a01d73d0 reste blocked sans run Builder.",
+      "evidence": "kanban_show(t_e3100b87): runs 807/813 crashed/protocol_violation; result 'status: blocked ... use recovered evidence for audit only, not as new product approval'. kanban_show(t_a01d73d0): status blocked, runs=[], reason 'no dispatch until H-Omar arbitration'.",
+      "suggested_fix": "Relancer/débloquer la carte Builder canonique t_a01d73d0 avec un worktree propre, produire un vrai result Builder (branch/PR/tests/smoke), puis recréer une gate Athena liée à ce livrable. Ne pas utiliser le backfill OA-Dog comme approbation produit."
+    },
+    {
+      "id": "F2",
+      "severity": "major",
+      "axis": "conformity",
+      "location": "PR omar-paris/omar-qg#48; public/decisions/index.html; https://qg.omar.paris/decisions/",
+      "description": "Le livrable PR #48 mentionné dans l'issue #47 est explicitement partiel et ne couvre pas les décisions Alex demandées par cette gate (prix public à partir de, paiement premier mois avant provisioning réel, coupons/bons, option PC). La page live /decisions/ affiche 'Rien en attente' et ne contient aucune de ces décisions.",
+      "evidence": "gh pr view 48: body 'Closes #47 partiellement' et fichiers modifiés limités à CHANGELOG.md, VERSION, scripts/agent_loop_registry.py, scripts/build.py, tests/test_qg_static.py. Check live urllib https://qg.omar.paris/decisions/: status 200, contains '80 €/mois'=False, 'premier mois'=False, 'paiement'=False, 'Coupons'=False, 'Option PC'=False, 'Rien en attente'=True. Repo scan public/: '80 €/mois'=0 hit, 'premier mois'=0, 'prix public'=0.",
+      "suggested_fix": "Ajouter une source mesurée pour les décisions Alex A2Z et la rendre visible dans QG (/decisions/ ou endpoint machine-readable), avec tests qui prouvent la présence des trois arbitrages prix/paiement/PC et leur lien au tunnel A2Z."
+    },
+    {
+      "id": "F3",
+      "severity": "minor",
+      "axis": "conformity",
+      "location": "https://qg.omar.paris/agent-loop/; /api/agent-loop-registry.json",
+      "description": "La partie registry agent-loop de PR #48 est bien observable, mais elle prouve principalement une boucle AppOmar PR #48, pas la boucle complète de cette carte QG issue #47.",
+      "evidence": "urllib live /agent-loop/: status 200, bytes=158260, contains 'Boucles prouvées'=True, 'registry P4'=True. live /api/agent-loop-registry.json: schema oa.agent-loop-registry/1, status healthy, summary {'issues':0,'cards':6,'prs':1,'gates':5,'merges':1,'artifacts':3}; first item URL https://github.com/omar-paris/omar-app/pull/48.",
+      "suggested_fix": "Conserver le registry, mais ajouter une entrée/preuve spécifique issue omar-qg#47 → Builder card → PR omar-qg#48 → review_result → release si cette boucle doit clôturer la demande QG."
+    }
+  ],
+  "escalate_to_human": false,
+  "escalation_reason": null
+}

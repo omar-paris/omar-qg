@@ -2,7 +2,7 @@
   "meta": {
     "schema_version": "0.1",
     "mode": "dynamic-readonly",
-    "generated_at": "2026-07-04T10:20:47Z",
+    "generated_at": "2026-07-05T04:17:08Z",
     "source": "scripts/collect_storage.py"
   },
   "status": "warning",
@@ -18,8 +18,8 @@
       "status": "warning",
       "used_pct": 83,
       "total_bytes": 80307429376,
-      "used_bytes": 66535682048,
-      "free_bytes": 13771747328,
+      "used_bytes": 66598141952,
+      "free_bytes": 13709287424,
       "total_h": "74.8GB",
       "used_h": "62.0GB",
       "free_h": "12.8GB"
@@ -35,8 +35,8 @@
       "status": "ok",
       "used_pct": 77,
       "total_bytes": 52521566208,
-      "used_bytes": 40250728448,
-      "free_bytes": 12270837760,
+      "used_bytes": 40237453312,
+      "free_bytes": 12284112896,
       "total_h": "48.9GB",
       "used_h": "37.5GB",
       "free_h": "11.4GB"
@@ -62,22 +62,22 @@
   "memory": {
     "memory": {
       "total_bytes": 16368996352,
-      "used_bytes": 6407270400,
-      "free_bytes": 1054072832,
-      "used_pct": 39,
+      "used_bytes": 5676851200,
+      "free_bytes": 4680953856,
+      "used_pct": 35,
       "total_h": "15.2GB",
-      "used_h": "6.0GB",
-      "free_h": "1005.2MB",
+      "used_h": "5.3GB",
+      "free_h": "4.4GB",
       "status": "ok"
     },
     "swap": {
       "total_bytes": 6442442752,
-      "used_bytes": 3954397184,
-      "free_bytes": 2488045568,
-      "used_pct": 61,
+      "used_bytes": 4257775616,
+      "free_bytes": 2184667136,
+      "used_pct": 66,
       "total_h": "6.0GB",
-      "used_h": "3.7GB",
-      "free_h": "2.3GB",
+      "used_h": "4.0GB",
+      "free_h": "2.0GB",
       "status": "warning"
     }
   },
@@ -88,8 +88,8 @@
       "kind": "runtime",
       "budget_mb": 7500,
       "exists": true,
-      "size_mb": 13453,
-      "size_h": "13.1GB",
+      "size_mb": 13525,
+      "size_h": "13.2GB",
       "status": "warning"
     },
     {
@@ -108,7 +108,7 @@
       "kind": "workspace",
       "budget_mb": 2000,
       "exists": true,
-      "size_mb": 1813,
+      "size_mb": 1815,
       "size_h": "1.8GB",
       "status": "ok"
     },
@@ -128,7 +128,7 @@
       "kind": "backup",
       "budget_mb": 7000,
       "exists": true,
-      "size_mb": 8632,
+      "size_mb": 8619,
       "size_h": "8.4GB",
       "status": "warning"
     },
@@ -159,9 +159,9 @@
       "exists": true,
       "retention_policy": "keep_last_14",
       "count": 14,
-      "total_bytes": 9050599800,
+      "total_bytes": 9037032425,
       "total_h": "8.4GB",
-      "latest_age_hours": 12.1,
+      "latest_age_hours": 6.0,
       "latest_checksum_exists": true,
       "status": "ok"
     }
@@ -200,7 +200,7 @@
     {
       "level": "warning",
       "code": "DIR_OVER_BUDGET",
-      "message": "Hermes runtime 13.1GB > budget 7500MB"
+      "message": "Hermes runtime 13.2GB > budget 7500MB"
     },
     {
       "level": "warning",
@@ -220,7 +220,7 @@
     {
       "level": "warning",
       "code": "SWAP_PRESSURE",
-      "message": "Swap utilisée à 61%"
+      "message": "Swap utilisée à 66%"
     }
   ],
   "recommended_actions": [

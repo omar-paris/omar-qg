@@ -1,17 +1,15 @@
 {
-  "date": "2026-07-04",
-  "generated_at": "2026-07-04T21:30:02Z",
+  "date": "2026-07-05",
+  "generated_at": "2026-07-05T04:16:30Z",
   "version": "V0.8.5",
   "sessions": {
     "hermes": {
-      "sessions": 20,
-      "messages": 493,
-      "tool_calls": 285,
-      "api_calls": 186,
+      "sessions": 8,
+      "messages": 227,
+      "tool_calls": 133,
+      "api_calls": 87,
       "by_source": {
-        "cli": 11,
-        "cron": 7,
-        "webhook": 2
+        "cli": 8
       },
       "db": "/home/omar/.hermes/state.db",
       "error": null
@@ -19,17 +17,12 @@
     "ccusage": {
       "sessions_by_agent": {},
       "daily": {
-        "total_cost_usd": 130.8887,
-        "total_tokens": 78350370,
+        "total_cost_usd": 6.7411,
+        "total_tokens": 5185496,
         "agents": [
-          "claude",
           "hermes"
         ],
         "models_used": [
-          "claude-fable-5",
-          "claude-opus-4-8",
-          "gpt-5.3-codex-spark",
-          "gpt-5.4-mini",
           "gpt-5.5"
         ]
       },
@@ -48,7 +41,7 @@
     "local_build_records": 0
   },
   "local_builds": {
-    "path": "/home/omar/11-Pilotage/ledgers/builds/2026-07-04.jsonl",
+    "path": "/home/omar/11-Pilotage/ledgers/builds/2026-07-05.jsonl",
     "count": 0,
     "success": 0,
     "failure": 0,
@@ -63,7 +56,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 21
+        "latency_ms": 17
       },
       "git": {
         "exists": true,
@@ -103,9 +96,18 @@
       "git": {
         "exists": true,
         "branch": "builder/t_ed453db7-app-audit-hermes-chat",
-        "dirty": false,
+        "dirty": true,
         "head": "51f62af feat(appomar): route audit v2 through Hermes agent",
-        "status_short": []
+        "status_short": [
+          "M public/aide/index.html",
+          " M public/api/apps-l1.json",
+          " M public/api/oa-start-packs.json",
+          " M public/changelog/index.html",
+          " M public/compte/index.html",
+          " M public/config/index.html",
+          " M public/devis/index.html",
+          " M public/factures/index.html"
+        ]
       },
       "github_open": {
         "open_issues": 36,
@@ -133,14 +135,23 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 15
+        "latency_ms": 17
       },
       "git": {
         "exists": true,
         "branch": "builder/t_ed453db7-catalogue-capability-claims",
-        "dirty": false,
+        "dirty": true,
         "head": "c367e57 chore(catalogue): refresh generated public catalogue",
-        "status_short": []
+        "status_short": [
+          "M public/api/catalogue-site.json",
+          " M public/apps/crm-twenty/index.html",
+          " M public/apps/emailing-listmonk/index.html",
+          " M public/apps/facturation-devis-invoiceninja/index.html",
+          " M public/apps/index.html",
+          " M public/apps/llm-gateway-litellm/index.html",
+          " M public/apps/llm-observability-langfuse/index.html",
+          " M public/apps/pdf-outils-stirling/index.html"
+        ]
       },
       "github_open": {
         "open_issues": 11,
@@ -168,7 +179,7 @@
       "health": {
         "status": "error",
         "http_code": 502,
-        "latency_ms": 8
+        "latency_ms": 17
       },
       "git": {
         "exists": true,
@@ -191,7 +202,7 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 17
       },
       "git": {
         "exists": true,
@@ -229,17 +240,14 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 17
       },
       "git": {
         "exists": true,
         "branch": "feat/issue-44",
-        "dirty": true,
+        "dirty": false,
         "head": "9ffb398 test: cover vault scanner secret redaction",
-        "status_short": [
-          "M public/api/omartop.json",
-          "?? reviews/"
-        ]
+        "status_short": []
       },
       "github_open": {
         "open_issues": 13,
@@ -267,17 +275,14 @@
       "health": {
         "status": "ok",
         "http_code": 200,
-        "latency_ms": 18
+        "latency_ms": 17
       },
       "git": {
         "exists": true,
         "branch": "builder/t_6f75b869-rdel-pilot",
-        "dirty": true,
+        "dirty": false,
         "head": "f44b806 feat(standards): harden delivery readiness contracts",
-        "status_short": [
-          "M phases-spec.json",
-          "?? reviews/"
-        ]
+        "status_short": []
       },
       "github_open": {
         "open_issues": 45,
@@ -309,11 +314,6 @@
       "level": "warning",
       "code": "NO_BUILDS_RECORDED",
       "message": "Aucun build GitHub Actions ou ledger local détecté aujourd'hui."
-    },
-    {
-      "level": "warning",
-      "code": "SESSIONS_WITHOUT_PRS",
-      "message": "Beaucoup de sessions détectées mais aucune PR créée aujourd'hui."
     }
   ]
 }

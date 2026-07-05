@@ -1,6 +1,6 @@
 {
   "schema": "oa.repo-health/1",
-  "generated_at": "2026-07-04T10:20:43Z",
+  "generated_at": "2026-07-05T04:17:05Z",
   "source": "scripts/repo_health.py",
   "thresholds": {
     "dirty_files_p1": ">0 source candidate OR oldest dirty >=24h OR local commits ahead",
@@ -11,13 +11,13 @@
     "repos": 5,
     "dirty": 3,
     "p0": 1,
-    "p1": 2,
+    "p1": 3,
     "p2": 0,
-    "ok": 2,
+    "ok": 1,
     "open_prs": 13,
     "conflict_prs": 1,
-    "source_candidates": 8,
-    "generated_or_runtime": 27
+    "source_candidates": 24,
+    "generated_or_runtime": 34
   },
   "alerts": [
     {
@@ -39,30 +39,17 @@
       "repo": "omar-paris/omar-top",
       "path": "/home/omar/23-Offre/actifs/omar-top",
       "exists": true,
-      "checked_at": "2026-07-04T10:20:43Z",
+      "checked_at": "2026-07-05T04:17:04Z",
       "branch": "builder/t_6f75b869-rdel-pilot",
       "upstream": "origin/builder/t_6f75b869-rdel-pilot",
       "head": "f44b806 feat(standards): harden delivery readiness contracts",
       "ahead": 0,
       "behind": 0,
-      "dirty_count": 2,
-      "generated_or_runtime_count": 1,
-      "source_candidate_count": 1,
-      "oldest_dirty_age_hours": 10.1,
-      "dirty_entries": [
-        {
-          "code": "M ",
-          "path": "hases-spec.json",
-          "class": "source_candidate",
-          "age_hours": null
-        },
-        {
-          "code": "??",
-          "path": "reviews/",
-          "class": "generated_or_runtime",
-          "age_hours": 10.1
-        }
-      ],
+      "dirty_count": 0,
+      "generated_or_runtime_count": 0,
+      "source_candidate_count": 0,
+      "oldest_dirty_age_hours": null,
+      "dirty_entries": [],
       "open_prs": [
         {
           "baseRefName": "main",
@@ -135,7 +122,7 @@
         }
       ],
       "risk": "P0",
-      "health": "dirty",
+      "health": "clean",
       "next_action": "Résoudre conflit PR #53, puis relancer gate Athena."
     },
     {
@@ -145,16 +132,16 @@
       "repo": "omar-paris/omar-qg",
       "path": "/home/omar/23-Offre/actifs/omar-qg",
       "exists": true,
-      "checked_at": "2026-07-04T10:20:42Z",
+      "checked_at": "2026-07-05T04:17:04Z",
       "branch": "feat/page-chantiers",
       "upstream": "origin/feat/page-chantiers",
-      "head": "7fc612d feat(qg): add chantiers page (Now/Next/Later finish order)",
+      "head": "13fe28f feat(qg): add manifeste page (handbook-first entry point)",
       "ahead": 0,
       "behind": 0,
-      "dirty_count": 32,
-      "generated_or_runtime_count": 25,
+      "dirty_count": 31,
+      "generated_or_runtime_count": 24,
       "source_candidate_count": 6,
-      "oldest_dirty_age_hours": 30.0,
+      "oldest_dirty_age_hours": 47.9,
       "dirty_entries": [
         {
           "code": "M ",
@@ -166,168 +153,162 @@
           "code": " M",
           "path": "public/api/agent-loop-registry.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/api/builds.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
-        },
-        {
-          "code": " M",
-          "path": "public/api/chantiers.json",
-          "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/api/core-repos.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
+        },
+        {
+          "code": " D",
+          "path": "public/api/daily-ledger/2026-06-14.json",
+          "class": "generated_or_runtime",
+          "age_hours": null
         },
         {
           "code": " M",
           "path": "public/api/daily-ledger/2026-07-04.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/api/daily-ledger/index.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
-        },
-        {
-          "code": " M",
-          "path": "public/api/decisions.json",
-          "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/api/ops/storage-summary.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/api/repo-health.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/api/triage.json",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
-        },
-        {
-          "code": " M",
-          "path": "public/api/vps.json",
-          "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/apps/app/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/apps/catalogue/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/apps/hub/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/apps/lab/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/apps/landing/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/apps/omartop/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/apps/qg/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/builds/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/changelog/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/chantiers/index.html",
           "class": "source_candidate",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/clients/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/decisions/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/index.html",
           "class": "source_candidate",
-          "age_hours": 0.1
+          "age_hours": 0.0
+        },
+        {
+          "code": " M",
+          "path": "public/manifeste/index.html",
+          "class": "source_candidate",
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/objectifs/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/ops/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
           "code": " M",
           "path": "public/partenaires/index.html",
           "class": "generated_or_runtime",
-          "age_hours": 0.1
+          "age_hours": 0.0
         },
         {
-          "code": " M",
-          "path": "scripts/build.py",
-          "class": "source",
+          "code": "??",
+          "path": "public/api/daily-ledger/2026-07-05.json",
+          "class": "generated_or_runtime",
           "age_hours": 0.0
         },
         {
@@ -340,13 +321,13 @@
           "code": "??",
           "path": "review_result_pr53_t_0fbc82c0.json",
           "class": "source_candidate",
-          "age_hours": 30.0
+          "age_hours": 47.9
         },
         {
           "code": "??",
           "path": "review_result_t_a808ad4b.json",
           "class": "source_candidate",
-          "age_hours": 10.0
+          "age_hours": 28.0
         }
       ],
       "open_prs": [
@@ -391,96 +372,114 @@
       "next_action": "Inspecter diff, séparer source utile vs généré, puis commit/PR ou clean documenté."
     },
     {
-      "id": "hub",
-      "name": "Hub",
-      "slug": "omar-hub",
-      "repo": "omar-paris/omar-hub",
-      "path": "/home/omar/23-Offre/actifs/omar-hub",
-      "exists": true,
-      "checked_at": "2026-07-04T10:20:42Z",
-      "branch": "feat/issue-44",
-      "upstream": "origin/feat/issue-44",
-      "head": "9ffb398 test: cover vault scanner secret redaction",
-      "ahead": 0,
-      "behind": 0,
-      "dirty_count": 2,
-      "generated_or_runtime_count": 1,
-      "source_candidate_count": 1,
-      "oldest_dirty_age_hours": 10.1,
-      "dirty_entries": [
-        {
-          "code": "M ",
-          "path": "ublic/api/omartop.json",
-          "class": "source_candidate",
-          "age_hours": null
-        },
-        {
-          "code": "??",
-          "path": "reviews/",
-          "class": "generated_or_runtime",
-          "age_hours": 10.1
-        }
-      ],
-      "open_prs": [
-        {
-          "baseRefName": "main",
-          "headRefName": "feat/issue-44",
-          "isDraft": true,
-          "mergeStateStatus": "CLEAN",
-          "number": 56,
-          "reviewDecision": "",
-          "title": "feat: cover vault scanner secret redaction (closes #44)",
-          "updatedAt": "2026-06-15T00:13:55Z",
-          "url": "https://github.com/omar-paris/omar-hub/pull/56"
-        },
-        {
-          "baseRefName": "main",
-          "headRefName": "docs/pantheos-hub-onboarding",
-          "isDraft": false,
-          "mergeStateStatus": "CLEAN",
-          "number": 34,
-          "reviewDecision": "",
-          "title": "docs: add Pantheos Hub onboarding checklist",
-          "updatedAt": "2026-06-15T00:15:47Z",
-          "url": "https://github.com/omar-paris/omar-hub/pull/34"
-        }
-      ],
-      "branch_prs": [
-        {
-          "baseRefName": "main",
-          "headRefName": "feat/issue-44",
-          "isDraft": true,
-          "mergeStateStatus": "CLEAN",
-          "number": 56,
-          "reviewDecision": "",
-          "title": "feat: cover vault scanner secret redaction (closes #44)",
-          "updatedAt": "2026-06-15T00:13:55Z",
-          "url": "https://github.com/omar-paris/omar-hub/pull/56"
-        }
-      ],
-      "conflict_prs": [],
-      "risk": "P1",
-      "health": "dirty",
-      "next_action": "Inspecter diff, séparer source utile vs généré, puis commit/PR ou clean documenté."
-    },
-    {
       "id": "app",
       "name": "AppOmar",
       "slug": "omar-app",
       "repo": "omar-paris/omar-app",
       "path": "/home/omar/23-Offre/actifs/omar-app",
       "exists": true,
-      "checked_at": "2026-07-04T10:20:41Z",
+      "checked_at": "2026-07-05T04:17:02Z",
       "branch": "builder/t_ed453db7-app-audit-hermes-chat",
       "upstream": "origin/builder/t_ed453db7-app-audit-hermes-chat",
       "head": "51f62af feat(appomar): route audit v2 through Hermes agent",
       "ahead": 0,
       "behind": 0,
-      "dirty_count": 0,
-      "generated_or_runtime_count": 0,
-      "source_candidate_count": 0,
-      "oldest_dirty_age_hours": null,
-      "dirty_entries": [],
+      "dirty_count": 15,
+      "generated_or_runtime_count": 3,
+      "source_candidate_count": 12,
+      "oldest_dirty_age_hours": 6.1,
+      "dirty_entries": [
+        {
+          "code": "M ",
+          "path": "ublic/aide/index.html",
+          "class": "source_candidate",
+          "age_hours": null
+        },
+        {
+          "code": " M",
+          "path": "public/api/apps-l1.json",
+          "class": "generated_or_runtime",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/api/oa-start-packs.json",
+          "class": "generated_or_runtime",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/changelog/index.html",
+          "class": "generated_or_runtime",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/compte/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/config/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/devis/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/factures/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/jab/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/onboarding/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "public/sav/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "scripts/build.py",
+          "class": "source",
+          "age_hours": 6.0
+        },
+        {
+          "code": " M",
+          "path": "src/proposal_server.py",
+          "class": "source",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "tests/test_proposal_server.py",
+          "class": "source",
+          "age_hours": 6.0
+        }
+      ],
       "open_prs": [
         {
           "baseRefName": "main",
@@ -519,9 +518,9 @@
         }
       ],
       "conflict_prs": [],
-      "risk": "OK",
-      "health": "clean",
-      "next_action": "Vérifier gate Athena / merge decision pour PR ouverte."
+      "risk": "P1",
+      "health": "dirty",
+      "next_action": "Inspecter diff, séparer source utile vs généré, puis commit/PR ou clean documenté."
     },
     {
       "id": "catalogue",
@@ -530,17 +529,96 @@
       "repo": "omar-paris/omar-catalogue",
       "path": "/home/omar/23-Offre/actifs/omar-catalogue",
       "exists": true,
-      "checked_at": "2026-07-04T10:20:41Z",
+      "checked_at": "2026-07-05T04:17:03Z",
       "branch": "builder/t_ed453db7-catalogue-capability-claims",
       "upstream": "origin/builder/t_ed453db7-catalogue-capability-claims",
       "head": "c367e57 chore(catalogue): refresh generated public catalogue",
       "ahead": 0,
       "behind": 0,
-      "dirty_count": 0,
-      "generated_or_runtime_count": 0,
-      "source_candidate_count": 0,
-      "oldest_dirty_age_hours": null,
-      "dirty_entries": [],
+      "dirty_count": 13,
+      "generated_or_runtime_count": 7,
+      "source_candidate_count": 6,
+      "oldest_dirty_age_hours": 6.1,
+      "dirty_entries": [
+        {
+          "code": "M ",
+          "path": "ublic/api/catalogue-site.json",
+          "class": "source_candidate",
+          "age_hours": null
+        },
+        {
+          "code": " M",
+          "path": "public/apps/crm-twenty/index.html",
+          "class": "generated_or_runtime",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "public/apps/emailing-listmonk/index.html",
+          "class": "generated_or_runtime",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "public/apps/facturation-devis-invoiceninja/index.html",
+          "class": "generated_or_runtime",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "public/apps/index.html",
+          "class": "generated_or_runtime",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "public/apps/llm-gateway-litellm/index.html",
+          "class": "generated_or_runtime",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "public/apps/llm-observability-langfuse/index.html",
+          "class": "generated_or_runtime",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "public/apps/pdf-outils-stirling/index.html",
+          "class": "generated_or_runtime",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "public/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "public/recommandations/index.html",
+          "class": "source_candidate",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "scripts/export-to-hub.py",
+          "class": "source",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "tests/test_catalogue_export_contract.py",
+          "class": "source",
+          "age_hours": 6.1
+        },
+        {
+          "code": " M",
+          "path": "tests/test_standard2_footprint.py",
+          "class": "source",
+          "age_hours": 6.1
+        }
+      ],
       "open_prs": [
         {
           "baseRefName": "main",
@@ -565,6 +643,66 @@
           "title": "feat(catalogue): add capability claim guardrails",
           "updatedAt": "2026-07-03T22:15:05Z",
           "url": "https://github.com/omar-paris/omar-catalogue/pull/45"
+        }
+      ],
+      "conflict_prs": [],
+      "risk": "P1",
+      "health": "dirty",
+      "next_action": "Inspecter diff, séparer source utile vs généré, puis commit/PR ou clean documenté."
+    },
+    {
+      "id": "hub",
+      "name": "Hub",
+      "slug": "omar-hub",
+      "repo": "omar-paris/omar-hub",
+      "path": "/home/omar/23-Offre/actifs/omar-hub",
+      "exists": true,
+      "checked_at": "2026-07-05T04:17:03Z",
+      "branch": "feat/issue-44",
+      "upstream": "origin/feat/issue-44",
+      "head": "9ffb398 test: cover vault scanner secret redaction",
+      "ahead": 0,
+      "behind": 0,
+      "dirty_count": 0,
+      "generated_or_runtime_count": 0,
+      "source_candidate_count": 0,
+      "oldest_dirty_age_hours": null,
+      "dirty_entries": [],
+      "open_prs": [
+        {
+          "baseRefName": "main",
+          "headRefName": "feat/issue-44",
+          "isDraft": true,
+          "mergeStateStatus": "CLEAN",
+          "number": 56,
+          "reviewDecision": "",
+          "title": "feat: cover vault scanner secret redaction (closes #44)",
+          "updatedAt": "2026-06-15T00:13:55Z",
+          "url": "https://github.com/omar-paris/omar-hub/pull/56"
+        },
+        {
+          "baseRefName": "main",
+          "headRefName": "docs/pantheos-hub-onboarding",
+          "isDraft": false,
+          "mergeStateStatus": "CLEAN",
+          "number": 34,
+          "reviewDecision": "",
+          "title": "docs: add Pantheos Hub onboarding checklist",
+          "updatedAt": "2026-06-15T00:15:47Z",
+          "url": "https://github.com/omar-paris/omar-hub/pull/34"
+        }
+      ],
+      "branch_prs": [
+        {
+          "baseRefName": "main",
+          "headRefName": "feat/issue-44",
+          "isDraft": true,
+          "mergeStateStatus": "CLEAN",
+          "number": 56,
+          "reviewDecision": "",
+          "title": "feat: cover vault scanner secret redaction (closes #44)",
+          "updatedAt": "2026-06-15T00:13:55Z",
+          "url": "https://github.com/omar-paris/omar-hub/pull/56"
         }
       ],
       "conflict_prs": [],

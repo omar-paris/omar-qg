@@ -1,89 +1,18 @@
 {
-  "generated_at": "2026-07-04T10:20:47Z",
-  "today": "2026-07-04",
+  "generated_at": "2026-07-05T04:17:08Z",
+  "today": "2026-07-05",
   "window_days": 7,
   "totals": {
-    "today": 6,
-    "window": 38,
-    "repos_today": 4,
+    "today": 0,
+    "window": 39,
+    "repos_today": 0,
     "repos_total": 8
   },
-  "today_by_repo": [
-    {
-      "repo": "omar-catalogue",
-      "name": "Catalogue",
-      "count": 2,
-      "commits": [
-        {
-          "hash": "c367e57",
-          "author": "cc-manager",
-          "date": "2026-07-04 00:13",
-          "day": "2026-07-04",
-          "message": "chore(catalogue): refresh generated public catalogue"
-        },
-        {
-          "hash": "cddf363",
-          "author": "cc-manager",
-          "date": "2026-07-04 00:13",
-          "day": "2026-07-04",
-          "message": "feat(catalogue): add capability claim guardrails"
-        }
-      ]
-    },
-    {
-      "repo": "omar-landing",
-      "name": "Landing",
-      "count": 2,
-      "commits": [
-        {
-          "hash": "2284458",
-          "author": "Claude-Cockpit [bot]",
-          "date": "2026-07-04 12:12",
-          "day": "2026-07-04",
-          "message": "fix(landing): drop preversion label from canonical root footer"
-        },
-        {
-          "hash": "b92f61c",
-          "author": "Claude-Cockpit [bot]",
-          "date": "2026-07-04 12:09",
-          "day": "2026-07-04",
-          "message": "feat(landing): serve ex-next (V4) at root with versioned archive"
-        }
-      ]
-    },
-    {
-      "repo": "omar-app",
-      "name": "AppOmar",
-      "count": 1,
-      "commits": [
-        {
-          "hash": "51f62af",
-          "author": "Claude Code",
-          "date": "2026-07-04 00:13",
-          "day": "2026-07-04",
-          "message": "feat(appomar): route audit v2 through Hermes agent"
-        }
-      ]
-    },
-    {
-      "repo": "omar-qg",
-      "name": "QG",
-      "count": 1,
-      "commits": [
-        {
-          "hash": "7fc612d",
-          "author": "Claude Code",
-          "date": "2026-07-04 02:48",
-          "day": "2026-07-04",
-          "message": "feat(qg): add chantiers page (Now/Next/Later finish order)"
-        }
-      ]
-    }
-  ],
+  "today_by_repo": [],
   "days": [
     {
       "date": "2026-07-04",
-      "count": 6,
+      "count": 7,
       "repos": [
         {
           "repo": "omar-catalogue",
@@ -126,6 +55,26 @@
           ]
         },
         {
+          "repo": "omar-qg",
+          "name": "QG",
+          "commits": [
+            {
+              "hash": "13fe28f",
+              "author": "Claude Code",
+              "date": "2026-07-04 12:21",
+              "day": "2026-07-04",
+              "message": "feat(qg): add manifeste page (handbook-first entry point)"
+            },
+            {
+              "hash": "7fc612d",
+              "author": "Claude Code",
+              "date": "2026-07-04 02:48",
+              "day": "2026-07-04",
+              "message": "feat(qg): add chantiers page (Now/Next/Later finish order)"
+            }
+          ]
+        },
+        {
           "repo": "omar-app",
           "name": "AppOmar",
           "commits": [
@@ -135,19 +84,6 @@
               "date": "2026-07-04 00:13",
               "day": "2026-07-04",
               "message": "feat(appomar): route audit v2 through Hermes agent"
-            }
-          ]
-        },
-        {
-          "repo": "omar-qg",
-          "name": "QG",
-          "commits": [
-            {
-              "hash": "7fc612d",
-              "author": "Claude Code",
-              "date": "2026-07-04 02:48",
-              "day": "2026-07-04",
-              "message": "feat(qg): add chantiers page (Now/Next/Later finish order)"
             }
           ]
         }
@@ -489,35 +425,35 @@
   "deploys": [
     {
       "path": "apps/omartop/index.html",
-      "mtime": "2026-07-04 12:11"
+      "mtime": "2026-07-05 06:16"
     },
     {
       "path": "apps/hub/index.html",
-      "mtime": "2026-07-04 12:11"
+      "mtime": "2026-07-05 06:16"
     },
     {
       "path": "apps/qg/index.html",
-      "mtime": "2026-07-04 12:11"
+      "mtime": "2026-07-05 06:16"
     },
     {
       "path": "apps/lab/index.html",
-      "mtime": "2026-07-04 12:11"
+      "mtime": "2026-07-05 06:16"
     },
     {
       "path": "apps/catalogue/index.html",
-      "mtime": "2026-07-04 12:11"
+      "mtime": "2026-07-05 06:16"
     },
     {
       "path": "apps/app/index.html",
-      "mtime": "2026-07-04 12:11"
+      "mtime": "2026-07-05 06:16"
     },
     {
       "path": "apps/landing/index.html",
-      "mtime": "2026-07-04 12:11"
+      "mtime": "2026-07-05 06:16"
     },
     {
       "path": "changelog/index.html",
-      "mtime": "2026-07-04 12:11"
+      "mtime": "2026-07-05 06:16"
     }
   ]
 }
