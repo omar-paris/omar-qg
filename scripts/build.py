@@ -1465,9 +1465,24 @@ def page_app_detail(data: dict, app: dict, builds: dict, ledgers: list[dict]) ->
         + '</div></div>'
     )
 
+    issues_value = escape(str(gh.get("open_issues") if gh.get("open_issues") is not None else "—"))
+    prs_value = escape(str(gh.get("open_prs") if gh.get("open_prs") is not None else "—"))
+    if repo:
+        issues_metric = (
+            f'<a href="https://github.com/{escape(repo)}/issues/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+            f'<div class="text-xs text-gray-500">Issues ouvertes</div><div class="text-2xl font-bold text-gray-900">{issues_value}</div></a>'
+        )
+        prs_metric = (
+            f'<a href="https://github.com/{escape(repo)}/pulls/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+            f'<div class="text-xs text-gray-500">PRs ouvertes</div><div class="text-2xl font-bold text-gray-900">{prs_value}</div></a>'
+        )
+    else:
+        issues_metric = f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">Issues ouvertes</div><div class="text-2xl font-bold text-gray-900">{issues_value}</div></div>'
+        prs_metric = f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">PRs ouvertes</div><div class="text-2xl font-bold text-gray-900">{prs_value}</div></div>'
+
     html += '<div class="grid md:grid-cols-3 gap-4 mb-6">'
-    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">Issues ouvertes</div><div class="text-2xl font-bold text-gray-900">{escape(str(gh.get("open_issues") if gh.get("open_issues") is not None else "—"))}</div></div>'
-    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">PRs ouvertes</div><div class="text-2xl font-bold text-gray-900">{escape(str(gh.get("open_prs") if gh.get("open_prs") is not None else "—"))}</div></div>'
+    html += issues_metric
+    html += prs_metric
     html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">Head local</div><div class="text-sm font-mono text-gray-700 break-words mt-1">{escape(git.get("head") or "—")}</div></div>'
     html += '</div>'
 
