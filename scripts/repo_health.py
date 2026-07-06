@@ -121,7 +121,24 @@ def scan_repo(spec: dict[str, str]) -> dict[str, Any]:
         "checked_at": now_iso(),
     }
     if not path.exists():
-        item.update({"risk": "P1", "health": "missing", "next_action": "Retrouver le checkout local ou retirer le repo du scope QG."})
+        item.update({
+            "branch": None,
+            "upstream": None,
+            "head": None,
+            "ahead": None,
+            "behind": None,
+            "dirty_count": 0,
+            "generated_or_runtime_count": 0,
+            "source_candidate_count": 0,
+            "oldest_dirty_age_hours": None,
+            "dirty_entries": [],
+            "open_prs": [],
+            "branch_prs": [],
+            "conflict_prs": [],
+            "risk": "P1",
+            "health": "missing",
+            "next_action": "Retrouver le checkout local ou retirer le repo du scope QG.",
+        })
         return item
 
     _, branch, _ = run(["git", "rev-parse", "--abbrev-ref", "HEAD"], path)
