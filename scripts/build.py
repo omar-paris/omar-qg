@@ -2276,6 +2276,69 @@ def page_blocages(payload: dict) -> str:
             'Rien ne te bloque — le système avance seul.</div>'
         )
 
+    # ── Pour toi : TA liste en clair + encart de réponse (demande Alex 06/07 :
+    # « pouvoir ajouter la réponse juste en dessous — parfois juste dire c'est
+    # fait, parfois expliquer pour que le système sache quoi faire après »).
+    # Le compte-et-pointe vaut pour le bruit machine, pas pour la file d'Alex.
+    alex_items = sorted(
+        [b for b in blocages if isinstance(b, dict) and b.get("qui_debloque") == "alex"],
+        key=lambda b: -(b.get("age_jours") or 0),
+    )
+    if alex_items:
+        html += (
+            '<div id="pour-toi" class="flex items-baseline gap-2 mb-2">'
+            '<h2 class="text-sm font-bold uppercase tracking-wide text-amber-700">Pour toi — en clair, avec réponse directe</h2>'
+            f'<span class="text-xs text-gray-400">{len(alex_items)} item(s) — réponds ici : « fait » suffit, ou explique pour orienter la suite</span></div>'
+            '<div class="bg-white rounded-xl border border-amber-200 divide-y divide-gray-100 mb-8">'
+        )
+        for b in alex_items:
+            ref = (b.get("refs") or [""])[0]
+            titre = b.get("titre") or ""
+            action = b.get("action_1_ligne") or ""
+            age = b.get("age_jours")
+            effort = b.get("effort_min")
+            lien = b.get("lien") or ""
+            meta_bits = []
+            if age is not None:
+                meta_bits.append(f"{int(age)} j")
+            if effort:
+                meta_bits.append(f"~{int(effort)} min")
+            meta = " · ".join(meta_bits)
+            badge = escape(str(b.get("type") or ""))
+            rid = escape(ref.replace("#", "-"))
+            html += (
+                '<div class="px-5 py-4">'
+                '<div class="flex items-baseline justify-between gap-3">'
+                f'<div class="text-sm font-semibold text-gray-900">{escape(titre)}</div>'
+                f'<div class="text-xs text-gray-400 whitespace-nowrap">{escape(badge)}{(" · " + escape(meta)) if meta else ""}</div></div>'
+                + (f'<div class="text-sm text-gray-700 mt-1">{escape(action)}</div>' if action else "")
+                + (f'<div class="text-xs mt-1"><a href="{escape(lien)}" class="text-blue-500 hover:underline" target="_blank" rel="noopener">ouvrir &rarr;</a></div>' if lien else "")
+                + f'<div id="repzone-{rid}" class="mt-2 flex flex-wrap gap-2 items-center">'
+                f'<input id="rep-{rid}" type="text" placeholder="ta réponse (optionnelle)…" '
+                'class="flex-1 min-w-40 text-sm border border-gray-300 rounded-lg px-3 py-1.5">'
+                f'<button onclick="repondreBlocage(\'{escape(ref)}\',\'{rid}\',true)" '
+                'class="text-sm bg-green-600 text-white rounded-lg px-3 py-1.5 hover:bg-green-700">C&#39;est fait</button>'
+                f'<button onclick="repondreBlocage(\'{escape(ref)}\',\'{rid}\',false)" '
+                'class="text-sm bg-gray-800 text-white rounded-lg px-3 py-1.5 hover:bg-gray-900">Répondre</button>'
+                '</div></div>'
+            )
+        html += '</div>'
+        html += (
+            '<script>async function repondreBlocage(ref, rid, fait){'
+            'const inp=document.getElementById("rep-"+rid);'
+            'let txt=(inp&&inp.value.trim())||"";'
+            'let answer=fait?("FAIT"+(txt?" — "+txt:"")):txt;'
+            'if(!answer){inp&&inp.focus();return;}'
+            'const z=document.getElementById("repzone-"+rid);'
+            'try{const r=await fetch("/api/blocages/answer",{method:"POST",'
+            'headers:{"content-type":"application/json"},'
+            'body:JSON.stringify({ref:ref,answer:answer})});'
+            'if(r.ok){z.innerHTML=\'<span class="text-sm text-green-700">&#10003; Transmis — \'+answer.replace(/</g,"&lt;")+\' (le système reprend la main)</span>\';}'
+            'else{z.insertAdjacentHTML("beforeend",\'<span class="text-xs text-red-600">Erreur — réessaie ou réponds en session.</span>\');}}'
+            'catch(e){z.insertAdjacentHTML("beforeend",\'<span class="text-xs text-red-600">Erreur réseau.</span>\');}}'
+            '</script>'
+        )
+
     # ── Sudo : SEULE section développée — texte complet, jamais tronqué ───────
     sudo_items = sorted(
         [b for b in blocages if isinstance(b, dict) and b.get("type") == "sudo"],
