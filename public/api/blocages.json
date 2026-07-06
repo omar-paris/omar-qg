@@ -1,21 +1,20 @@
 {
-  "schema": "oa.blocages/1",
-  "generated_at": "2026-07-06T11:30:01Z",
+  "schema": "oa.blocages/2",
+  "generated_at": "2026-07-06T12:41:02Z",
   "definition": "Un blocage = quelque chose qui n'avance plus tant qu'un humain/agent précis n'agit pas. Dédupliqué décisions↔cartes↔gates↔PRs.",
   "compteurs": {
     "total": 36,
-    "pour_alex": 14,
-    "effort_min_alex": 25,
+    "pour_alex": 13,
+    "effort_min_alex": 20,
     "par_type": {
-      "pr": 11,
+      "pr": 12,
       "carte": 16,
-      "sudo": 8,
-      "decision": 1
+      "sudo": 8
     },
     "par_qui": {
-      "alex": 14,
+      "alex": 13,
       "h-omar": 13,
-      "agent": 9
+      "agent": 10
     }
   },
   "blocages": [
@@ -99,7 +98,9 @@
       "lien": "",
       "effort_min": null,
       "source": "CHANTIER2-APPLIED-040726.md",
-      "refs": []
+      "refs": [],
+      "texte_complet": "GO list CHANTIER2 (04/07) : Caddy origin_mismatch (spam 6875+ occurrences errors.log) : ajouter `header_up Origin \"http://127.0.0.1:9119\"` au vhost hermes.omar.paris — nécessite sudo (fichier root). Fix 1 ligne, éteint le spam.",
+      "commande": ""
     },
     {
       "id": "sudo:golist:2",
@@ -111,7 +112,9 @@
       "lien": "",
       "effort_min": null,
       "source": "CHANTIER2-APPLIED-040726.md",
-      "refs": []
+      "refs": [],
+      "texte_complet": "GO list CHANTIER2 (04/07) : Double dashboard HermesUI : 127.0.0.1:9119 (servi par Caddy, depuis 01/07) ET 100.79.68.6:9119 (relancé par un watchdog */3min qui surveille le mauvais bind) → choisir le canonique, corriger le watchdog.",
+      "commande": ""
     },
     {
       "id": "sudo:golist:4",
@@ -123,7 +126,9 @@
       "lien": "",
       "effort_min": null,
       "source": "CHANTIER2-APPLIED-040726.md",
-      "refs": []
+      "refs": [],
+      "texte_complet": "GO list CHANTIER2 (04/07) : Vérificateur intégrité archives froides `12e406692be8` : pausé ET cassé (exit 1) depuis 01/06 — réparer ou acter l'abandon.",
+      "commande": ""
     },
     {
       "id": "sudo:golist:5",
@@ -135,7 +140,9 @@
       "lien": "",
       "effort_min": null,
       "source": "CHANTIER2-APPLIED-040726.md",
-      "refs": []
+      "refs": [],
+      "texte_complet": "GO list CHANTIER2 (04/07) : Suppressions crons : 3 candidats (CCMA Mentor → suppression définitive après période de pause, VPS Monitor 402 → re-tester maintenant que l'auxiliaire est pinné, Kanban Gardener legacy).",
+      "commande": ""
     },
     {
       "id": "sudo:golist:6",
@@ -147,7 +154,9 @@
       "lien": "",
       "effort_min": null,
       "source": "CHANTIER2-APPLIED-040726.md",
-      "refs": []
+      "refs": [],
+      "texte_complet": "GO list CHANTIER2 (04/07) : Fusion digest unique 09h/18h : design prêt dans cron-rationalization.md (réutilise le job Athena existant + script collecteur + section Cartes Alex). 31 → 26 jobs, pings Telegram ~10/j → 2/j.",
+      "commande": ""
     },
     {
       "id": "sudo:golist:7",
@@ -159,7 +168,9 @@
       "lien": "",
       "effort_min": null,
       "source": "CHANTIER2-APPLIED-040726.md",
-      "refs": []
+      "refs": [],
+      "texte_complet": "GO list CHANTIER2 (04/07) : oa-newagent-test : parker (0 run, auth vide) — même geste que h-omar, même GO requis.",
+      "commande": ""
     },
     {
       "id": "sudo:golist:9",
@@ -171,7 +182,9 @@
       "lien": "",
       "effort_min": null,
       "source": "CHANTIER2-APPLIED-040726.md",
-      "refs": []
+      "refs": [],
+      "texte_complet": "GO list CHANTIER2 (04/07) : Réparations profils oa-athena (21 % crash) et oa-builder (25 % crash+timeout) : smokes ciblées \"protocole de clôture\" décrites dans HERMES-CALIBRATION-draft.md — à traiter après validation des 5 smokes de base.",
+      "commande": ""
     },
     {
       "id": "carte:t_4b23edf7",
@@ -185,19 +198,9 @@
       "source": "kanban.db",
       "refs": [
         "t_4b23edf7"
-      ]
-    },
-    {
-      "id": "decision:3d780c2129",
-      "qui_debloque": "alex",
-      "type": "decision",
-      "titre": "Crontab systeme: supprimer les 4 crons legacy (agora-poller 10min + sentinel 5min, cockpit-sync 22h, doctrine-checkup lundi) ?",
-      "age_jours": 0,
-      "action_1_ligne": "Répondre sur /decisions/ — options : GO suppression des 4 / garder sentinel/poller (Agora encore utile) / revoir un par un",
-      "lien": "/decisions/",
-      "effort_min": 5,
-      "source": "var/decisions.json",
-      "refs": []
+      ],
+      "texte_complet": "review-required: patch active_pr respawn guard to allow explicitly authorized oa-athena gates; targeted tests pass, needs non-author review before merge/deploy",
+      "commande": "python3 -m py_compile hermes_cli/kanban_db.py tests/hermes_cli/test_kanban_db.py\ngit diff --check\ngit status --short\ngit diff --check -- hermes_cli/kanban_db.py tests/hermes_cli/test_kanban_db.py\npython3 -m py_compile ..."
     },
     {
       "id": "carte:t_a01d73d0",
@@ -382,6 +385,21 @@
       ]
     },
     {
+      "id": "pr:rework:t_ca81b231",
+      "qui_debloque": "agent",
+      "type": "pr",
+      "titre": "[AUDIT][3/3] Cablage funnel: fin d'audit -> rapport -> devis (67 EUR base)",
+      "age_jours": 0,
+      "action_1_ligne": "Rework demandé par gate Athena t_2a606d3d (NO-GO) : /home/omar/.hermes/kanban/workspaces/t_ca81b231/audit_funnel_t_ca81b231.diff — review_result.json valide: reject (1 blocker sec…",
+      "lien": "https://hermes.omar.paris/",
+      "effort_min": null,
+      "source": "kanban.db",
+      "refs": [
+        "t_ca81b231",
+        "t_2a606d3d"
+      ]
+    },
+    {
       "id": "pr:rework:t_ae30258a",
       "qui_debloque": "agent",
       "type": "pr",
@@ -515,6 +533,78 @@
         "t_cc250cfe",
         "t_37846242"
       ]
+    }
+  ],
+  "dernieres_mergees": [
+    {
+      "ref": "omar-top#58",
+      "repo": "omar-top",
+      "titre": "feat(delivery-gates): add release closure gate contract",
+      "merged_at": "2026-07-06T11:05:21Z",
+      "url": "https://github.com/omar-paris/omar-top/pull/58"
+    },
+    {
+      "ref": "omar-top#59",
+      "repo": "omar-top",
+      "titre": "feat(omartop): add daily agent artifact archive standard",
+      "merged_at": "2026-07-06T11:03:14Z",
+      "url": "https://github.com/omar-paris/omar-top/pull/59"
+    },
+    {
+      "ref": "omar-top#55",
+      "repo": "omar-top",
+      "titre": "feat(omartop): add agent output contract standard",
+      "merged_at": "2026-07-06T11:03:08Z",
+      "url": "https://github.com/omar-paris/omar-top/pull/55"
+    },
+    {
+      "ref": "omar-catalogue#45",
+      "repo": "omar-catalogue",
+      "titre": "feat(catalogue): add capability claim guardrails",
+      "merged_at": "2026-07-06T11:03:05Z",
+      "url": "https://github.com/omar-paris/omar-catalogue/pull/45"
+    },
+    {
+      "ref": "oa-crm#19",
+      "repo": "oa-crm",
+      "titre": "docs: trace JAB CRM Nango handover",
+      "merged_at": "2026-07-06T11:03:03Z",
+      "url": "https://github.com/omar-paris/oa-crm/pull/19"
+    },
+    {
+      "ref": "omar-hub#34",
+      "repo": "omar-hub",
+      "titre": "docs: add Pantheos Hub onboarding checklist",
+      "merged_at": "2026-07-06T11:03:00Z",
+      "url": "https://github.com/omar-paris/omar-hub/pull/34"
+    },
+    {
+      "ref": "omi-bridge#2",
+      "repo": "omi-bridge",
+      "titre": "ci: add import smoke workflow",
+      "merged_at": "2026-07-06T11:02:57Z",
+      "url": "https://github.com/omar-paris/omi-bridge/pull/2"
+    },
+    {
+      "ref": "omi-bridge#1",
+      "repo": "omi-bridge",
+      "titre": "feat: preserve omi bridge webhook runtime changes",
+      "merged_at": "2026-07-05T23:02:58Z",
+      "url": "https://github.com/omar-paris/omi-bridge/pull/1"
+    },
+    {
+      "ref": "omar-top#62",
+      "repo": "omar-top",
+      "titre": "fix(readiness): add Hub/QG JSON status contract",
+      "merged_at": "2026-07-03T22:12:41Z",
+      "url": "https://github.com/omar-paris/omar-top/pull/62"
+    },
+    {
+      "ref": "omar-top#60",
+      "repo": "omar-top",
+      "titre": "feat(delivery-gates): pilot repo live closure gate",
+      "merged_at": "2026-07-03T22:06:48Z",
+      "url": "https://github.com/omar-paris/omar-top/pull/60"
     }
   ],
   "errors": []

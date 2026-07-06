@@ -37,7 +37,7 @@
     {
       "etape": 3,
       "nom": "Devis",
-      "role": "Proposition chiffrée à partir de la grille officielle (en cours d'arbitrage).",
+      "role": "Proposition chiffrée : entrée 67 EUR/mois, variable selon devis (tranché 06/07).",
       "lien": "https://app.omar.paris/devis/",
       "chantier_rang": 2,
       "chantier_horizon": "Now"
@@ -81,7 +81,10 @@
       "Clé en main vs DIY : le client TPE ne configure pas Zapier — c'est précisément ce qu'il ne veut pas faire.",
       "Supervision continue : agents toujours actifs, monitoring 24/7, escalade humaine si besoin."
     ],
-    "pricing_note": "Le pricing est en cours d'arbitrage (3 grilles circulent) — décision QG 3f7d86e712 ouverte. Aucun chiffre ne fait foi tant qu'Alex n'a pas tranché."
+    "pricing_note": "Entrée à 67 EUR/mois (grille landing) — le reste est variable selon le devis et les modules retenus. La grille par module sera définie avec la brique devis.",
+    "pricing_statut": "tranche",
+    "pricing_tranche_le": "2026-07-06",
+    "pricing_decision_lien": "/decisions/#card-3f7d86e712"
   },
   "socles": [
     {

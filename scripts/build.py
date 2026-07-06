@@ -2007,12 +2007,13 @@ def objectifs_summary(objectifs: list) -> str:
 
 
 def page_manifeste(manifeste: dict) -> str:
-    """Page 1 du QG — le manifeste rendu (handbook-first, Fable 4D System Rescue).
+    """Page 1 du QG — le manifeste en 1-2-3 lisible, zéro colonnes (refonte Alex 06/07).
 
     Source de vérité = docs 02/02bis/INDEX du dossier « Renew OA V2 - validated
-    by Claude » (28/05/2026). Cette page les REND, elle ne les réécrit pas :
-    var/manifeste.json (republié en /api/manifeste.json) est un extrait fidèle,
-    toute évolution de fond passe par le doc 02 d'abord.
+    by Claude » (28/05/2026) + décision pricing 3f7d86e712 (tranchée 06/07).
+    Structure numérotée pure, une seule largeur de colonne de texte, liens inline.
+    Chaque section porte son statut honnête : validé 28/05 / tranché 06/07 /
+    projection — pas de pourcentage inventé.
     """
     if not manifeste:
         return ('<h1 class="text-xl font-bold text-gray-900 mb-4">Manifeste</h1>'
@@ -2022,114 +2023,121 @@ def page_manifeste(manifeste: dict) -> str:
 
     offre = manifeste.get("offre") or {}
     footer = manifeste.get("footer") or {}
+    lettres = ["A", "B", "C", "D", "E", "F"]
 
-    # ── En-tête : promesse + règle handbook-first + fichiers sources ──────────
-    sources_html = "".join(
-        '<div class="flex items-baseline gap-2 text-xs py-0.5">'
-        f'<span class="text-gray-500 shrink-0">{escape(str(s.get("label") or ""))}</span>'
-        f'<span class="font-mono text-gray-400 break-all">{escape(str(s.get("path") or ""))}</span></div>'
-        for s in manifeste.get("sources", [])
-    )
-    html = (
-        '<div class="mb-6">'
+    badges = {
+        "valide":     ("validé 28/05", "pill-ok"),
+        "tranche":    ("tranché 06/07", "bg-blue-50 text-blue-700 border border-blue-200"),
+        "projection": ("projection", "pill-warn"),
+    }
+
+    def badge(statut: str) -> str:
+        label, cls = badges.get(statut, badges["projection"])
+        return f'<span class="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal {cls}">{escape(label)}</span>'
+
+    def section_titre(num: int, titre: str, statut: str) -> str:
+        return (f'<h2 class="text-base font-bold text-gray-900 mt-8 mb-2 flex items-baseline flex-wrap">'
+                f'<span>{num}. {escape(titre)}</span>{badge(statut)}</h2>')
+
+    def sous_point(lettre: str, texte_html: str) -> str:
+        return (f'<div class="flex gap-2 py-1 text-sm text-gray-700 leading-relaxed">'
+                f'<span class="font-semibold text-gray-400 shrink-0 w-5">{lettre}.</span>'
+                f'<span>{texte_html}</span></div>')
+
+    def lien_inline(url: str, label: str | None = None) -> str:
+        if not url:
+            return '<span class="text-gray-400">pas encore live</span>'
+        label = label or url.replace("https://", "").rstrip("/")
+        return f'<a href="{escape(url)}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">{escape(label)}</a>'
+
+    # Statuts par section — le début du % de complétion demandé par Alex :
+    # validé / tranché / projection, section par section, rien d'inventé.
+    statuts = ["valide", "valide", "tranche", "projection", "valide"]
+    n_valides = statuts.count("valide")
+    n_tranches = statuts.count("tranche")
+    n_projections = statuts.count("projection")
+    indicateur = f"{n_valides} sections sur {len(statuts)} validées (28/05)"
+    if n_tranches:
+        indicateur += f" · {n_tranches} tranchée (06/07)"
+    if n_projections:
+        indicateur += f" · {n_projections} en projection"
+
+    html = '<div class="max-w-3xl">'
+    html += (
+        '<div class="mb-2">'
         '<h1 class="text-xl font-bold text-gray-900">Manifeste — la boussole OA</h1>'
-        '<p class="text-sm text-gray-500 mt-0.5">Page 1 du QG : l\'offre validée le 28/05/2026, rendue depuis les docs 02 / 02bis '
-        '— source <a href="/api/manifeste.json" class="text-blue-500 hover:underline">manifeste.json</a>.</p>'
-        '</div>'
-        '<div class="bg-white rounded-xl border border-blue-200 px-6 py-5 mb-6">'
-        '<div class="text-xs font-semibold uppercase tracking-wide text-blue-600 mb-2">La promesse client</div>'
-        f'<div class="text-lg font-semibold text-gray-900 leading-snug">« {escape(str(manifeste.get("promesse") or ""))} »</div>'
-        f'<div class="mt-3 text-sm text-gray-600 border-l-2 border-blue-200 pl-3">{escape(str(manifeste.get("regle") or ""))} '
-        'Toute décision d\'offre est écrite dans le manifeste avant d\'être appliquée.</div>'
-        f'<div class="mt-3 pt-3 border-t border-gray-100">{sources_html}</div>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{escape(indicateur)} — '
+        'source <a href="/api/manifeste.json" class="text-blue-500 hover:underline">manifeste.json</a>, '
+        'docs 02/02bis du dossier Renew OA V2.</p>'
         '</div>'
     )
 
-    # ── Funnel en 4 étapes ─────────────────────────────────────────────────────
+    # ── 1. La promesse (2 phrases) ─────────────────────────────────────────────
+    html += section_titre(1, "La promesse", statuts[0])
     html += (
-        '<div class="flex items-baseline gap-2 mb-3"><h2 class="text-sm font-bold uppercase tracking-wide text-gray-700">Le funnel</h2>'
-        '<span class="text-xs text-gray-400">4 étapes, chacune portée par une brique — rang de finition dans '
-        '<a href="/chantiers/" class="text-blue-500 hover:underline">/chantiers/</a></span></div>'
-        '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">'
+        f'<p class="text-sm text-gray-800 leading-relaxed">« {escape(str(manifeste.get("promesse") or ""))} » '
+        f'{escape(str(offre.get("profil") or ""))}</p>'
     )
-    for step in manifeste.get("funnel", []):
+
+    # ── 2. Le funnel (A-B-C-D, une ligne + lien + état) ───────────────────────
+    html += section_titre(2, "Le funnel", statuts[1])
+    for i, step in enumerate(manifeste.get("funnel", [])):
         nom = escape(str(step.get("nom") or ""))
-        lien = str(step.get("lien") or "")
-        horizon = str(step.get("chantier_horizon") or "")
-        horizon_pill = "pill-ok" if horizon == "Now" else "pill-warn"
-        brique = (f'<a href="{escape(lien)}" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline break-all">{escape(lien.replace("https://", ""))}</a>'
-                  if lien else '<span class="text-xs text-gray-400">brique à livrer — pas encore live</span>')
+        role = escape(str(step.get("role") or ""))
+        horizon = escape(str(step.get("chantier_horizon") or "?"))
+        rang = step.get("chantier_rang", "?")
+        texte = (f'<span class="font-semibold text-gray-900">{nom}</span> — {role} '
+                 f'{lien_inline(str(step.get("lien") or ""))} '
+                 f'<span class="text-xs text-gray-400">({horizon} · rang {rang})</span>')
+        html += sous_point(lettres[i], texte)
+    html += ('<p class="text-xs text-gray-400 mt-1">Ordre de finition détaillé dans '
+             '<a href="/chantiers/" class="text-blue-500 hover:underline">/chantiers/</a>.</p>')
+
+    # ── 3. L'offre (3 lignes — pricing tranché 06/07) ─────────────────────────
+    html += section_titre(3, "L'offre", statuts[2])
+    pricing = str(offre.get("pricing_note") or "")
+    if not pricing or "arbitrage" in pricing:
+        # Filet : la décision 3f7d86e712 a tranché le 06/07 — même si le JSON
+        # runtime n'a pas encore été mis à jour, la page dit la vérité du jour.
+        pricing = ("Entrée à 67 EUR/mois — le reste est variable selon le devis et les modules retenus. "
+                   "La grille par module sera définie avec la brique devis.")
+    decision_lien = str(offre.get("pricing_decision_lien") or "/decisions/#card-3f7d86e712")
+    cibles = [str(p).split("(")[0].strip() for p in offre.get("pour_qui", []) if p]
+    pour_qui_ligne = " · ".join(cibles) if cibles else "cibles non renseignées (voir doc 02)"
+    html += sous_point("A", '<span class="font-semibold text-gray-900">Pour qui</span> — '
+                       + escape(pour_qui_ligne))
+    html += sous_point("B", '<span class="font-semibold text-gray-900">Ce qu\'on livre</span> — '
+                       + escape(str(offre.get("quoi") or "")))
+    html += sous_point("C", '<span class="font-semibold text-gray-900">Le prix</span> — '
+                       + escape(pricing) + " "
+                       + f'<a href="{escape(decision_lien)}" class="text-blue-600 hover:underline">décision 3f7d86e712</a>')
+
+    # ── 4. Les 4 socles (A-B-C-D, une ligne + lien) ───────────────────────────
+    html += section_titre(4, "Les 4 socles", statuts[3])
+    for i, socle in enumerate(manifeste.get("socles", [])):
+        nom = escape(str(socle.get("nom") or ""))
+        role = escape(str(socle.get("role") or ""))
+        texte = (f'<span class="font-semibold text-gray-900">{nom}</span> — {role} '
+                 f'{lien_inline(str(socle.get("lien") or ""))}')
+        html += sous_point(lettres[i], texte)
+
+    # ── 5. La règle (handbook-first, 1 phrase) ────────────────────────────────
+    html += section_titre(5, "La règle", statuts[4])
+    html += (
+        f'<p class="text-sm text-gray-800 leading-relaxed">{escape(str(manifeste.get("regle") or ""))} '
+        f'{escape(str(footer.get("handbook_first") or ""))}</p>'
+    )
+
+    # ── Sources (fichiers de vérité) ──────────────────────────────────────────
+    html += '<div class="border-t border-gray-200 mt-8 pt-4">'
+    html += f'<div class="text-xs text-gray-500 mb-1">{escape(str(footer.get("validation") or ""))}</div>'
+    for s in manifeste.get("sources", []):
         html += (
-            '<div class="bg-white rounded-xl border border-gray-200 px-4 py-4 flex flex-col">'
-            '<div class="flex items-center justify-between mb-2">'
-            f'<span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">{step.get("etape", "?")}</span>'
-            f'<span class="px-2 py-0.5 rounded text-xs font-medium {horizon_pill}">{escape(horizon)} · rang {step.get("chantier_rang", "?")}</span></div>'
-            f'<div class="text-sm font-semibold text-gray-900 mb-1">{nom}</div>'
-            f'<div class="text-xs text-gray-600 mb-2 flex-1">{escape(str(step.get("role") or ""))}</div>'
-            f'{brique}</div>'
+            '<div class="text-xs py-0.5">'
+            f'<span class="text-gray-500">{escape(str(s.get("label") or ""))}</span> '
+            f'<span class="font-mono text-gray-400 break-all">{escape(str(s.get("path") or ""))}</span></div>'
         )
-    html += '</div>'
-
-    # ── L'offre : pour qui, quoi, différenciation ──────────────────────────────
-    pour_qui = "".join(
-        f'<div class="flex gap-2 text-sm text-gray-600 py-0.5"><span class="text-gray-300 shrink-0">—</span><span>{escape(str(p))}</span></div>'
-        for p in offre.get("pour_qui", [])
-    )
-    services = "".join(
-        '<div class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">'
-        f'<div class="text-xs font-semibold text-gray-800">{escape(str(s.get("nom") or ""))}</div>'
-        f'<div class="text-xs text-gray-500 mt-0.5">{escape(str(s.get("raison") or ""))}</div></div>'
-        for s in offre.get("services_avant", [])
-    )
-    diff = "".join(
-        f'<div class="flex gap-2 text-sm text-gray-600 py-0.5"><span class="text-gray-300 shrink-0">—</span><span>{escape(str(d))}</span></div>'
-        for d in offre.get("differenciation", [])
-    )
-    html += (
-        '<h2 class="text-sm font-bold uppercase tracking-wide text-gray-700 mb-3">L\'offre <span class="font-normal normal-case text-xs text-gray-400">(résumé fidèle du doc 02)</span></h2>'
-        '<div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">'
-        '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4">'
-        '<div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Pour qui</div>'
-        f'{pour_qui}'
-        f'<div class="text-xs text-gray-500 mt-2">{escape(str(offre.get("profil") or ""))}</div>'
-        f'<div class="text-xs text-gray-400 mt-2"><span class="font-medium">Hors-cible :</span> {escape(str(offre.get("hors_cible") or ""))}</div></div>'
-        '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4">'
-        '<div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Ce qu\'on livre</div>'
-        f'<div class="text-sm text-gray-600 mb-3">{escape(str(offre.get("quoi") or ""))}</div>'
-        f'<div class="space-y-2">{services}</div></div>'
-        '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4">'
-        '<div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Différenciation</div>'
-        f'{diff}</div>'
-        '</div>'
-        '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 mb-6 text-sm text-amber-800">'
-        f'<span class="font-semibold">Pricing :</span> {escape(str(offre.get("pricing_note") or ""))} '
-        '<a href="/decisions/" class="font-medium text-amber-700 underline hover:no-underline">Voir la décision →</a></div>'
-    )
-
-    # ── Les 4 socles ───────────────────────────────────────────────────────────
-    html += (
-        '<div class="flex items-baseline gap-2 mb-3"><h2 class="text-sm font-bold uppercase tracking-wide text-gray-700">Les 4 socles</h2>'
-        '<span class="text-xs text-gray-400">l\'infrastructure qui porte le funnel</span></div>'
-        '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">'
-    )
-    for socle in manifeste.get("socles", []):
-        lien = str(socle.get("lien") or "")
-        html += (
-            '<div class="bg-white rounded-xl border border-gray-200 px-4 py-4">'
-            f'<div class="text-sm font-semibold text-gray-900 mb-1">{escape(str(socle.get("nom") or ""))}'
-            f'<span class="ml-2 text-xs font-normal text-gray-400">rang {socle.get("chantier_rang", "?")}</span></div>'
-            f'<div class="text-xs text-gray-600 mb-2">{escape(str(socle.get("role") or ""))}</div>'
-            f'<a href="{escape(lien)}" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:underline break-all">{escape(lien.replace("https://", "").rstrip("/"))}</a></div>'
-        )
-    html += '</div>'
-
-    # ── Footer doctrine ────────────────────────────────────────────────────────
-    html += (
-        '<div class="border-t border-gray-200 pt-4 text-xs text-gray-500">'
-        f'<div>{escape(str(footer.get("validation") or ""))}</div>'
-        f'<div class="mt-1"><span class="font-medium text-gray-600">Règle handbook-first :</span> {escape(str(footer.get("handbook_first") or ""))}</div>'
-        '</div>'
-    )
+    html += '</div></div>'
     return html
 
 
@@ -2192,89 +2200,146 @@ def page_chantiers(chantiers: list) -> str:
 
 
 def page_blocages(payload: dict) -> str:
-    """« Ce qui bloque — et qui débloque » — vue unique dédupliquée (demande Alex 06/07).
+    """« Ce qui bloque » — le QG COMPTE et POINTE, il ne répète pas (refonte Alex 06/07).
 
     Source : var/blocages.json (collect_blocages.py, republié en /api/blocages.json).
-    Groupé par qui_debloque (Alex d'abord), trié par âge décroissant.
+    En tête : les compteurs par endroit avec le lien pour Y ALLER — aucun contenu
+    répété depuis /decisions/, le Kanban ou GitHub. Seule exception développée sur
+    place : les items sudo (ils ne vivent nulle part ailleurs) — texte complet,
+    jamais tronqué, commande exacte en bloc code. Règle globale : ZÉRO ellipsis.
+    En bas : les 10 dernières PRs mergées — la boucle de contrôle d'Alex.
     """
     payload = payload if isinstance(payload, dict) else {}
     blocages = payload.get("blocages") if isinstance(payload.get("blocages"), list) else []
-    compteurs = payload.get("compteurs", {}) if isinstance(payload.get("compteurs"), dict) else {}
     generated_at = str(payload.get("generated_at") or "non renseigné")
-    try:
-        total = int(compteurs.get("total") or 0)
-        pour_alex = int(compteurs.get("pour_alex") or 0)
-        effort = int(compteurs.get("effort_min_alex") or 0)
-    except Exception:
-        total, pour_alex, effort = len(blocages), 0, 0
 
-    type_badges = {
-        "decision": ("décision", "pill-warn"),
-        "carte":    ("carte",    "bg-blue-50 text-blue-700 border border-blue-200"),
-        "sudo":     ("sudo",     "pill-err"),
-        "pr":       ("PR",       "bg-purple-50 text-purple-700 border border-purple-200"),
-    }
-    groupes = [
-        ("alex",    "Alex — à toi de jouer",       "text-amber-700"),
-        ("h-omar",  "H-Omar — arbitrage & infra",  "text-blue-700"),
-        ("agent",   "Agents — rework en cours",    "text-gray-700"),
-        ("externe", "Externe — hors de nos mains", "text-gray-500"),
-    ]
-    resume = f"{total} blocage(s), dont {pour_alex} pour Alex"
-    if effort:
-        resume += f" — ~{effort} min d'actions Alex connues"
+    def _count(pred) -> int:
+        return sum(1 for b in blocages if isinstance(b, dict) and pred(b))
+
+    n_decisions = _count(lambda b: b.get("type") == "decision")
+    n_cartes = _count(lambda b: b.get("type") == "carte")
+    n_cartes_alex = _count(lambda b: b.get("type") == "carte" and b.get("qui_debloque") == "alex")
+    n_sudo = _count(lambda b: b.get("type") == "sudo")
+    n_prs = _count(lambda b: b.get("type") == "pr")
+    n_reworks = _count(lambda b: b.get("type") == "pr" and b.get("qui_debloque") == "agent")
+    total = len(blocages)
+
     html = (
         '<div class="mb-6">'
-        '<h1 class="text-xl font-bold text-gray-900">Ce qui bloque — et qui débloque</h1>'
-        f'<p class="text-sm text-gray-500 mt-0.5">{escape(resume)} · décisions, cartes Kanban, sudo et PRs dédupliqués — '
-        f'source <a href="/api/blocages.json" class="text-blue-500 hover:underline">blocages.json</a> ({escape(generated_at)}).</p>'
+        '<h1 class="text-xl font-bold text-gray-900">Ce qui bloque — compte et pointe</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{total} blocage(s) au total. Cette page ne répète rien : '
+        'elle compte par endroit et te donne le lien pour y aller. Seuls les items sudo sont développés ici '
+        f'(ils ne vivent nulle part ailleurs) — source <a href="/api/blocages.json" class="text-blue-500 hover:underline">blocages.json</a> ({escape(generated_at)}).</p>'
         '</div>'
     )
-    if not blocages:
-        return html + (
-            '<div class="bg-green-50 border border-green-200 rounded-xl px-5 py-4 text-sm text-green-700">'
+
+    # ── Tableau de bord : gros chiffres + lien direct, zéro contenu répété ────
+    kanban_detail = f"{n_cartes} bloquée(s)"
+    if n_cartes_alex:
+        kanban_detail += f", dont {n_cartes_alex} pour toi"
+    pr_detail = f"{n_prs} en attente"
+    if n_reworks:
+        pr_detail += f", dont {n_reworks} rework(s) agent"
+    gh_prs_url = "https://github.com/search?q=org%3Aomar-paris+is%3Apr+is%3Aopen&type=pullrequests"
+    compteur_tuiles = [
+        ("Décisions", n_decisions, "ouvertes" if n_decisions != 1 else "ouverte",
+         "/decisions/", "y aller : /decisions/", False),
+        ("Kanban", n_cartes, kanban_detail.split(" ", 1)[1],
+         "http://100.79.68.6:9119/kanban", "y aller : dashboard Kanban", True),
+        ("Sudo", n_sudo, "en attente — le détail est ici",
+         "#sudo", "liste complète ci-dessous", False),
+        ("PRs ouvertes", n_prs, pr_detail.split(" ", 1)[1],
+         gh_prs_url, "y aller : GitHub", True),
+    ]
+    html += '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">'
+    for label, n, detail, lien, lien_label, externe in compteur_tuiles:
+        target = ' target="_blank" rel="noopener"' if externe else ""
+        n_cls = "text-gray-300" if n == 0 else "text-gray-900"
+        html += (
+            f'<a href="{escape(lien)}"{target} class="block bg-white rounded-xl border border-gray-200 px-4 py-4 hover:border-blue-300 hover:shadow-sm transition">'
+            f'<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{escape(label)}</div>'
+            f'<div class="text-3xl font-bold {n_cls} mt-1">{n}</div>'
+            f'<div class="text-xs text-gray-500 mt-0.5">{escape(detail)}</div>'
+            f'<div class="text-xs text-blue-600 mt-2">{escape(lien_label)} &rarr;</div></a>'
+        )
+    html += '</div>'
+
+    if total == 0:
+        html += (
+            '<div class="bg-green-50 border border-green-200 rounded-xl px-5 py-4 mb-8 text-sm text-green-700">'
             'Rien ne te bloque — le système avance seul.</div>'
         )
-    for qui, label, title_cls in groupes:
-        items = sorted(
-            [b for b in blocages if isinstance(b, dict) and b.get("qui_debloque") == qui],
-            key=lambda b: -(b.get("age_jours") or 0),
-        )
-        if not items:
-            continue
+
+    # ── Sudo : SEULE section développée — texte complet, jamais tronqué ───────
+    sudo_items = sorted(
+        [b for b in blocages if isinstance(b, dict) and b.get("type") == "sudo"],
+        key=lambda b: -(b.get("age_jours") or 0),
+    )
+    if sudo_items:
         html += (
-            f'<div class="flex items-baseline gap-2 mt-6 mb-2"><h2 class="text-sm font-bold uppercase tracking-wide {title_cls}">{escape(label)}</h2>'
-            f'<span class="text-xs text-gray-400">{len(items)} blocage(s)</span></div>'
-            '<div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">'
+            '<div id="sudo" class="flex items-baseline gap-2 mb-2">'
+            '<h2 class="text-sm font-bold uppercase tracking-wide text-red-700">Sudo — à toi seul</h2>'
+            f'<span class="text-xs text-gray-400">{len(sudo_items)} item(s), texte intégral — ils ne vivent nulle part ailleurs</span></div>'
+            '<div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 mb-8">'
         )
-        for b in items:
-            btype = str(b.get("type") or "carte")
-            badge_label, badge_cls = type_badges.get(btype, (btype, "pill-warn"))
-            titre = escape(str(b.get("titre") or "Blocage sans titre"))
-            lien = str(b.get("lien") or "")
-            if lien:
-                target = ' target="_blank" rel="noopener"' if lien.startswith("http") else ""
-                titre = f'<a href="{escape(lien)}"{target} class="hover:text-blue-600 hover:underline">{titre}</a>'
+        for b in sudo_items:
+            titre = escape(str(b.get("titre") or "Item sudo sans titre"))
             age = int(b.get("age_jours") or 0)
             age_cls = "text-red-600 font-semibold" if age >= 7 else ("text-amber-600" if age >= 3 else "text-gray-400")
-            effort_min = b.get("effort_min")
+            texte = str(b.get("texte_complet") or b.get("action_1_ligne") or "")
+            commande = str(b.get("commande") or "")
+            source = str(b.get("source") or "")
             html += (
-                '<div class="px-4 py-3">'
-                '<div class="flex items-center gap-2 flex-wrap">'
-                f'<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {badge_cls}">{escape(badge_label)}</span>'
-                f'<span class="text-sm font-medium text-gray-900">{titre}</span>'
+                '<div class="px-5 py-4">'
+                '<div class="flex items-baseline gap-2 flex-wrap">'
+                f'<span class="text-sm font-semibold text-gray-900">{titre}</span>'
                 f'<span class="text-xs {age_cls}">{age} j</span>'
-                + (f'<span class="pill-ok inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">{int(effort_min)} min</span>' if effort_min else '')
+                + (f'<span class="text-xs text-gray-400 font-mono">{escape(source)}</span>' if source else '')
                 + '</div>'
-                f'<div class="text-xs text-gray-500 mt-1">{escape(str(b.get("action_1_ligne") or ""))}</div>'
+                f'<div class="text-sm text-gray-700 mt-2 whitespace-pre-line">{escape(texte)}</div>'
+            )
+            if commande:
+                html += (
+                    '<div class="text-xs text-gray-500 mt-3 mb-1">Commande à copier :</div>'
+                    f'<pre class="bg-gray-900 text-gray-100 rounded-lg px-4 py-3 text-xs overflow-x-auto"><code>{escape(commande)}</code></pre>'
+                )
+            html += '</div>'
+        html += '</div>'
+
+    # ── Dernières mergées — la boucle de contrôle d'Alex ──────────────────────
+    mergees = payload.get("dernieres_mergees") if isinstance(payload.get("dernieres_mergees"), list) else []
+    html += (
+        '<div class="flex items-baseline gap-2 mb-2">'
+        '<h2 class="text-sm font-bold uppercase tracking-wide text-gray-700">Dernières mergées — à contrôler</h2>'
+        '<span class="text-xs text-gray-400">tu vérifies les résultats, tu n\'approuves plus</span></div>'
+    )
+    if mergees:
+        html += '<div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">'
+        for m in mergees:
+            if not isinstance(m, dict):
+                continue
+            ref = escape(str(m.get("ref") or ""))
+            url = str(m.get("url") or "")
+            quand = str(m.get("merged_at") or "")[:16].replace("T", " ")
+            lien = (f'<a href="{escape(url)}" target="_blank" rel="noopener" class="font-mono text-xs text-blue-600 hover:underline shrink-0">{ref}</a>'
+                    if url else f'<span class="font-mono text-xs text-gray-600 shrink-0">{ref}</span>')
+            html += (
+                '<div class="px-4 py-2.5 flex items-baseline gap-3 flex-wrap">'
+                f'{lien}'
+                f'<span class="text-sm text-gray-800 flex-1 min-w-0">{escape(str(m.get("titre") or ""))}</span>'
+                f'<span class="text-xs text-gray-400 shrink-0">{escape(quand)}</span>'
                 '</div>'
             )
         html += '</div>'
+    else:
+        html += ('<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-sm text-amber-700">'
+                 'Aucun merge récupéré (gh indisponible ?) — voir les erreurs sources ci-dessous.</div>')
+
     errors = payload.get("errors") if isinstance(payload.get("errors"), list) else []
     if errors:
         html += (
             '<div class="mt-6 text-xs text-gray-400">Sources partielles : '
-            + escape(" · ".join(str(e) for e in errors[:6]))
+            + escape(" · ".join(str(e) for e in errors))
             + '</div>'
         )
     return html

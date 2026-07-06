@@ -13,7 +13,13 @@ DÉDUPLICATION (le point d'Alex — « parfois redondants ») :
   - carte source d'un gate NO-GO → UNE entrée type=pr (le rework), pas deux ;
   - PR GitHub déjà couverte par un gate NO-GO → l'entrée PR porte le verdict.
 
-Sortie : var/blocages.json (schéma oa.blocages/1). Aucun secret : raisons rédigées.
+Refonte 06/07 (feedback Alex) : la page /blocages/ COMPTE et POINTE, elle ne répète
+pas. Le collecteur porte donc en plus :
+  - texte_complet + commande sur les items sudo (seul contenu développé sur place,
+    jamais tronqué — la commande exacte à copier est extraite en bloc code) ;
+  - dernieres_mergees : les 10 derniers merges GitHub (boucle de contrôle d'Alex).
+
+Sortie : var/blocages.json (schéma oa.blocages/2). Aucun secret : raisons rédigées.
 Jamais bloquant : chaque source échoue en silence (liste errors) — le build QG survit.
 """
 from __future__ import annotations
@@ -32,7 +38,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 VAR = ROOT / "var"
 OUT = VAR / "blocages.json"
-SCHEMA = "oa.blocages/1"
+SCHEMA = "oa.blocages/2"
 KANBAN_DB = Path(os.environ.get("OA_KANBAN_DB", "/home/omar/.hermes/kanban.db"))
 GO_LIST_FILE = Path(os.environ.get(
     "OA_GO_LIST_FILE",
@@ -57,6 +63,11 @@ SECRET_RE = re.compile(
     r"|(?i:(?:token|secret|password|passwd|api[_-]?key|bearer)\s*[=:]\s*)[^\s'\"]{6,})"
 )
 RESOLVED_MARKERS = ("✅", "sans objet", "supprimé", "résolu", "décommissionné")
+# Extraction de commande (items sudo) : une ligne qui commence par un binaire connu.
+CMD_PREFIX_RE = re.compile(
+    r"^(sudo|hermes|systemctl|caddy|bash|sh|rsync|git|docker|python3|journalctl"
+    r"|cp|mv|chmod|crontab|ln|tee)\b"
+)
 
 
 def now_utc() -> dt.datetime:
@@ -101,9 +112,24 @@ def parse_iso(v: Any) -> dt.datetime | None:
     return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
 
 
+def extract_command(text: str) -> str:
+    """Meilleure commande à copier trouvée dans un texte (blocs ```, `spans`, lignes nues)."""
+    text = str(text or "")
+    for block in re.findall(r"```(?:\w+)?\n(.*?)```", text, re.S):
+        lines = [l.strip() for l in block.strip().splitlines() if CMD_PREFIX_RE.match(l.strip())]
+        if lines:
+            return redact("\n".join(lines))
+    spans = [s.strip() for s in re.findall(r"`([^`\n]+)`", text) if CMD_PREFIX_RE.match(s.strip())]
+    if spans:
+        return redact("\n".join(dict.fromkeys(spans)))
+    lines = [l.strip() for l in text.splitlines() if CMD_PREFIX_RE.match(l.strip())]
+    return redact("\n".join(dict.fromkeys(lines)))
+
+
 def entry(eid: str, qui: str, etype: str, titre: str, age: int, action: str,
-          lien: str = "", effort_min: int | None = None, source: str = "", refs: list[str] | None = None) -> dict:
-    return {
+          lien: str = "", effort_min: int | None = None, source: str = "", refs: list[str] | None = None,
+          texte_complet: str = "", commande: str = "") -> dict:
+    e = {
         "id": eid,
         "qui_debloque": qui,          # alex | h-omar | agent | externe
         "type": etype,                # decision | carte | sudo | pr
@@ -115,6 +141,13 @@ def entry(eid: str, qui: str, etype: str, titre: str, age: int, action: str,
         "source": source,
         "refs": refs or [],
     }
+    if etype == "sudo":
+        # Les items sudo ne vivent nulle part ailleurs : titre + texte COMPLETS,
+        # jamais tronqués, et la commande exacte à copier si on en trouve une.
+        e["titre"] = redact(" ".join(str(titre or "").split()))
+        e["texte_complet"] = redact(str(texte_complet or action or "")).strip()
+        e["commande"] = commande or extract_command(texte_complet or action or "")
+    return e
 
 
 # ── 1. Décisions QG ouvertes ─────────────────────────────────────────────────
@@ -243,13 +276,24 @@ def collect_kanban(now: dt.datetime, covered_cards: set[str], errors: list[str])
                 qui = "h-omar"
             else:
                 qui = "h-omar"  # needs_input sans action Alex explicite → arbitrage H-Omar
+            action_complet = action  # commentaire ACTION ALEX intégral (peut être vide)
             if not action:
                 raison = one_line(result, 120) or "carte bloquée sans raison renseignée"
                 action = f"Débloquer ({r['block_kind'] or 'blocked'}) : {raison}"
+            texte_complet = ""
+            commande = ""
+            if is_sudo:
+                # Texte intégral (jamais tronqué) : commentaire ACTION ALEX complet + result
+                # complet — pas la version one_line() qui sert au reste du payload.
+                texte_complet = "\n\n".join(
+                    t.strip() for t in [action_complet, result] if t and t.strip()
+                ) or title
+                commande = extract_command("\n".join([result] + comments.get(tid, [])))
             card_entries.append(entry(
                 f"carte:{tid}", qui, "sudo" if is_sudo else "carte", title,
                 age_days(parse_iso(r["created_at"]), now),
                 action, "https://hermes.omar.paris/", effort, "kanban.db", [tid],
+                texte_complet=texte_complet, commande=commande,
             ))
     except Exception as exc:
         errors.append("kanban_query_failed: " + safe(exc))
@@ -316,10 +360,13 @@ def collect_go_list(now: dt.datetime, existing_refs: set[str], errors: list[str]
             for l in rest_of_doc.splitlines()
         ):
             continue
+        plein = re.sub(r"\*\*", "", b)
         entries.append(entry(
             f"sudo:golist:{i}", "alex", "sudo", titre, age,
-            "GO list CHANTIER2 (04/07) : " + re.sub(r"\*\*", "", b),
+            "GO list CHANTIER2 (04/07) : " + plein,
             "", None, GO_LIST_FILE.name, b_ids,
+            texte_complet="GO list CHANTIER2 (04/07) : " + plein,
+            commande=extract_command(b),
         ))
     return entries
 
@@ -362,6 +409,41 @@ def collect_stale_prs(now: dt.datetime, nogo_prs: set[str], errors: list[str]) -
     return entries
 
 
+# ── 5. Dernières PRs mergées — la boucle de contrôle d'Alex ──────────────────
+
+def collect_merged_prs(errors: list[str], limit: int = 10) -> list[dict]:
+    """Les derniers merges GitHub (7 repos actifs, tri date desc) — Alex contrôle
+    les résultats, il n'approuve plus. Titre COMPLET, jamais tronqué."""
+    items: list[dict] = []
+    started = time.monotonic()
+    for repo in GH_REPOS:
+        if time.monotonic() - started > GH_BUDGET_S:
+            errors.append("gh_merged_budget_exhausted: repos restants ignorés")
+            break
+        try:
+            proc = subprocess.run(
+                ["gh", "pr", "list", "--repo", f"{GH_ORG}/{repo}", "--state", "merged",
+                 "--json", "number,title,mergedAt,url", "--limit", str(limit)],
+                capture_output=True, text=True, timeout=GH_TIMEOUT_S,
+            )
+            if proc.returncode != 0:
+                raise RuntimeError((proc.stderr or "gh error").strip()[:80])
+            prs = json.loads(proc.stdout or "[]")
+        except Exception as exc:
+            errors.append(f"gh_merged_list_failed:{repo}: " + safe(exc))
+            continue
+        for pr in prs:
+            items.append({
+                "ref": f"{repo}#{pr.get('number')}",
+                "repo": repo,
+                "titre": redact(" ".join(str(pr.get("title") or "").split())),
+                "merged_at": str(pr.get("mergedAt") or ""),
+                "url": str(pr.get("url") or ""),
+            })
+    items.sort(key=lambda p: p["merged_at"], reverse=True)
+    return items[:limit]
+
+
 # ── Agrégation ────────────────────────────────────────────────────────────────
 
 def collect(write: bool = True) -> dict:
@@ -372,6 +454,7 @@ def collect(write: bool = True) -> dict:
     existing_refs = {ref for e in decision_entries + card_entries + rework_entries for ref in e["refs"]}
     go_entries = collect_go_list(now, existing_refs, errors)
     pr_entries = collect_stale_prs(now, nogo_prs, errors)
+    dernieres_mergees = collect_merged_prs(errors)
 
     blocages = decision_entries + card_entries + go_entries + rework_entries + pr_entries
     qui_rank = {"alex": 0, "h-omar": 1, "agent": 2, "externe": 3}
@@ -393,6 +476,7 @@ def collect(write: bool = True) -> dict:
             "par_qui": {q: sum(1 for e in blocages if e["qui_debloque"] == q) for q in qui_rank if any(e["qui_debloque"] == q for e in blocages)},
         },
         "blocages": blocages,
+        "dernieres_mergees": dernieres_mergees,
         "errors": errors,
     }
     if write:
