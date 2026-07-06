@@ -6,3 +6,5 @@ __pycache__/
 .env.*
 !.env.example
 var/
+public/
+review_result_*.json

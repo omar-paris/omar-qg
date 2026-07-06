@@ -1,9 +1,11 @@
 from pathlib import Path
 import json
+import os
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
+_LAST_BUILD_KEY = object()
 
 ROUTES = {
     "/": PUBLIC / "index.html",
@@ -16,7 +18,14 @@ ROUTES = {
 
 
 def build():
-    subprocess.run(["python3", "scripts/build.py"], cwd=ROOT, check=True)
+    global _LAST_BUILD_KEY
+    # scripts/build.py interroge GitHub/health/providers et coûte plusieurs dizaines
+    # de secondes. Dans ce module, un rebuild par contexte d'environnement suffit ;
+    # le test monkeypatch OA_AGENT_LOOP_REGISTRY_SEED force naturellement un 2e build.
+    key = (os.environ.get("OA_AGENT_LOOP_REGISTRY_SEED"),)
+    if _LAST_BUILD_KEY != key:
+        subprocess.run(["python3", "scripts/build.py"], cwd=ROOT, check=True)
+        _LAST_BUILD_KEY = key
 
 
 def test_qg_builds_core_routes_and_api():
@@ -162,10 +171,19 @@ def test_qg_home_surfaces_latest_result_and_mandates():
     build()
     home = (PUBLIC / "index.html").read_text(encoding="utf-8")
     assert "Dernier résultat livré" in home
-    assert "Décisions / mandats" in home
+    assert "Blocages / mandats" in home
+    assert "Source unique: collect_blocages.py" in home
     assert "mandat:h-omar-night-2026-06-14" in home
     assert 'href="/builds/"' in home
-    assert 'href="/decisions/"' in home
+    assert 'href="/blocages/"' in home
+
+
+def test_qg_marks_known_stale_layers_honestly():
+    build()
+    objectifs = (PUBLIC / "objectifs" / "index.html").read_text(encoding="utf-8")
+    agent_loop = (PUBLIC / "agent-loop" / "index.html").read_text(encoding="utf-8")
+    assert "Donnée figée depuis le 14/06" in objectifs
+    assert "figé depuis le 15/06" in agent_loop
 
 
 def test_qg_app_detail_hides_unmeasured_app_sources():

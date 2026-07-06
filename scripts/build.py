@@ -1223,8 +1223,12 @@ def _latest_delivered_result(builds: dict) -> dict:
     return {"repo": "—", "hash": "—", "message": "Aucun résultat livré détecté sur 7 jours", "date": ""}
 
 
-def qg_delivery_focus(builds: dict, pending_decisions: int) -> str:
-    """mandat:h-omar-night-2026-06-14 — bloc cockpit résultat/mandats."""
+def qg_delivery_focus(builds: dict, pending_alex_actions: int) -> str:
+    """mandat:h-omar-night-2026-06-14 — bloc cockpit résultat/mandats.
+
+    Compteur canonique: collect_blocages.py / var/blocages.json.
+    Ne recompte pas directement var/decisions.json ici.
+    """
     latest = _latest_delivered_result(builds)
     when = (latest.get("date") or "")[:16].replace("T", " ")
     return (
@@ -1235,11 +1239,11 @@ def qg_delivery_focus(builds: dict, pending_decisions: int) -> str:
         f'<div class="mt-1 text-xs text-gray-500"><span class="font-mono">{escape(latest.get("repo", ""))}</span> · <span class="font-mono">{escape(latest.get("hash", ""))}</span>'
         + (f' · {escape(when)}' if when else '')
         + '</div><div class="mt-2 text-xs text-blue-500">Voir builds/preuves →</div></a>'
-        '<a href="/decisions/" class="block bg-white rounded-xl border border-amber-100 px-4 py-3 hover:border-amber-300 hover:shadow-sm transition">'
-        '<div class="text-xs font-semibold uppercase tracking-wide text-amber-600">Décisions / mandats</div>'
-        f'<div class="mt-1 text-sm font-semibold text-gray-900">{pending_decisions} décision(s) ouverte(s)</div>'
-        '<div class="mt-1 text-xs text-gray-500">Mandat actif: mandat:h-omar-night-2026-06-14 · décisions tracées en decision:*</div>'
-        '<div class="mt-2 text-xs text-amber-600">Voir décisions →</div></a>'
+        '<a href="/blocages/" class="block bg-white rounded-xl border border-amber-100 px-4 py-3 hover:border-amber-300 hover:shadow-sm transition">'
+        '<div class="text-xs font-semibold uppercase tracking-wide text-amber-600">Blocages / mandats</div>'
+        f'<div class="mt-1 text-sm font-semibold text-gray-900">{pending_alex_actions} action(s) Alex dans le compteur blocages</div>'
+        '<div class="mt-1 text-xs text-gray-500">Source unique: collect_blocages.py · mandat:h-omar-night-2026-06-14 · décisions tracées en decision:* quand elles bloquent.</div>'
+        '<div class="mt-2 text-xs text-amber-600">Voir blocages →</div></a>'
         '</div>'
     )
 
@@ -1277,7 +1281,7 @@ def qg_blocages_banner(blocages: dict | None) -> str:
     )
 
 
-def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None) -> str:
+def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
     objectifs = objectifs or []
@@ -1285,21 +1289,22 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0,
     audit_summary = (agent_loop_audit or {}).get("summary", {}) or {}
     total_orphans = int(audit_summary.get("total_orphans") or 0)
 
-    # Tuiles d'action : décisions à trancher + builds du jour (liens dédiés)
-    dec_accent = "text-amber-600" if pending_decisions else "text-gray-900"
+    # Tuiles d'action : blocages à trancher + builds du jour (liens dédiés).
+    # Source unique du compteur Alex: collect_blocages.py (plus de recomptage décisions ici).
+    dec_accent = "text-amber-600" if pending_alex_actions else "text-gray-900"
     tiles = (
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">'
-        f'<a href="/decisions/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
-        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}">{pending_decisions}</div>'
-        f'<div class="text-xs text-gray-500 mt-0.5">Décisions en attente</div></div>'
-        f'<span class="text-xs text-blue-500">Trancher →</span></div></a>'
+        f'<a href="/blocages/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}">{pending_alex_actions}</div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">Actions Alex à débloquer</div></div>'
+        f'<span class="text-xs text-blue-500">Voir blocages →</span></div></a>'
         f'<a href="/builds/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold text-gray-900">{builds_today}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Builds aujourd’hui</div></div>'
         f'<span class="text-xs text-blue-500">Voir →</span></div></a>'
         f'<a href="/agent-loop/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {"text-red-600" if total_orphans else "text-gray-900"}">{total_orphans}</div>'
-        f'<div class="text-xs text-gray-500 mt-0.5">Orphelins Issue↔Kanban↔PR↔Gate</div></div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">Orphelins Issue↔Kanban↔PR↔Gate · figé depuis 15/06 si non recronifié</div></div>'
         f'<span class="text-xs text-blue-500">Auditer →</span></div></a>'
         '</div>'
     )
@@ -1381,7 +1386,7 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0,
 
     header = '<div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold text-gray-900">Registry CORE OA</h1><span class="text-xs text-gray-400">Rebuild auto · 30 min · Référentiel VPS Hermes OA</span></div>'
     # EN PREMIER : le bandeau blocages (demande Alex 06/07), puis les objectifs, puis le registry.
-    return qg_blocages_banner(blocages) + objectifs_summary(objectifs) + header + qg_delivery_focus(builds, pending_decisions) + tiles + stats + rows
+    return qg_blocages_banner(blocages) + objectifs_summary(objectifs) + header + qg_delivery_focus(builds, pending_alex_actions) + tiles + stats + rows
 
 
 def _app_route(item: dict) -> str:
@@ -1934,7 +1939,8 @@ def page_objectifs(objectifs: list, decisions: list) -> str:
     html = (
         '<div class="flex items-center justify-between mb-6">'
         '<div><h1 class="text-xl font-bold text-gray-900">Objectifs</h1>'
-        f'<p class="text-sm text-gray-500 mt-0.5">{len(objectifs)} objectif(s) — ce qu\'Alex vise, relié aux décisions qui les débloquent.</p></div></div>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{len(objectifs)} objectif(s) — snapshot figé depuis le 14/06, relié aux décisions qui les débloquent.</p></div></div>'
+        '<div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">Donnée figée depuis le 14/06 : page conservée pour lecture, pas présentée comme live.</div>'
     )
     if not objectifs:
         html += '<div class="bg-white border border-gray-200 rounded-xl px-5 py-4 text-sm text-gray-500">Aucun objectif défini.</div>'
@@ -2491,7 +2497,7 @@ def page_agent_loop_audit(report: dict, registry: dict | None = None) -> str:
     return (
         '<div class="flex items-center justify-between mb-6"><div>'
         '<h1 class="text-xl font-bold text-gray-900">Audit anti-orphelins</h1>'
-        f'<p class="text-sm text-gray-500 mt-0.5">Issue ↔ Kanban ↔ PR ↔ Gate — dernier scan {escape(str(checked_at))}.</p></div>'
+        f'<p class="text-sm text-gray-500 mt-0.5">Issue ↔ Kanban ↔ PR ↔ Gate — dernier scan {escape(str(checked_at))} · figé depuis le 15/06 si non recronifié.</p></div>'
         '<div class="flex gap-3"><a href="/api/agent-loop-registry.json" class="text-xs text-blue-500 hover:underline">API registry</a><a href="/api/agent-loop-audit.json" class="text-xs text-blue-500 hover:underline">API audit</a></div></div>'
         '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">'
         f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold {"text-red-600" if total else "text-gray-900"}">{total}</div><div class="text-xs text-gray-500 mt-0.5">Total orphelins</div></div>'
@@ -2713,10 +2719,16 @@ def main(argv: list[str] | None = None) -> None:
         snap = _read_var_json("decisions.json")
         decisions = snap if isinstance(snap, list) else []
 
-    # Couche OBJECTIFS (qg) : ce qu'Alex vise. var/ runtime, fallback public/api en worktree propre.
+    # Couche OBJECTIFS (qg) : ce qu'Alex vise. var/ runtime, fallback snapshot figé 14/06.
     objectifs = _read_var_json("objectifs.json")
     if not isinstance(objectifs, list):
-        objectifs = []
+        objectifs = [
+            {"id": "jab-servi", "titre": "JAB pleinement servi", "statut": "en_cours", "progression": 55, "description": "Le premier client (JAB) recoit le service complet : facturation PennyLane, relais Maryse, presence Google MyBusiness. CRM en place avant la visite Jean-Alex.", "decisions_liees": ["2fa0610f95", "46cb4e7dc1", "b17cd03aed"]},
+            {"id": "maturite-3-vps", "titre": "Maturite des 3 VPS", "statut": "en_cours", "progression": 40, "description": "VPS-OA (core), VPS clients (CCCU/JAB) et Pantheos (vie personnelle, sites Theo/Hugo/Victoria, H-Aurel) operationnels, observables et sauvegardes.", "decisions_liees": ["25f69efa80", "14192085d0", "d9beee76e6"]},
+            {"id": "catalogue-10-apps", "titre": "Catalogue 10 apps reelles", "statut": "a_faire", "progression": 15, "description": "Transformer les stubs du catalogue en bundles reels et utilisables par les clients (priorite marketing actuellement a 0%).", "decisions_liees": ["447fac7271", "46cb4e7dc1"]},
+            {"id": "observabilite-langfuse", "titre": "Observabilite Langfuse", "statut": "a_faire", "progression": 10, "description": "Tracage et observabilite des agents et pipelines LLM via Langfuse, pour mesurer cout, latence et qualite des boucles d'agents.", "decisions_liees": []},
+        ]
+    (tmp / "api" / "objectifs.json").write_text(json.dumps(objectifs, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     # Couche CHANTIERS (Fable 4D rescue) : ordre de finition Now/Next/Later des 8 briques.
     chantiers = _read_var_json("chantiers.json")
@@ -2816,12 +2828,16 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(builds, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    pending_decisions = sum(1 for d in decisions if (d.get("statut") or "").lower() == "ouverte")
+    blocages_compteurs = blocages_payload.get("compteurs", {}) if isinstance(blocages_payload, dict) else {}
+    try:
+        pending_alex_actions = int(blocages_compteurs.get("pour_alex") or 0)
+    except Exception:
+        pending_alex_actions = 0
     builds_today = (builds.get("totals", {}) or {}).get("today", 0)
 
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
-        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload)),
+        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload)),
         ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
