@@ -177,7 +177,7 @@ VPS_META = {
         },
         "links": [
             {"kind": "hub",       "label": "Hub local",      "url": "https://hub.omar.paris/",          "status": "live"},
-            {"kind": "hermesui",  "label": "Hermes UI",      "url": "http://100.79.68.6:9119/",         "status": "live"},
+            {"kind": "hermesui",  "label": "Hermes UI",      "url": "https://hermes.omar.paris/",         "status": "live"},
             {"kind": "monitoring","label": "Glances",        "url": "http://100.79.68.6:61208/",        "status": "live"},
             {"kind": "monitoring","label": "Dashy",          "url": "http://100.79.68.6:8084/",         "status": "tailnet"},
             {"kind": "monitoring","label": "Console Hetzner","url": "https://console.hetzner.cloud/",   "status": "live"},
@@ -2251,7 +2251,7 @@ def page_blocages(payload: dict) -> str:
         ("Décisions", n_decisions, "ouvertes" if n_decisions != 1 else "ouverte",
          "/decisions/", "y aller : /decisions/", False),
         ("Kanban", n_cartes, kanban_detail.split(" ", 1)[1],
-         "http://100.79.68.6:9119/kanban", "y aller : dashboard Kanban", True),
+         "https://hermes.omar.paris/kanban", "y aller : dashboard Kanban", True),
         ("Sudo", n_sudo, "en attente — le détail est ici",
          "#sudo", "liste complète ci-dessous", False),
         ("PRs ouvertes", n_prs, pr_detail.split(" ", 1)[1],

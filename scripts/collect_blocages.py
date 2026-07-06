@@ -452,7 +452,13 @@ def collect(write: bool = True) -> dict:
     decision_entries, covered_cards = collect_decisions(now, errors)
     card_entries, rework_entries, nogo_prs = collect_kanban(now, covered_cards, errors)
     existing_refs = {ref for e in decision_entries + card_entries + rework_entries for ref in e["refs"]}
-    go_entries = collect_go_list(now, existing_refs, errors)
+    # GO-list CHANTIER2 desactivee (06/07 soir, feedback Alex): c'etait un
+    # SNAPSHOT documentaire — 7 items sur 8 etaient deja faits, la page
+    # affichait des sudos fantomes. Et depuis le NOPASSWD complet accorde a
+    # Fable, plus rien n'attend le sudo d'Alex par principe: les vrais
+    # blocages sudo, s'il en renait, vivent dans des cartes kanban (source
+    # live deja collectee ci-dessus).
+    go_entries = []
     pr_entries = collect_stale_prs(now, nogo_prs, errors)
     dernieres_mergees = collect_merged_prs(errors)
 
