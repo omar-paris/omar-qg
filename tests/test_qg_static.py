@@ -290,3 +290,28 @@ def test_qg_storage_summary_api_and_ops_surface():
     assert "Docker prune sûr" in ops
     assert "/api/ops/storage-summary.json" in ops
     assert "Backups Hermes DB" in ops
+
+def test_qg_vps_app_inventory_api_and_clients_surface():
+    build()
+    api = PUBLIC / "api" / "vps-app-inventory.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.vps-app-inventory/1"
+    assert payload["source"] == "oa.vps-report/v1 installed_apps + safe inference"
+    assert payload["totals"]["nodes"] >= 1
+    assert payload["totals"]["apps"] >= 5
+    assert {"hermes", "omarhub", "tailscale", "reverse-proxy", "inter-vps-reporter"} <= {
+        app["app_id"] for node in payload["nodes"] for app in node["apps"]
+    }
+    for node in payload["nodes"]:
+        assert {"node", "agent", "health_status", "generated_at", "apps", "summary"} <= set(node)
+        for app in node["apps"]:
+            assert {"app_id", "name", "installed", "version_installed", "version_expected", "status", "source", "evidence", "last_checked_at"} <= set(app)
+            assert app["status"] in {"ok", "outdated", "missing", "unknown", "blocked"}
+            assert "REDACTED" not in app["evidence"] or isinstance(app["evidence"], str)
+    clients = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
+    assert "Inventaire apps/version par VPS" in clients
+    assert "oa.vps-report/v1" in clients
+    assert "/api/vps-app-inventory.json" in clients
+    assert "Hermes local" in clients
+

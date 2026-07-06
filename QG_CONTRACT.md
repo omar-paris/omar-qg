@@ -33,6 +33,7 @@ Afficher en un cockpit :
 
 - Repos locaux sous `/home/omar/23-Offre/actifs/`.
 - `var/*.json` produit par les collecteurs QG.
+- `/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/**/*health*.json` pour les rapports `oa.vps-report/v1` redacted des VPS.
 - `/home/omar/.hermes/kanban.db` en lecture seule pour les blocages/boucles.
 - GitHub `omar-paris` pour issues, PRs et commits.
 - Doctrine CORE OA quand elle existe ; sinon le QG affiche explicitement `non mesuré`.
@@ -55,6 +56,38 @@ Afficher en un cockpit :
 /apps/{landing,app,catalogue,lab,qg,hub,omartop}/
 /api/*.json
 ```
+
+## Reporting inter-VPS
+
+### Inventaire applicatif/versionné par VPS
+
+Le QG publie `/api/vps-app-inventory.json` et rend le bloc **Inventaire apps/version par VPS** dans `/clients/`.
+
+Source acceptée : rapports `oa.vps-report/v1` redacted reçus depuis les agents Hermes locaux.
+
+Chaque rapport peut porter `installed_apps[]` avec :
+
+```json
+{
+  "app_id": "hermes",
+  "name": "Hermes Agent",
+  "installed": true,
+  "version_installed": "x.y.z ou unknown",
+  "version_expected": "policy-current",
+  "status": "ok|outdated|missing|unknown|blocked",
+  "source": "command|package|service|file|manual|report",
+  "evidence": "preuve courte redacted",
+  "last_checked_at": "ISO timestamp"
+}
+```
+
+Applications minimales suivies par VPS : `hermes`, `omarhub`, `tailscale`, `reverse-proxy`, `inter-vps-reporter`.
+
+Règles :
+
+- `unknown` vaut mieux qu'une version inventée.
+- Aucun secret, token, log brut, contenu client/familial dans l'API QG.
+- Si `installed_apps` manque, le QG infère seulement des statuts prudents depuis `services/security/resources`, sinon `unknown`.
 
 ## Architecture cible
 

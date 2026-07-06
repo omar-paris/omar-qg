@@ -1052,6 +1052,150 @@ def _merge_daily_ledgers(current: dict, previous: list[dict], limit: int = 7) ->
     return [dedup[k] for k in sorted(dedup.keys(), reverse=True)[:limit]]
 
 
+INTER_VPS_REPORT_DIRS = [
+    Path("/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox"),
+    # Legacy pre-canonical drop zone kept read-only until H-Aurel migrates its outbox.
+    Path("/home/omar/11-Pilotage/sujets-actifs/fable-5-rails-1-2/inbox-from-pantheos"),
+]
+
+REQUIRED_VPS_APPS = [
+    {"app_id": "hermes", "name": "Hermes local"},
+    {"app_id": "omarhub", "name": "OmarHub local"},
+    {"app_id": "tailscale", "name": "Tailscale"},
+    {"app_id": "reverse-proxy", "name": "Caddy/nginx"},
+    {"app_id": "inter-vps-reporter", "name": "Inter-VPS reporter"},
+]
+
+_VALID_APP_STATUSES = {"ok", "outdated", "missing", "unknown", "blocked"}
+
+
+def _read_inter_vps_reports() -> list[dict]:
+    reports: dict[str, dict] = {}
+    for root in INTER_VPS_REPORT_DIRS:
+        if not root.exists():
+            continue
+        for path in sorted(root.rglob("*health*.json")):
+            if any(part in {"_invalid", "_validated"} for part in path.parts):
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(payload, dict) or payload.get("schema") != "oa.vps-report/v1":
+                continue
+            node = str(payload.get("node") or path.stem.split("-", 1)[0]).strip().lower()
+            if not node:
+                continue
+            payload = dict(payload)
+            payload["_source_path"] = str(path)
+            prev = reports.get(node)
+            if not prev or str(payload.get("generated_at") or "") >= str(prev.get("generated_at") or ""):
+                reports[node] = payload
+    return [reports[k] for k in sorted(reports)]
+
+
+def _infer_app_status_from_services(report: dict, app_id: str) -> tuple[str, str]:
+    services = report.get("services") or []
+    if not isinstance(services, list):
+        services = []
+    names = " ".join(str(s.get("name", "")) for s in services if isinstance(s, dict)).lower()
+    statuses = [str(s.get("status", "")).lower() for s in services if isinstance(s, dict)]
+    if app_id == "hermes" and "hermes" in names:
+        return ("ok" if any("active" in st or "up" in st for st in statuses) else "unknown", "services")
+    if app_id == "reverse-proxy" and ("caddy" in names or "nginx" in names):
+        return ("ok" if any("active" in st or "up" in st for st in statuses) else "unknown", "services")
+    security = report.get("security") or {}
+    resources = report.get("resources") or {}
+    sys_services = ((resources.get("system") or {}).get("services") if isinstance(resources, dict) else None) or {}
+    if app_id == "tailscale" and (
+        security.get("tailscale_first") is True
+        or str(sys_services.get("tailscaled", "")).lower() == "active"
+    ):
+        return "ok", "report"
+    return "unknown", "report"
+
+
+def _normalize_installed_app(raw: dict, report: dict) -> dict:
+    app_id = str(raw.get("app_id") or raw.get("id") or raw.get("name") or "unknown").strip().lower()
+    status = str(raw.get("status") or "unknown").strip().lower()
+    if status not in _VALID_APP_STATUSES:
+        status = "unknown"
+    return {
+        "app_id": app_id,
+        "name": str(raw.get("name") or app_id),
+        "installed": bool(raw.get("installed", status not in {"missing", "blocked"})),
+        "version_installed": str(raw.get("version_installed") or raw.get("version") or "unknown"),
+        "version_expected": str(raw.get("version_expected") or raw.get("version_min_required") or "policy-current"),
+        "status": status,
+        "source": str(raw.get("source") or "report"),
+        "evidence": str(raw.get("evidence") or "redacted report"),
+        "last_checked_at": str(raw.get("last_checked_at") or report.get("generated_at") or "unknown"),
+    }
+
+
+def _apps_for_report(report: dict) -> list[dict]:
+    provided = report.get("installed_apps") or []
+    apps: dict[str, dict] = {}
+    if isinstance(provided, list):
+        for raw in provided:
+            if isinstance(raw, dict):
+                app = _normalize_installed_app(raw, report)
+                apps[app["app_id"]] = app
+    for req in REQUIRED_VPS_APPS:
+        app_id = req["app_id"]
+        if app_id in apps:
+            continue
+        status, source = _infer_app_status_from_services(report, app_id)
+        apps[app_id] = {
+            "app_id": app_id,
+            "name": req["name"],
+            "installed": status not in {"missing", "blocked"},
+            "version_installed": "unknown",
+            "version_expected": "policy-current",
+            "status": status,
+            "source": source,
+            "evidence": "inferred from oa.vps-report/v1 (redacted)",
+            "last_checked_at": str(report.get("generated_at") or "unknown"),
+        }
+    return [apps[k] for k in sorted(apps)]
+
+
+def collect_vps_app_inventory(built_at: str) -> dict:
+    nodes = []
+    for report in _read_inter_vps_reports():
+        apps = _apps_for_report(report)
+        statuses = [a["status"] for a in apps]
+        nodes.append({
+            "node": str(report.get("node") or "unknown").lower(),
+            "tenant": str(report.get("tenant") or report.get("scope") or "unknown"),
+            "agent": str(report.get("agent") or "unknown"),
+            "support": str(report.get("support") or ""),
+            "health_status": str((report.get("health") or {}).get("status") or report.get("status") or "unknown"),
+            "generated_at": str(report.get("generated_at") or "unknown"),
+            "source_path": str(report.get("_source_path") or ""),
+            "apps": apps,
+            "summary": {
+                "total": len(apps),
+                "ok": statuses.count("ok"),
+                "outdated": statuses.count("outdated"),
+                "missing": statuses.count("missing"),
+                "unknown": statuses.count("unknown"),
+                "blocked": statuses.count("blocked"),
+            },
+        })
+    totals = {"nodes": len(nodes), "apps": sum(n["summary"]["total"] for n in nodes)}
+    for st in _VALID_APP_STATUSES:
+        totals[st] = sum(n["summary"].get(st, 0) for n in nodes)
+    return {
+        "schema": "oa.vps-app-inventory/1",
+        "built_at": built_at,
+        "source": "oa.vps-report/v1 installed_apps + safe inference",
+        "required_apps": REQUIRED_VPS_APPS,
+        "totals": totals,
+        "nodes": nodes,
+    }
+
+
 def payload(built_at: str) -> dict:
     # Boucle d'auto-amélioration (10 juin 2026) : le triage quotidien remplace
     # le `next` codé en dur ; vps.json alimente la vue alignement VPS Hermes OA.
@@ -1107,12 +1251,18 @@ def payload(built_at: str) -> dict:
         live["ovh"] = {"domains": [], "email_domains_with_accounts": []}
 
     fleet = hetzner_fleet()
+    fleet_supervision_v0 = _read_var_json("oa-fleet-supervision-v0.json")
+    if not isinstance(fleet_supervision_v0, dict):
+        fleet_supervision_v0 = {}
+    vps_app_inventory = collect_vps_app_inventory(built_at)
     return {
         "version": VERSION, "domain": DOMAIN, "built_at": built_at,
         "items": items, "counts": counts,
         "catalog": CATALOG, "providers": providers, "live": live,
         "fleet": fleet,
+        "fleet_supervision_v0": fleet_supervision_v0,
         "vps": vps,
+        "vps_app_inventory": vps_app_inventory,
         "triage": {"built_at": triage.get("built_at"), "llm_used": triage.get("llm_used"),
                    "top3": triage.get("top3", [])},
     }
@@ -1696,6 +1846,131 @@ def page_clients(data: dict) -> str:
                     f'</div>'
                 )
         html += '</div>'
+
+    standards = data.get("fleet_supervision_v0") or {}
+    standards_nodes = standards.get("nodes") or []
+    if standards_nodes:
+        totals = standards.get("totals") or {}
+        html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
+        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Standards OA — supervision 3 VPS</h2><p class="text-xs text-gray-500">Score pass/fail/unknown issu de <span class="font-mono">oa.fleet-supervision.v0</span> · vue QG interne, sans IP ni identifiants sensibles.</p></div>'
+        html += '<a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API standards OA</a>'
+        html += '</div>'
+        html += '<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 px-4 py-3 bg-gray-50">'
+        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("nodes", len(standards_nodes))))}</div><div class="text-xs text-gray-500">VPS suivis</div></div>'
+        html += f'<div><div class="text-lg font-bold text-green-700">{escape(str(totals.get("pass", 0)))}</div><div class="text-xs text-gray-500">pass</div></div>'
+        html += f'<div><div class="text-lg font-bold text-red-700">{escape(str(totals.get("fail", 0)))}</div><div class="text-xs text-gray-500">fail</div></div>'
+        html += f'<div><div class="text-lg font-bold text-gray-700">{escape(str(totals.get("unknown", 0)))}</div><div class="text-xs text-gray-500">unknown</div></div>'
+        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("controls", 0)))}</div><div class="text-xs text-gray-500">contrôles</div></div>'
+        html += '</div>'
+        html += '<div class="grid lg:grid-cols-3 gap-4 p-4">'
+        for node in standards_nodes:
+            name = str(node.get("node") or "unknown")
+            compliance = node.get("compliance") or {}
+            passed = int(compliance.get("pass") or 0)
+            failed = int(compliance.get("fail") or 0)
+            unknown = int(compliance.get("unknown") or 0)
+            total = passed + failed + unknown
+            score = round((passed / total) * 100) if total else 0
+            score_cls = "text-green-700" if failed == 0 and unknown == 0 else "text-red-700" if failed else "text-amber-700"
+            gaps = [g for g in (node.get("top_gaps") or []) if isinstance(g, dict)][:3]
+            gap_rows = ""
+            if gaps:
+                for gap in gaps:
+                    st = str(gap.get("status") or "unknown")
+                    st_cls = "pill-err" if st == "fail" else "bg-gray-100 text-gray-600 border border-gray-200"
+                    gap_rows += (
+                        '<li class="flex items-start justify-between gap-2 py-1 border-t border-gray-50 first:border-0">'
+                        f'<span><span class="font-mono text-[10px] text-gray-400">{escape(str(gap.get("control_id") or ""))}</span> '
+                        f'{escape(str(gap.get("label") or "Gap non nommé"))}</span>'
+                        f'<span class="{st_cls} rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0">{escape(st)}</span>'
+                        '</li>'
+                    )
+            else:
+                gap_rows = '<li class="py-1 text-green-700">Aucun gap prioritaire remonté.</li>'
+            html += '<article class="rounded-xl border border-gray-200 p-4 bg-white">'
+            html += f'<div class="flex items-center justify-between gap-3"><h3 class="text-sm font-bold text-gray-900 uppercase">{escape(name)}</h3><div class="text-2xl font-bold {score_cls}">{escape(str(score))}%</div></div>'
+            html += f'<div class="mt-1 text-xs text-gray-500">{escape(str(passed))} pass · {escape(str(failed))} fail · {escape(str(unknown))} unknown</div>'
+            html += f'<ul class="mt-3 text-xs text-gray-600">{gap_rows}</ul>'
+            html += '</article>'
+        html += '</div></section>'
+
+    fleet_supervision = data.get("fleet_supervision_v0") or {}
+    fleet_nodes = fleet_supervision.get("nodes") or []
+    if fleet_nodes:
+        totals = fleet_supervision.get("totals") or {}
+        html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
+        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Standards OA · 3 VPS</h2><p class="text-xs text-gray-500">Matrice V0 OmarTop/QG/Hub · contrôles redacted · fail = action à fermer, unknown = preuve insuffisante.</p></div>'
+        html += '<a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API standards OA</a>'
+        html += '</div>'
+        html += '<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 px-4 py-3 bg-gray-50">'
+        for key, label in [("nodes", "VPS"), ("controls", "Contrôles"), ("pass", "Pass"), ("fail", "Fail"), ("unknown", "Unknown")]:
+            html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get(key, 0)))}</div><div class="text-xs text-gray-500">{label}</div></div>'
+        html += '</div>'
+        html += '<div class="grid md:grid-cols-3 gap-3 p-4">'
+        for node in fleet_nodes:
+            comp = node.get("compliance") or {}
+            gaps = [c for c in (node.get("controls") or []) if c.get("status") in {"fail", "unknown"}][:5]
+            html += '<div class="rounded-xl border border-gray-100 px-4 py-3 bg-gray-50">'
+            html += f'<div class="flex items-center justify-between gap-2"><div class="font-bold text-sm text-gray-900 uppercase">{escape(str(node.get("node") or "unknown"))}</div><div class="text-xs text-gray-500">{escape(str(comp.get("pass", 0)))} pass · {escape(str(comp.get("fail", 0)))} fail · {escape(str(comp.get("unknown", 0)))} unknown</div></div>'
+            html += '<ul class="mt-3 space-y-1 text-xs text-gray-600">'
+            if gaps:
+                for c in gaps:
+                    st = str(c.get("status") or "unknown")
+                    cls = "text-red-600" if st == "fail" else "text-amber-600"
+                    html += f'<li><span class="font-semibold {cls}">{escape(st)}</span> · <span class="font-mono">{escape(str(c.get("id") or ""))}</span> — {escape(str(c.get("label") or ""))}</li>'
+            else:
+                html += '<li class="text-green-700">Aucun gap V0 prioritaire.</li>'
+            html += '</ul></div>'
+        html += '</div></section>'
+
+    app_inventory = data.get("vps_app_inventory") or {}
+    inventory_nodes = app_inventory.get("nodes") or []
+    if inventory_nodes:
+        totals = app_inventory.get("totals") or {}
+        html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
+        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Inventaire apps/version par VPS</h2><p class="text-xs text-gray-500">Source: rapports <span class="font-mono">oa.vps-report/v1</span> · redacted · aucun log brut.</p></div>'
+        html += '<div class="flex gap-3"><a href="/api/vps-app-inventory.json" class="text-xs text-blue-500 hover:underline">API inventory</a><a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API standards OA</a></div>'
+        html += '</div>'
+        html += '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 px-4 py-3 bg-gray-50">'
+        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("nodes", 0)))}</div><div class="text-xs text-gray-500">VPS rapportés</div></div>'
+        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("apps", 0)))}</div><div class="text-xs text-gray-500">apps suivies</div></div>'
+        for st, label in [("ok", "OK"), ("outdated", "Outdated"), ("missing", "Missing"), ("unknown", "Unknown")]:
+            html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get(st, 0)))}</div><div class="text-xs text-gray-500">{label}</div></div>'
+        html += '</div>'
+        html += '<div class="divide-y divide-gray-100">'
+        for node in inventory_nodes:
+            summary = node.get("summary") or {}
+            apps = node.get("apps") or []
+            node_label = str(node.get("node") or "unknown")
+            agent = str(node.get("agent") or "unknown")
+            generated = str(node.get("generated_at") or "unknown")
+            health = str(node.get("health_status") or "unknown")
+            health_cls = "pill-ok" if health == "ok" else "pill-err" if health == "blocked" else "pill-warn" if health in {"degraded", "warning"} else "bg-gray-100 text-gray-600 border border-gray-200"
+            html += '<div class="px-4 py-4">'
+            html += '<div class="flex flex-wrap items-center justify-between gap-2 mb-3">'
+            html += f'<div><div class="text-sm font-bold text-gray-900 uppercase">{escape(node_label)}</div><div class="text-xs text-gray-400">agent {escape(agent)} · check {escape(generated)}</div></div>'
+            html += f'<div class="flex items-center gap-2"><span class="{health_cls} rounded-full px-2 py-0.5 text-xs font-medium">{escape(health)}</span><span class="text-xs text-gray-500">{escape(str(summary.get("ok", 0)))} ok · {escape(str(summary.get("unknown", 0)))} unknown</span></div>'
+            html += '</div>'
+            html += '<div class="overflow-x-auto"><table class="min-w-full text-xs"><thead><tr class="text-left text-gray-400 uppercase"><th class="py-1 pr-3">App</th><th class="py-1 pr-3">Installée</th><th class="py-1 pr-3">Version</th><th class="py-1 pr-3">Attendue</th><th class="py-1 pr-3">Statut</th><th class="py-1 pr-3">Preuve</th></tr></thead><tbody>'
+            for app in apps:
+                st = str(app.get("status") or "unknown")
+                st_cls = "pill-ok" if st == "ok" else "pill-err" if st in {"missing", "blocked"} else "pill-warn" if st == "outdated" else "bg-gray-100 text-gray-600 border border-gray-200"
+                installed = "oui" if app.get("installed") else "non"
+                html += '<tr class="border-t border-gray-50">'
+                html += f'<td class="py-1.5 pr-3 font-semibold text-gray-800">{escape(str(app.get("name") or app.get("app_id") or ""))}</td>'
+                html += f'<td class="py-1.5 pr-3 text-gray-600">{installed}</td>'
+                html += f'<td class="py-1.5 pr-3 font-mono text-gray-600">{escape(str(app.get("version_installed") or "unknown"))}</td>'
+                html += f'<td class="py-1.5 pr-3 font-mono text-gray-500">{escape(str(app.get("version_expected") or "policy-current"))}</td>'
+                html += f'<td class="py-1.5 pr-3"><span class="{st_cls} rounded-full px-2 py-0.5 font-medium">{escape(st)}</span></td>'
+                html += f'<td class="py-1.5 pr-3 text-gray-400">{escape(str(app.get("source") or "report"))}</td>'
+                html += '</tr>'
+            html += '</tbody></table></div></div>'
+        html += '</div></section>'
+    else:
+        html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800 mb-8">Inventaire apps/version absent — attendre un rapport <span class="font-mono">oa.vps-report/v1</span> avec <span class="font-mono">installed_apps</span>.</div>'
 
     if not fleet:
         return html + '<div class="bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 text-sm text-yellow-700">Flotte Hetzner indisponible — clef API absente ou en erreur.</div>'
@@ -2714,6 +2989,10 @@ def _parse_args(argv: list[str]) -> dict:
 
 def main(argv: list[str] | None = None) -> None:
     import sys
+    import fcntl
+    lock_path = PUBLIC.parent / ".qg-build.lock"
+    lock_fh = lock_path.open("w")
+    fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
     opts = _parse_args(list(argv) if argv is not None else sys.argv[1:])
 
     # NIVEAU 2 (rbac-model §5) : build d'une vue client isolée. Artefact statique
@@ -2762,9 +3041,12 @@ def main(argv: list[str] | None = None) -> None:
     (tmp / "api" / "core-repos.json").write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    (tmp / "api" / "vps-app-inventory.json").write_text(
+        json.dumps(data.get("vps_app_inventory", {}), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
-    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "manifeste.json", "builder-pr-autogate.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "manifeste.json", "builder-pr-autogate.json", "oa-fleet-supervision-v0.json"):
         var_payload = _read_var_json(var_name)
         if var_payload:
             (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
