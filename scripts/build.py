@@ -74,6 +74,20 @@ def _load_storage_collector():
     spec.loader.exec_module(mod)
     return mod
 
+def _load_blocages_collector():
+    """Importe scripts/collect_blocages.py — vue « Ce qui bloque » (var/blocages.json)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "collect_blocages", Path(__file__).resolve().parent / "collect_blocages.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("collect_blocages.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 VERSION = "V" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 DOMAIN = "qg.omar.paris"
 STATE_DB = Path("/home/omar/.hermes/state.db")
@@ -1112,6 +1126,7 @@ FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;
 NAV_ITEMS = [
     ("/manifeste/",   "manifeste",   "Manifeste",   'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25'),
     ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
+    ("/blocages/",    "blocages",    "Blocages",    'M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636'),
     ("/objectifs/",   "objectifs",   "Objectifs",   'M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418'),
     ("/chantiers/",   "chantiers",   "Chantiers",   'M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z'),
     ("/agent-loop/",  "agent-loop",  "Agent loop",  'M3.75 12a8.25 8.25 0 0 1 14.49-5.42M20.25 6.75v-4.5m0 4.5h-4.5M20.25 12a8.25 8.25 0 0 1-14.49 5.42M3.75 17.25v4.5m0-4.5h4.5'),
@@ -1229,7 +1244,40 @@ def qg_delivery_focus(builds: dict, pending_decisions: int) -> str:
     )
 
 
-def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None) -> str:
+def qg_blocages_banner(blocages: dict | None) -> str:
+    """Bandeau d'entrée de la home (demande Alex 06/07) : compteur live → /blocages/.
+
+    Même circulation que pending_decisions : le payload vient de collect_blocages.py
+    (var/blocages.json) et le bandeau est rendu EN PREMIER sur la home.
+    """
+    compteurs = (blocages or {}).get("compteurs", {}) if isinstance(blocages, dict) else {}
+    try:
+        total = int(compteurs.get("total") or 0)
+        pour_alex = int(compteurs.get("pour_alex") or 0)
+        effort = int(compteurs.get("effort_min_alex") or 0)
+    except Exception:
+        total, pour_alex, effort = 0, 0, 0
+    if total == 0:
+        return (
+            '<a href="/blocages/" class="block bg-green-50 rounded-xl border border-green-200 px-4 py-3 mb-6 hover:border-green-300 transition">'
+            '<div class="text-xs font-semibold uppercase tracking-wide text-green-700">Blocages</div>'
+            '<div class="mt-1 text-sm font-semibold text-green-700">Rien ne te bloque — le système avance seul.</div></a>'
+        )
+    accent = "amber" if pour_alex else "blue"
+    detail = f"{total} blocage(s), dont {pour_alex} pour Alex"
+    if effort:
+        detail += f" (~{effort} min d'actions connues)"
+    return (
+        f'<a href="/blocages/" class="block bg-white rounded-xl border border-{accent}-200 px-4 py-3 mb-6 hover:border-{accent}-400 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between gap-3">'
+        f'<div><div class="text-xs font-semibold uppercase tracking-wide text-{accent}-600">Ce qui bloque — et qui débloque</div>'
+        f'<div class="mt-1 text-sm font-semibold text-gray-900">{escape(detail)}</div></div>'
+        f'<span class="text-2xl font-bold text-{accent}-600">{total}</span></div>'
+        f'<div class="mt-1 text-xs text-{accent}-600">Voir les blocages →</div></a>'
+    )
+
+
+def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
     objectifs = objectifs or []
@@ -1332,8 +1380,8 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0,
     rows += '</div>'
 
     header = '<div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold text-gray-900">Registry CORE OA</h1><span class="text-xs text-gray-400">Rebuild auto · 30 min · Référentiel VPS Hermes OA</span></div>'
-    # Les objectifs d'Alex viennent EN TÊTE de l'accueil, avant le registry de repos.
-    return objectifs_summary(objectifs) + header + qg_delivery_focus(builds, pending_decisions) + tiles + stats + rows
+    # EN PREMIER : le bandeau blocages (demande Alex 06/07), puis les objectifs, puis le registry.
+    return qg_blocages_banner(blocages) + objectifs_summary(objectifs) + header + qg_delivery_focus(builds, pending_decisions) + tiles + stats + rows
 
 
 def _app_route(item: dict) -> str:
@@ -2143,6 +2191,95 @@ def page_chantiers(chantiers: list) -> str:
     return html
 
 
+def page_blocages(payload: dict) -> str:
+    """« Ce qui bloque — et qui débloque » — vue unique dédupliquée (demande Alex 06/07).
+
+    Source : var/blocages.json (collect_blocages.py, republié en /api/blocages.json).
+    Groupé par qui_debloque (Alex d'abord), trié par âge décroissant.
+    """
+    payload = payload if isinstance(payload, dict) else {}
+    blocages = payload.get("blocages") if isinstance(payload.get("blocages"), list) else []
+    compteurs = payload.get("compteurs", {}) if isinstance(payload.get("compteurs"), dict) else {}
+    generated_at = str(payload.get("generated_at") or "non renseigné")
+    try:
+        total = int(compteurs.get("total") or 0)
+        pour_alex = int(compteurs.get("pour_alex") or 0)
+        effort = int(compteurs.get("effort_min_alex") or 0)
+    except Exception:
+        total, pour_alex, effort = len(blocages), 0, 0
+
+    type_badges = {
+        "decision": ("décision", "pill-warn"),
+        "carte":    ("carte",    "bg-blue-50 text-blue-700 border border-blue-200"),
+        "sudo":     ("sudo",     "pill-err"),
+        "pr":       ("PR",       "bg-purple-50 text-purple-700 border border-purple-200"),
+    }
+    groupes = [
+        ("alex",    "Alex — à toi de jouer",       "text-amber-700"),
+        ("h-omar",  "H-Omar — arbitrage & infra",  "text-blue-700"),
+        ("agent",   "Agents — rework en cours",    "text-gray-700"),
+        ("externe", "Externe — hors de nos mains", "text-gray-500"),
+    ]
+    resume = f"{total} blocage(s), dont {pour_alex} pour Alex"
+    if effort:
+        resume += f" — ~{effort} min d'actions Alex connues"
+    html = (
+        '<div class="mb-6">'
+        '<h1 class="text-xl font-bold text-gray-900">Ce qui bloque — et qui débloque</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{escape(resume)} · décisions, cartes Kanban, sudo et PRs dédupliqués — '
+        f'source <a href="/api/blocages.json" class="text-blue-500 hover:underline">blocages.json</a> ({escape(generated_at)}).</p>'
+        '</div>'
+    )
+    if not blocages:
+        return html + (
+            '<div class="bg-green-50 border border-green-200 rounded-xl px-5 py-4 text-sm text-green-700">'
+            'Rien ne te bloque — le système avance seul.</div>'
+        )
+    for qui, label, title_cls in groupes:
+        items = sorted(
+            [b for b in blocages if isinstance(b, dict) and b.get("qui_debloque") == qui],
+            key=lambda b: -(b.get("age_jours") or 0),
+        )
+        if not items:
+            continue
+        html += (
+            f'<div class="flex items-baseline gap-2 mt-6 mb-2"><h2 class="text-sm font-bold uppercase tracking-wide {title_cls}">{escape(label)}</h2>'
+            f'<span class="text-xs text-gray-400">{len(items)} blocage(s)</span></div>'
+            '<div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">'
+        )
+        for b in items:
+            btype = str(b.get("type") or "carte")
+            badge_label, badge_cls = type_badges.get(btype, (btype, "pill-warn"))
+            titre = escape(str(b.get("titre") or "Blocage sans titre"))
+            lien = str(b.get("lien") or "")
+            if lien:
+                target = ' target="_blank" rel="noopener"' if lien.startswith("http") else ""
+                titre = f'<a href="{escape(lien)}"{target} class="hover:text-blue-600 hover:underline">{titre}</a>'
+            age = int(b.get("age_jours") or 0)
+            age_cls = "text-red-600 font-semibold" if age >= 7 else ("text-amber-600" if age >= 3 else "text-gray-400")
+            effort_min = b.get("effort_min")
+            html += (
+                '<div class="px-4 py-3">'
+                '<div class="flex items-center gap-2 flex-wrap">'
+                f'<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {badge_cls}">{escape(badge_label)}</span>'
+                f'<span class="text-sm font-medium text-gray-900">{titre}</span>'
+                f'<span class="text-xs {age_cls}">{age} j</span>'
+                + (f'<span class="pill-ok inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">{int(effort_min)} min</span>' if effort_min else '')
+                + '</div>'
+                f'<div class="text-xs text-gray-500 mt-1">{escape(str(b.get("action_1_ligne") or ""))}</div>'
+                '</div>'
+            )
+        html += '</div>'
+    errors = payload.get("errors") if isinstance(payload.get("errors"), list) else []
+    if errors:
+        html += (
+            '<div class="mt-6 text-xs text-gray-400">Sources partielles : '
+            + escape(" · ".join(str(e) for e in errors[:6]))
+            + '</div>'
+        )
+    return html
+
+
 def page_decisions(decisions: list) -> str:
     """Boîte de décisions Alex (qg#27) — réponse = bouton → qg-api → déblocage kanban/issue."""
     # URL relative: passe par le vhost qg.omar.paris (proxy Caddy /api/decisions* -> 8097).
@@ -2447,6 +2584,22 @@ def main(argv: list[str] | None = None) -> None:
 
     built_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     previous_ledgers = _read_existing_daily_ledgers()
+    # Blocages (« Ce qui bloque — et qui débloque ») : collecte AU DÉBUT du build,
+    # best-effort — le cron n'appelle que build.py, jamais le collecteur seul.
+    try:
+        blocages_payload = _load_blocages_collector().collect(write=True)
+    except Exception as exc:  # ne casse jamais le build QG
+        blocages_payload = _read_var_json("blocages.json")
+        if not isinstance(blocages_payload, dict) or not blocages_payload:
+            blocages_payload = {
+                "schema": "oa.blocages/1",
+                "generated_at": built_at,
+                "compteurs": {"total": 0, "pour_alex": 0, "effort_min_alex": 0, "par_type": {}, "par_qui": {}},
+                "blocages": [],
+                "errors": [f"blocages_unavailable: {exc.__class__.__name__}"],
+            }
+
+
     data = payload(built_at)
     ledger = daily_ledger(data, built_at)
     ledger_history = _merge_daily_ledgers(ledger, previous_ledgers)
@@ -2466,6 +2619,10 @@ def main(argv: list[str] | None = None) -> None:
         var_payload = _read_var_json(var_name)
         if var_payload:
             (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # Blocages : snapshot collecté en tête de build → /api/blocages.json.
+    (tmp / "api" / "blocages.json").write_text(
+        json.dumps(blocages_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     ledger_dir = tmp / "api" / "daily-ledger"
     ledger_dir.mkdir(parents=True, exist_ok=True)
     (ledger_dir / f"{ledger['date']}.json").write_text(
@@ -2599,7 +2756,8 @@ def main(argv: list[str] | None = None) -> None:
 
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
-        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit)),
+        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload)),
+        ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
