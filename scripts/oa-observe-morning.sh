@@ -10,7 +10,8 @@ TARGET="telegram:Alexandre"
 DAY=$(date +%Y-%m-%d)
 
 cd "$QG" || exit 1
-/usr/bin/python3 scripts/oa-observe.py >> "$OBS_DIR/cron.log" 2>&1
+# Canal primaire : cartes Hermes Kanban idempotentes. Telegram reste un résumé secondaire.
+/usr/bin/python3 scripts/oa-observe.py --kanban >> "$OBS_DIR/cron.log" 2>&1
 BRIEF="$OBS_DIR/$DAY.md"
 [ -f "$BRIEF" ] || exit 0
 

@@ -1,0 +1,321 @@
+{
+  "date": "2026-07-02",
+  "generated_at": "2026-07-02T21:30:01Z",
+  "version": "V0.8.4",
+  "sessions": {
+    "hermes": {
+      "sessions": 36,
+      "messages": 2501,
+      "tool_calls": 1516,
+      "api_calls": 556,
+      "by_source": {
+        "cli": 15,
+        "cron": 7,
+        "telegram": 8,
+        "tui": 6
+      },
+      "db": "/home/omar/.hermes/state.db",
+      "error": null
+    },
+    "ccusage": {
+      "sessions_by_agent": {},
+      "daily": {
+        "total_cost_usd": 232.6878,
+        "total_tokens": 197326558,
+        "agents": [
+          "claude",
+          "hermes"
+        ],
+        "models_used": [
+          "claude-fable-5",
+          "claude-haiku-4-5-20251001",
+          "claude-sonnet-5",
+          "gpt-5.3-codex-spark",
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ]
+      },
+      "error": null
+    }
+  },
+  "github_totals": {
+    "issues_created": 0,
+    "issues_closed": 1,
+    "prs_created": 1,
+    "prs_merged": 4,
+    "build_runs": 0,
+    "build_success": 0,
+    "build_failed": 0,
+    "unknown_fields": 7,
+    "local_build_records": 0
+  },
+  "local_builds": {
+    "path": "/home/omar/11-Pilotage/ledgers/builds/2026-07-02.jsonl",
+    "count": 0,
+    "success": 0,
+    "failure": 0,
+    "blocked": 0,
+    "recent": []
+  },
+  "repos": [
+    {
+      "id": "landing",
+      "name": "Landing",
+      "repo": "omar-paris/omar-landing",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 18
+      },
+      "git": {
+        "exists": true,
+        "branch": "feat/prepub-pricing-pc-smoke",
+        "dirty": true,
+        "head": "557fc58 fix(landing): remove public next preview",
+        "status_short": [
+          "?? public/next/",
+          "?? scripts/build_next.py"
+        ]
+      },
+      "github_open": {
+        "open_issues": 28,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "feat(landing): prépublique prix, coupons et option PC",
+          "number": 34,
+          "merged_at": "2026-07-02T14:11:36Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 1,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "app",
+      "name": "AppOmar",
+      "repo": "omar-paris/omar-app",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 21
+      },
+      "git": {
+        "exists": true,
+        "branch": "work/t_7cbf6d37-pr51",
+        "dirty": true,
+        "head": "56932c2 chore(appomar): preserve audit v2 and catalogue mapping work",
+        "status_short": [
+          "M pages-app/audit-v2.html",
+          " M src/proposal_server.py",
+          "?? docs/fable/business/oa-audit-profile-spec.md",
+          "?? src/oa_audit_prompt.md"
+        ]
+      },
+      "github_open": {
+        "open_issues": 36,
+        "open_prs": 1,
+        "last_merged_pr": {
+          "title": "feat(appomar): onboarding resume and simulation",
+          "number": 51,
+          "merged_at": "2026-07-02T08:53:03Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 1,
+        "prs_created": 0,
+        "prs_merged": 1,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "catalogue",
+      "name": "Catalogue",
+      "repo": "omar-paris/omar-catalogue",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 20
+      },
+      "git": {
+        "exists": true,
+        "branch": "main",
+        "dirty": false,
+        "head": "371d3b0 Merge pull request #44 from omar-paris/builder/catalogue-37-client-exposure",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 11,
+        "open_prs": 0,
+        "last_merged_pr": {
+          "title": "feat(catalogue): add AppOmar v1 modules",
+          "number": 44,
+          "merged_at": "2026-07-02T15:42:39Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 1,
+        "prs_merged": 1,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "lab",
+      "name": "Lab",
+      "repo": "",
+      "health": {
+        "status": "error",
+        "http_code": 502,
+        "latency_ms": 18
+      },
+      "git": {
+        "exists": true,
+        "branch": "no-git",
+        "dirty": false,
+        "head": "",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": null,
+        "open_prs": null,
+        "last_merged_pr": null
+      },
+      "activity": {}
+    },
+    {
+      "id": "qg",
+      "name": "QG",
+      "repo": "omar-paris/omar-qg",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 25
+      },
+      "git": {
+        "exists": true,
+        "branch": "main",
+        "dirty": true,
+        "head": "current qg build",
+        "status_short": [
+          "M scripts/README-oa-observe.md",
+          " M scripts/oa-observe-morning.sh",
+          " M scripts/oa-observe.py",
+          "?? scripts/smoke-oa-observe-kanban.sh",
+          "?? tests/test_oa_observe_kanban.py"
+        ]
+      },
+      "github_open": {
+        "open_issues": 19,
+        "open_prs": 1,
+        "last_merged_pr": {
+          "title": "fix(qg): qualify docker storage signals",
+          "number": 50,
+          "merged_at": "2026-06-30T20:24:10Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "hub",
+      "name": "Hub",
+      "repo": "omar-paris/omar-hub",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 19
+      },
+      "git": {
+        "exists": true,
+        "branch": "feat/issue-44",
+        "dirty": false,
+        "head": "9ffb398 test: cover vault scanner secret redaction",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 13,
+        "open_prs": 2,
+        "last_merged_pr": {
+          "title": "feat: add AI surfaces launcher",
+          "number": 59,
+          "merged_at": "2026-06-29T19:56:15Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 0,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    },
+    {
+      "id": "omartop",
+      "name": "OmarTop",
+      "repo": "omar-paris/omar-top",
+      "health": {
+        "status": "ok",
+        "http_code": 200,
+        "latency_ms": 18
+      },
+      "git": {
+        "exists": true,
+        "branch": "feat/release-closure-gate",
+        "dirty": false,
+        "head": "4b8d05f feat(standards): harden delivery readiness contracts",
+        "status_short": []
+      },
+      "github_open": {
+        "open_issues": 45,
+        "open_prs": 6,
+        "last_merged_pr": {
+          "title": "fix(omartop): require explicit review release authorization",
+          "number": 57,
+          "merged_at": "2026-07-02T14:13:04Z"
+        }
+      },
+      "activity": {
+        "issues_created": 0,
+        "issues_closed": 0,
+        "prs_created": 0,
+        "prs_merged": 1,
+        "build_runs": 0,
+        "build_success": 0,
+        "build_failed": 0
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "level": "warning",
+      "code": "DIRTY_REPOS",
+      "message": "3 repo(s) locaux dirty dans le registry."
+    },
+    {
+      "level": "warning",
+      "code": "NO_BUILDS_RECORDED",
+      "message": "Aucun build GitHub Actions ou ledger local détecté aujourd'hui."
+    }
+  ]
+}
