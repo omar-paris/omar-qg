@@ -299,13 +299,16 @@ def test_qg_vps_app_inventory_api_and_clients_surface():
     payload = json.loads(api.read_text(encoding="utf-8"))
     assert payload["schema"] == "oa.vps-app-inventory/1"
     assert payload["source"] == "oa.vps-report/v1 installed_apps/apps + standards + safe inference"
+    assert payload["supervision_source"] == "/ops/ · /api/ops/vps-fleet.json"
+    assert payload["aliases"]["oa-master"]["alias_of"] == "omar"
     assert payload["totals"]["nodes"] >= 1
+    assert payload["totals"]["canonical_nodes"] == payload["totals"]["nodes"] - payload["totals"]["alias_nodes"]
     assert payload["totals"]["apps"] >= 5
     assert {"hermes", "omarhub", "tailscale", "reverse-proxy", "inter-vps-reporter"} <= {
         app["app_id"] for node in payload["nodes"] for app in node["apps"]
     }
     for node in payload["nodes"]:
-        assert {"node", "tenant", "agent", "health_status", "generated_at", "apps", "summary", "standards", "standards_summary"} <= set(node)
+        assert {"node", "canonical_node", "tenant", "agent", "health_status", "generated_at", "apps", "summary", "standards", "standards_summary"} <= set(node)
         for app in node["apps"]:
             assert {"app_id", "name", "installed", "version_installed", "version_expected", "status", "verdict", "raw_status", "source", "evidence", "last_checked_at"} <= set(app)
             assert app["status"] in {"ok", "outdated", "missing", "unknown", "blocked"}
@@ -319,16 +322,39 @@ def test_qg_vps_app_inventory_api_and_clients_surface():
     assert "UNKNOWN" in {app["verdict"] for app in omar["apps"]}
     clients = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
     assert "Inventaire apps/version par VPS" in clients
+    assert "pas de cockpit supervision ici" in clients
+    assert "Supervision unique /ops/" in clients
+    assert "oa-master (alias omar)" in clients.lower()
+    assert "ne crée pas un 4e VPS de supervision" in clients
     assert "oa.vps-report/v1" in clients
     assert "/api/vps-app-inventory.json" in clients
     assert "Hermes local" in clients
     assert "tenant oa-internal" in clients
-    assert "Standards reportés" in clients
-    assert "OBS-SERVICES-01" in clients
-    assert "MAINT-DOCTOR-01" in clients
+    assert "Compat legacy V0" in clients
+    assert "Supervision unique /ops/" in clients
+    assert "Standards reportés" not in clients
+    assert "/api/oa-fleet-supervision-v0.json" not in clients
+    assert "OBS-SERVICES-01" not in clients
+    assert "MAINT-DOCTOR-01" not in clients
     assert "PASS" in clients
     assert "FAIL" in clients
     assert "UNKNOWN" in clients
+
+
+def test_qg_clients_has_no_competing_supervision_blocks():
+    build()
+    clients = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
+    ops = (PUBLIC / "ops" / "index.html").read_text(encoding="utf-8")
+    assert "Flotte VPS" in ops
+    assert "/api/ops/vps-fleet.json" in ops
+    assert "Clients — inventaire apps silencieux" in clients
+    assert "Source de supervision unique" in clients
+    assert "Supervision unique /ops/" in clients
+    assert "Compat legacy V0" in clients
+    assert "Compat matrice V0 · non supervision" not in clients
+    assert "Standards OA · 3 VPS" not in clients
+    assert "Standards OA — supervision 3 VPS" not in clients
+    assert "Telegram" not in clients
 
 
 def test_qg_ops_vps_fleet_surface_and_api():

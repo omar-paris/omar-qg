@@ -32,12 +32,19 @@ def test_qg_publishes_fleet_supervision_v0_api():
     assert fleet["totals"]["apps"] >= 30
 
     clients_html = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
-    assert "/api/oa-fleet-supervision-v0.json" in clients_html
-    assert "API standards OA" in clients_html
-    assert "Standards OA · 3 VPS" in clients_html
-    assert "Matrice V0 OmarTop/QG/Hub" in clients_html
-    assert "oa-master" in clients_html.lower()
+    assert "Clients — inventaire apps silencieux" in clients_html
+    assert "Source de supervision unique" in clients_html
+    assert "Supervision unique /ops/" in clients_html
+    assert "Compat legacy V0" in clients_html
+    assert "Standards OA · 3 VPS" not in clients_html
+    assert "Standards OA — supervision 3 VPS" not in clients_html
+    assert "Compat matrice V0 · non supervision" not in clients_html
+    assert "API compat V0" not in clients_html
+    assert "/api/oa-fleet-supervision-v0.json" not in clients_html
+    assert "oa-master (alias omar)" in clients_html.lower()
+    assert "ne crée pas un 4e VPS de supervision" in clients_html
     assert "pantheos" in clients_html.lower()
     assert "jab" in clients_html.lower()
-    standards_section = clients_html.split("Standards OA · 3 VPS", 1)[1].split("Inventaire apps/version", 1)[0]
-    assert "IP publique" not in standards_section
+    inventory_section = clients_html.split("Inventaire apps/version par VPS", 1)[1]
+    assert "Standards OA · 3 VPS" not in inventory_section
+    assert "Standards OA — supervision 3 VPS" not in inventory_section
