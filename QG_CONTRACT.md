@@ -59,6 +59,22 @@ Afficher en un cockpit :
 
 ## Reporting inter-VPS
 
+### Flotte VPS sur /ops/ (vue multi-VPS)
+
+`/ops/` ouvre sur le bloc **Flotte VPS** (API : `/api/ops/vps-fleet.json`, schéma `oa.vps-fleet-status/1`) :
+
+- ligne globale « N VPS rapportent · M en dérive · K muet(s) » ;
+- un bloc par VPS attendu (`omar`, `jab`, `pantheos`) : maturité en grand (X PASS / Y FAIL + %), liste intégrale des standards FAIL (item_id + preuve redacted, zéro ellipsis), compteur apps par kind, next_action ownerisée, horodatage ;
+- rapport absent ou stale (> 36 h) = bloc ambre avec outbox attendue + owner transport (`jab` → cc-jab, `pantheos` → h-aurel) — un VPS muet est une alerte (doctrine H-Omar) ;
+- `oa-master` est un alias santé du même VPS que `omar` : jamais compté comme 4e nœud ;
+- pied de bloc : « SAV : non instrumenté — aucun flux SAV n'existe encore » (honnêteté, décision Alex).
+
+La home porte la tuile « x/y VPS rapportent · m standard(s) FAIL » qui pointe vers `/ops/`.
+
+### Blockers multi-VPS sur /blocages/
+
+`collect_blocages.py` agrège les `blockers[]` des rapports non-omar avec `origine=<node>` (type `vps`), dédupliqués contre les entrées locales — les blockers d'omar.json PROVIENNENT de blocages.json et ne sont jamais doublés. Un blocker remote qui duplique une entrée locale annote celle-ci (`aussi_signale_par`). Le payload expose `vps_blockers` (total/uniques/dédupliqués par nœud) et la page montre la section « Multi-VPS » avec badge d'origine.
+
 ### Inventaire applicatif/versionné par VPS
 
 Le QG publie `/api/vps-app-inventory.json` et rend le bloc **Inventaire apps/version par VPS** dans `/clients/`.

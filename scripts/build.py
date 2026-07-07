@@ -1063,7 +1063,9 @@ INTER_VPS_REPORT_DIRS = [
     Path("/home/omar/11-Pilotage/sujets-actifs/fable-5-rails-1-2/inbox-from-pantheos"),
 ]
 if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
-    INTER_VPS_REPORT_DIRS.append(ROOT / "tests" / "fixtures" / "inter-vps-inbox")
+    # Fixtures EXCLUSIVES : sinon un rapport réel plus frais que la fixture rend
+    # les tests non déterministes selon la machine (CI portable = fixtures only).
+    INTER_VPS_REPORT_DIRS = [ROOT / "tests" / "fixtures" / "inter-vps-inbox"]
 
 REQUIRED_VPS_APPS = [
     {"app_id": "hermes", "name": "Hermes local"},
@@ -1292,6 +1294,132 @@ def collect_vps_app_inventory(built_at: str) -> dict:
         "source": "oa.vps-report/v1 installed_apps/apps + standards + safe inference",
         "required_apps": REQUIRED_VPS_APPS,
         "totals": totals,
+        "nodes": nodes,
+    }
+
+
+# ── Flotte VPS (vue multi-VPS /ops/, Fable rescue J4 07/07) ──────────────────
+# Contrat : chaque VPS dépose un rapport oa.vps-report/v1 dans l'inbox inter-VPS.
+# Le QG affiche qui rapporte, qui dérive (maturité FAIL) et qui est muet
+# (rapport absent ou stale > 36 h) — un VPS muet est une alerte (doctrine H-Omar).
+
+VPS_REPORT_FRESH_HOURS = 36
+
+VPS_FLEET_EXPECTED = [
+    {
+        "node": "omar",
+        "vps_id": "vps-omar",
+        "label": "VPS-Omar — core OA",
+        "transport_owner": "h-omar (cron local quotidien 06h30)",
+        "expected_path": "/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/omar/vps-report-latest.json",
+    },
+    {
+        "node": "jab",
+        "vps_id": "vps-jab",
+        "label": "VPS-JAB — client JAB",
+        "transport_owner": "cc-jab",
+        "expected_path": "/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/jab/vps-report-latest.json",
+    },
+    {
+        "node": "pantheos",
+        "vps_id": "vps-pantheos",
+        "label": "Pantheos — famille alexgo.eu",
+        "transport_owner": "h-aurel",
+        "expected_path": "/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/pantheos/vps-report-latest.json",
+    },
+]
+
+
+def _parse_report_ts(value) -> dt.datetime | None:
+    try:
+        parsed = dt.datetime.fromisoformat(str(value or "").strip().replace("Z", "+00:00"))
+    except Exception:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
+
+
+def _vps_fleet_node(expected: dict, report: dict | None, now: dt.datetime) -> dict:
+    node: dict = dict(expected)
+    node["expected"] = "transport_owner" in expected and bool(expected.get("expected_path"))
+    if report is None:
+        node["report_status"] = "missing"
+        return node
+    ts = _parse_report_ts(report.get("generated_at"))
+    age_hours = round((now - ts).total_seconds() / 3600, 1) if ts else None
+    fresh = age_hours is not None and 0 <= age_hours < VPS_REPORT_FRESH_HOURS
+    standards = _standards_for_report(report)
+    fails = [s for s in standards if s["verdict"] == "FAIL"]
+    n_pass = sum(1 for s in standards if s["verdict"] == "PASS")
+    raw_apps = [a for a in (report.get("apps") or []) if isinstance(a, dict)]
+    partial = not standards
+    if not raw_apps:
+        raw_apps = [a for a in (report.get("installed_apps") or []) if isinstance(a, dict)]
+    kinds: dict[str, int] = {}
+    for app in raw_apps:
+        kind = str(app.get("kind") or "autre")
+        kinds[kind] = kinds.get(kind, 0) + 1
+    maturity = str(report.get("maturity") or "").upper()
+    if maturity not in {"PASS", "FAIL", "UNKNOWN"}:
+        maturity = "FAIL" if fails else ("PASS" if standards else "UNKNOWN")
+    next_action = report.get("next_action") if isinstance(report.get("next_action"), dict) else {}
+    node.update({
+        "report_status": "fresh" if fresh else "stale",
+        "vps_id": str(report.get("vps_id") or expected.get("vps_id") or f'vps-{expected["node"]}'),
+        "tenant": str(report.get("tenant") or "unknown"),
+        "generated_at": str(report.get("generated_at") or "unknown"),
+        "age_hours": age_hours,
+        "source_path": str(report.get("_source_path") or ""),
+        "maturity": maturity,
+        "partial": partial,  # rapport reçu mais sans standards[] → maturité invérifiable
+        "standards_pass": n_pass,
+        "standards_fail": len(fails),
+        "standards_total": len(standards),
+        "standards_pass_pct": round(n_pass / len(standards) * 100) if standards else None,
+        "fails": [{"item_id": s["item_id"], "proof_redacted": s["evidence"]} for s in fails],
+        "apps_total": len(raw_apps),
+        "apps_by_kind": dict(sorted(kinds.items(), key=lambda kv: -kv[1])),
+        "next_action": {
+            "owner": str(next_action.get("owner") or "unknown"),
+            "action_1_line": str(next_action.get("action_1_line") or "non renseignée"),
+        },
+    })
+    return node
+
+
+# oa-master = flux santé h-omar du MÊME VPS que vps-omar (rapport OmarTop) :
+# on ne le compte pas comme un 4e VPS, le bloc omar fait foi.
+VPS_FLEET_ALIAS_NODES = {"oa-master"}
+
+
+def collect_vps_fleet(built_at: str) -> dict:
+    """Vue flotte /ops/ : un bloc par VPS attendu + les nœuds surprises de l'inbox."""
+    now = _parse_report_ts(built_at) or dt.datetime.now(dt.timezone.utc)
+    reports = {r["node"]: r for r in _read_inter_vps_reports()}
+    expected_nodes = {e["node"] for e in VPS_FLEET_EXPECTED}
+    nodes = [_vps_fleet_node(e, reports.get(e["node"]), now) for e in VPS_FLEET_EXPECTED]
+    for extra in sorted(set(reports) - expected_nodes - VPS_FLEET_ALIAS_NODES):
+        nodes.append(_vps_fleet_node(
+            {"node": extra, "vps_id": f"vps-{extra}", "label": f"{extra} — hors flotte attendue",
+             "transport_owner": "inconnu", "expected_path": ""},
+            reports[extra], now,
+        ))
+    reporting = sum(1 for n in nodes if n["report_status"] == "fresh")
+    en_derive = sum(1 for n in nodes if n["report_status"] == "fresh" and n.get("maturity") == "FAIL")
+    muets = sum(1 for n in nodes if n["report_status"] in {"missing", "stale"})
+    return {
+        "schema": "oa.vps-fleet-status/1",
+        "built_at": built_at,
+        "source": "oa.vps-report/v1 (inbox inter-VPS) · fraîcheur attendue < 36 h",
+        "fresh_hours": VPS_REPORT_FRESH_HOURS,
+        "summary": {
+            "expected": len(VPS_FLEET_EXPECTED),
+            "nodes": len(nodes),
+            "reporting": reporting,
+            "en_derive": en_derive,
+            "muets": muets,
+            "standards_fail": sum(int(n.get("standards_fail") or 0) for n in nodes),
+        },
+        "sav": "non instrumenté — aucun flux SAV n'existe encore",
         "nodes": nodes,
     }
 
@@ -1540,7 +1668,7 @@ def qg_blocages_banner(blocages: dict | None) -> str:
     )
 
 
-def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None) -> str:
+def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None, vps_fleet: dict | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
     objectifs = objectifs or []
@@ -1548,11 +1676,24 @@ def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int =
     audit_summary = (agent_loop_audit or {}).get("summary", {}) or {}
     total_orphans = int(audit_summary.get("total_orphans") or 0)
 
+    # Tuile flotte VPS (rescue J4) : x/y rapportent + standards FAIL, détail sur /ops/.
+    fleet_summary = (vps_fleet or {}).get("summary", {}) or {}
+    fleet_reporting = int(fleet_summary.get("reporting") or 0)
+    fleet_expected = int(fleet_summary.get("expected") or 0)
+    fleet_fail = int(fleet_summary.get("standards_fail") or 0)
+    fleet_accent = "text-red-600" if fleet_fail or fleet_reporting < fleet_expected else "text-gray-900"
+    fleet_tile = (
+        f'<a href="/ops/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {fleet_accent}">{fleet_reporting}<span class="text-gray-400 text-sm font-normal">/{fleet_expected}</span></div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">VPS rapportent · {fleet_fail} standard(s) FAIL</div></div>'
+        f'<span class="text-xs text-blue-500">Voir /ops/ →</span></div></a>'
+    ) if fleet_expected else ""
+
     # Tuiles d'action : blocages à trancher + builds du jour (liens dédiés).
     # Source unique du compteur Alex: collect_blocages.py (plus de recomptage décisions ici).
     dec_accent = "text-amber-600" if pending_alex_actions else "text-gray-900"
     tiles = (
-        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">'
+        f'<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-{4 if fleet_tile else 3} gap-3 mb-3">'
         f'<a href="/blocages/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}">{pending_alex_actions}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Actions Alex à débloquer</div></div>'
@@ -1565,6 +1706,7 @@ def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int =
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {"text-red-600" if total_orphans else "text-gray-900"}">{total_orphans}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Orphelins Issue↔Kanban↔PR↔Gate · figé depuis 15/06 si non recronifié</div></div>'
         f'<span class="text-xs text-blue-500">Auditer →</span></div></a>'
+        + fleet_tile +
         '</div>'
     )
 
@@ -2364,7 +2506,107 @@ def _num(v) -> int:
         return 0
 
 
-def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None) -> str:
+def _vps_fleet_section(vps_fleet: dict | None) -> str:
+    """Bloc « où j'en suis techniquement, sur chaque VPS » (demande Alex, rescue J4).
+
+    Un bloc par VPS attendu : maturité en grand, liste INTÉGRALE des standards
+    FAIL (item_id + preuve redacted, zéro ellipsis), compteur apps par kind,
+    next_action ownerisée, horodatage. Rapport absent/stale = bloc ambre —
+    c'est une alerte au sens de la doctrine H-Omar, pas une ligne discrète.
+    """
+    vps_fleet = vps_fleet if isinstance(vps_fleet, dict) else {}
+    nodes = vps_fleet.get("nodes") or []
+    if not nodes:
+        return (
+            '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 mb-6 text-sm text-amber-800">'
+            'Flotte VPS : aucun rapport <span class="font-mono">oa.vps-report/v1</span> lisible dans l&#39;inbox inter-VPS.</div>'
+        )
+    s = vps_fleet.get("summary") or {}
+    reporting = int(s.get("reporting") or 0)
+    en_derive = int(s.get("en_derive") or 0)
+    muets = int(s.get("muets") or 0)
+    html = '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+    html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+    html += ('<div><h2 class="text-sm font-bold text-gray-900">Flotte VPS — où j&#39;en suis, machine par machine</h2>'
+             '<p class="text-xs text-gray-500">Rapports <span class="font-mono">oa.vps-report/v1</span> · inbox inter-VPS · fraîcheur attendue &lt; 36 h · muet = alerte.</p></div>')
+    html += '<a href="/api/ops/vps-fleet.json" class="text-xs text-blue-500 hover:underline">API flotte</a>'
+    html += '</div>'
+    derive_cls = "text-red-700" if en_derive else "text-green-700"
+    muet_cls = "text-amber-700" if muets else "text-green-700"
+    html += (
+        '<div class="px-4 py-3 bg-gray-50 border-b border-gray-100 text-base font-bold text-gray-900">'
+        f'{reporting} VPS rapportent · <span class="{derive_cls}">{en_derive} en dérive</span> · '
+        f'<span class="{muet_cls}">{muets} muet(s)</span></div>'
+    )
+    for node in nodes:
+        status = str(node.get("report_status") or "missing")
+        label = str(node.get("label") or node.get("node") or "vps")
+        vps_id = str(node.get("vps_id") or "")
+        owner_transport = str(node.get("transport_owner") or "inconnu")
+        if status == "missing":
+            html += '<div class="px-4 py-4 border-b border-gray-100 last:border-0 bg-amber-50">'
+            html += ('<div class="flex items-center justify-between gap-2 flex-wrap">'
+                     f'<div class="text-sm font-bold text-gray-900 uppercase">{escape(vps_id)}</div>'
+                     '<span class="pill-warn rounded-full px-2 py-0.5 text-xs font-medium">rapport attendu — jamais reçu</span></div>')
+            html += f'<div class="text-xs text-gray-500 mt-0.5">{escape(label)}</div>'
+            html += ('<div class="text-sm text-amber-800 mt-2">Aucun rapport <span class="font-mono">oa.vps-report/v1</span> '
+                     'dans l&#39;inbox — VPS muet, alerte doctrine H-Omar.</div>')
+            html += f'<div class="text-xs text-gray-600 mt-1">Outbox attendue : <span class="font-mono">{escape(str(node.get("expected_path") or "non définie"))}</span></div>'
+            html += f'<div class="text-xs text-gray-600">Transport : owner <span class="font-semibold">{escape(owner_transport)}</span></div>'
+            html += '</div>'
+            continue
+        stale = status == "stale"
+        age_hours = node.get("age_hours")
+        age_txt = f"{age_hours} h" if age_hours is not None else "âge inconnu"
+        maturity = str(node.get("maturity") or "UNKNOWN")
+        partial = bool(node.get("partial"))
+        n_pass = int(node.get("standards_pass") or 0)
+        n_fail = int(node.get("standards_fail") or 0)
+        pct = node.get("standards_pass_pct")
+        mat_cls = "text-red-700" if maturity == "FAIL" else "text-green-700" if maturity == "PASS" else "text-amber-700"
+        row_cls = "bg-amber-50" if stale else ""
+        html += f'<div class="px-4 py-4 border-b border-gray-100 last:border-0 {row_cls}">'
+        pill = ('<span class="pill-warn rounded-full px-2 py-0.5 text-xs font-medium">stale depuis ' + escape(age_txt) + '</span>'
+                if stale else '<span class="pill-ok rounded-full px-2 py-0.5 text-xs font-medium">rapport frais</span>')
+        html += ('<div class="flex items-center justify-between gap-2 flex-wrap">'
+                 f'<div class="text-sm font-bold text-gray-900 uppercase">{escape(vps_id)}</div>{pill}</div>')
+        html += f'<div class="text-xs text-gray-500 mt-0.5">{escape(label)} · tenant {escape(str(node.get("tenant") or "unknown"))}</div>'
+        if stale:
+            html += ('<div class="text-sm text-amber-800 mt-2">Rapport attendu — stale depuis '
+                     f'{escape(age_txt)} (seuil {VPS_REPORT_FRESH_HOURS} h) : alerte doctrine H-Omar. '
+                     f'Outbox : <span class="font-mono">{escape(str(node.get("expected_path") or node.get("source_path") or ""))}</span> · '
+                     f'transport owner <span class="font-semibold">{escape(owner_transport)}</span>.</div>')
+        # Maturité en grand
+        if partial:
+            html += (f'<div class="mt-2 text-3xl font-bold {mat_cls}">maturité {escape(maturity)}</div>'
+                     '<div class="text-xs text-amber-700 mt-0.5">rapport partiel — aucun <span class="font-mono">standards[]</span> fourni, maturité invérifiable.</div>')
+        else:
+            html += (f'<div class="mt-2 text-3xl font-bold {mat_cls}">{n_pass} PASS / {n_fail} FAIL'
+                     + (f'<span class="text-lg font-semibold text-gray-500"> · {escape(str(pct))}%</span>' if pct is not None else '')
+                     + '</div>')
+            html += f'<div class="text-xs {mat_cls} mt-0.5 font-semibold">maturité {escape(maturity)}</div>'
+        fails = node.get("fails") or []
+        if fails:
+            html += '<div class="mt-2 space-y-1">'
+            for f_item in fails:
+                html += ('<div class="text-sm text-gray-800"><span class="font-mono text-xs font-semibold text-red-700">'
+                         f'{escape(str(f_item.get("item_id") or ""))}</span> — {escape(str(f_item.get("proof_redacted") or ""))}</div>')
+            html += '</div>'
+        kinds = node.get("apps_by_kind") or {}
+        kinds_txt = " · ".join(f"{k} {v}" for k, v in kinds.items()) or "aucune app rapportée"
+        html += f'<div class="text-xs text-gray-600 mt-2"><span class="font-semibold">{int(node.get("apps_total") or 0)} apps</span> : {escape(kinds_txt)}</div>'
+        na = node.get("next_action") or {}
+        html += (f'<div class="text-xs text-gray-700 mt-1">Next : {escape(str(na.get("action_1_line") or "non renseignée"))} '
+                 f'— owner <span class="font-semibold">{escape(str(na.get("owner") or "unknown"))}</span></div>')
+        html += f'<div class="text-xs text-gray-400 mt-1">généré {escape(str(node.get("generated_at") or "?"))} · il y a {escape(age_txt)} · source <span class="font-mono">{escape(str(node.get("source_path") or ""))}</span></div>'
+        html += '</div>'
+    html += ('<div class="px-4 py-3 bg-gray-50 text-xs text-gray-500">'
+             'SAV : non instrumenté — aucun flux SAV n&#39;existe encore.</div>')
+    html += '</section>'
+    return html
+
+
+def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None, vps_fleet: dict | None = None) -> str:
     gh = ledger.get("github_totals", {})
     hermes = ledger.get("sessions", {}).get("hermes", {})
     cc = ledger.get("sessions", {}).get("ccusage", {})
@@ -2387,6 +2629,8 @@ def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None
         '<a href="/api/daily-ledger/index.json" class="text-xs text-blue-500 hover:underline">API ledger</a>'
         '</div>'
     )
+    # EN TÊTE (demande Alex 07/07) : la flotte VPS — chaque machine, sa maturité.
+    html += _vps_fleet_section(vps_fleet)
     html += '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">'
     html += card("Sessions Hermes", hermes.get("sessions", 0), f'{hermes.get("messages", 0)} messages · {hermes.get("tool_calls", 0)} tools')
     html += card("Sessions Claude/CLI", cc_sessions, ", ".join(f"{k}:{v.get('sessions',0)}" for k, v in by_agent.items()) or "ccusage")
@@ -2882,8 +3126,10 @@ def page_blocages(payload: dict) -> str:
     # « pouvoir ajouter la réponse juste en dessous — parfois juste dire c'est
     # fait, parfois expliquer pour que le système sache quoi faire après »).
     # Le compte-et-pointe vaut pour le bruit machine, pas pour la file d'Alex.
+    # Les entrées origine autre VPS (type=vps) vivent dans la section Multi-VPS :
+    # leur réponse passe par le VPS d'origine, pas par l'encart kanban local.
     alex_items = sorted(
-        [b for b in blocages if isinstance(b, dict) and b.get("qui_debloque") == "alex"],
+        [b for b in blocages if isinstance(b, dict) and b.get("qui_debloque") == "alex" and b.get("type") != "vps"],
         key=lambda b: -(b.get("age_jours") or 0),
     )
     if alex_items:
@@ -2906,7 +3152,10 @@ def page_blocages(payload: dict) -> str:
             if effort:
                 meta_bits.append(f"~{int(effort)} min")
             meta = " · ".join(meta_bits)
-            badge = escape(str(b.get("type") or ""))
+            badge = str(b.get("type") or "")
+            aussi = [str(n) for n in (b.get("aussi_signale_par") or []) if n]
+            if aussi:
+                badge += " · aussi signalé par " + ", ".join(aussi)
             rid = escape(ref.replace("#", "-"))
             html += (
                 '<div class="px-5 py-4">'
@@ -2940,6 +3189,52 @@ def page_blocages(payload: dict) -> str:
             'catch(e){z.insertAdjacentHTML("beforeend",\'<span class="text-xs text-red-600">Erreur réseau.</span>\');}}'
             '</script>'
         )
+
+    # ── Multi-VPS : blockers remontés par les rapports oa.vps-report/v1 des
+    # autres VPS (jab, pantheos…), dédupliqués contre le local — badge d'origine.
+    vps_items = sorted(
+        [b for b in blocages if isinstance(b, dict) and b.get("type") == "vps"],
+        key=lambda b: -(b.get("age_jours") or 0),
+    )
+    vps_stats = payload.get("vps_blockers") if isinstance(payload.get("vps_blockers"), dict) else {}
+    if vps_items or vps_stats:
+        html += (
+            '<div id="multi-vps" class="flex items-baseline gap-2 mb-2">'
+            '<h2 class="text-sm font-bold uppercase tracking-wide text-violet-700">Multi-VPS — remonté par les autres VPS</h2>'
+            '<span class="text-xs text-gray-400">source rapports oa.vps-report/v1 · dédupliqué contre le kanban local · détail flotte sur /ops/</span></div>'
+            '<div class="bg-white rounded-xl border border-violet-200 mb-8">'
+        )
+        if vps_stats:
+            html += '<div class="px-5 py-3 border-b border-gray-100 text-xs text-gray-600 space-y-0.5">'
+            for node in sorted(vps_stats):
+                st = vps_stats[node] if isinstance(vps_stats[node], dict) else {}
+                html += (
+                    f'<div><span class="font-semibold uppercase">{escape(str(node))}</span> — '
+                    f'{int(st.get("total") or 0)} blocker(s) rapporté(s) · '
+                    f'{int(st.get("dedupliques") or 0)} déjà suivi(s) localement (dédupliqués) · '
+                    f'{int(st.get("uniques") or 0)} propre(s) à ce VPS</div>'
+                )
+            html += '</div>'
+        if vps_items:
+            html += '<div class="divide-y divide-gray-100">'
+            for b in vps_items:
+                origine = str(b.get("origine") or "vps")
+                qui = str(b.get("qui_debloque") or "")
+                age = int(b.get("age_jours") or 0)
+                html += (
+                    '<div class="px-5 py-4">'
+                    '<div class="flex items-baseline gap-2 flex-wrap">'
+                    f'<span class="text-xs font-semibold rounded-full px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-200">origine {escape(origine)}</span>'
+                    f'<span class="text-sm font-semibold text-gray-900">{escape(str(b.get("titre") or ""))}</span>'
+                    f'<span class="text-xs text-gray-400">{age} j · débloque : {escape(qui)}</span></div>'
+                    f'<div class="text-sm text-gray-700 mt-1">{escape(str(b.get("action_1_ligne") or ""))}</div>'
+                    '</div>'
+                )
+            html += '</div>'
+        else:
+            html += ('<div class="px-5 py-3 text-sm text-gray-600">Aucun blocker propre à un autre VPS : '
+                     'tout ce que les VPS remontent est déjà suivi dans le kanban local (badge « aussi signalé par » ci-dessus).</div>')
+        html += '</div>'
 
     # ── Sudo : SEULE section développée — texte complet, jamais tronqué ───────
     sudo_items = sorted(
@@ -3493,6 +3788,21 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(storage, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    # Flotte VPS (rescue J4 07/07) : qui rapporte, qui dérive, qui est muet.
+    try:
+        vps_fleet = collect_vps_fleet(built_at)
+    except Exception as exc:  # ne casse jamais le build QG
+        vps_fleet = {
+            "schema": "oa.vps-fleet-status/1",
+            "built_at": built_at,
+            "summary": {"expected": len(VPS_FLEET_EXPECTED), "nodes": 0, "reporting": 0, "en_derive": 0, "muets": len(VPS_FLEET_EXPECTED), "standards_fail": 0},
+            "nodes": [],
+            "errors": [f"vps_fleet_unavailable: {exc.__class__.__name__}"],
+        }
+    (tmp / "api" / "ops" / "vps-fleet.json").write_text(
+        json.dumps(vps_fleet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
     # Builds du jour (commits par repo, 7 j) → public/api/builds.json
     try:
         builds = _load_build_ledger().collect_builds()
@@ -3511,12 +3821,12 @@ def main(argv: list[str] | None = None) -> None:
 
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
-        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload)),
+        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet)),
         ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
-        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage)),
+        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage, vps_fleet)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),
         ("/builds/",      "builds",      "Builds du jour",           page_builds(builds)),

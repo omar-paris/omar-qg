@@ -330,6 +330,39 @@ def test_qg_vps_app_inventory_api_and_clients_surface():
     assert "UNKNOWN" in clients
 
 
+def test_qg_ops_vps_fleet_surface_and_api():
+    build()
+    api = PUBLIC / "api" / "ops" / "vps-fleet.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.vps-fleet-status/1"
+    assert payload["summary"]["expected"] == 3
+    assert {"reporting", "en_derive", "muets", "standards_fail"} <= set(payload["summary"])
+    nodes = {node["node"]: node for node in payload["nodes"]}
+    # Les 3 VPS attendus ont TOUJOURS un bloc, rapport reçu ou pas.
+    assert {"omar", "jab", "pantheos"} <= set(nodes)
+    assert "oa-master" not in nodes  # alias du même VPS que omar, jamais un 4e nœud
+    for node in payload["nodes"]:
+        assert node["report_status"] in {"fresh", "stale", "missing"}
+        assert node["transport_owner"]
+        if node["report_status"] == "missing":
+            assert node["expected_path"]
+        else:
+            assert node["maturity"] in {"PASS", "FAIL", "UNKNOWN"}
+            assert {"standards_pass", "standards_fail", "fails", "apps_total", "apps_by_kind", "next_action", "generated_at"} <= set(node)
+
+    ops = (PUBLIC / "ops" / "index.html").read_text(encoding="utf-8")
+    assert "Flotte VPS" in ops
+    assert "VPS rapportent" in ops
+    assert "en dérive" in ops
+    assert "muet(s)" in ops
+    assert "SAV : non instrumenté — aucun flux SAV" in ops
+    assert "/api/ops/vps-fleet.json" in ops
+    # La tuile flotte de la home pointe vers /ops/.
+    home = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    assert "VPS rapportent" in home
+
+
 def test_qg_resource_onboarding_surface_and_appomar_spec():
     build()
     api = PUBLIC / "api" / "vps-resource-onboarding-v0.json"

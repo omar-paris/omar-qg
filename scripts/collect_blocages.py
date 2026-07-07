@@ -128,11 +128,11 @@ def extract_command(text: str) -> str:
 
 def entry(eid: str, qui: str, etype: str, titre: str, age: int, action: str,
           lien: str = "", effort_min: int | None = None, source: str = "", refs: list[str] | None = None,
-          texte_complet: str = "", commande: str = "") -> dict:
+          texte_complet: str = "", commande: str = "", origine: str = "") -> dict:
     e = {
         "id": eid,
         "qui_debloque": qui,          # alex | h-omar | agent | externe
-        "type": etype,                # decision | carte | sudo | pr
+        "type": etype,                # decision | carte | sudo | pr | vps
         "titre": one_line(titre, 140),
         "age_jours": age,
         "action_1_ligne": one_line(action),
@@ -140,6 +140,7 @@ def entry(eid: str, qui: str, etype: str, titre: str, age: int, action: str,
         "effort_min": effort_min,
         "source": source,
         "refs": refs or [],
+        "origine": origine,           # "" = local (VPS-Omar) | vps_id/node d'origine (jab, pantheos…)
     }
     if etype == "sudo":
         # Les items sudo ne vivent nulle part ailleurs : titre + texte COMPLETS,
@@ -409,6 +410,155 @@ def collect_stale_prs(now: dt.datetime, nogo_prs: set[str], errors: list[str]) -
     return entries
 
 
+# ── 4bis. Blockers remontés par les AUTRES VPS (oa.vps-report/v1) ─────────────
+# Les blockers d'omar.json PROVIENNENT de var/blocages.json (générés ici même) :
+# on ne lit donc QUE les rapports non-omar, et on déduplique contre les entrées
+# locales (titre normalisé + refs repo#num) — champ origine=<node> sur le reste.
+
+INTER_VPS_REPORT_DIRS = [
+    Path("/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox"),
+    Path("/home/omar/11-Pilotage/sujets-actifs/fable-5-rails-1-2/inbox-from-pantheos"),
+]
+if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
+    # Fixtures EXCLUSIVES en mode test — mêmes entrées qu'en CI, déterministe.
+    INTER_VPS_REPORT_DIRS = [ROOT / "tests" / "fixtures" / "inter-vps-inbox"]
+LOCAL_VPS_NODES = {"omar", "oa-master"}  # rapports générés sur CE VPS — jamais réimportés
+PR_REF_RE = re.compile(r"\b(omar-[a-z-]+|oa-[a-z-]+|omi-bridge)#(\d+)\b", re.IGNORECASE)
+
+
+def _vps_report_node(payload: dict, path: Path) -> str:
+    node = str(payload.get("node") or "").strip().lower()
+    if not node:
+        vps_id = str(payload.get("vps_id") or "").strip().lower()
+        node = vps_id.removeprefix("vps-") if vps_id else ""
+    if not node and path.parent.name not in ("", "inter-vps-inbox"):
+        node = path.parent.name.strip().lower()
+    return node
+
+
+def _read_remote_vps_reports(errors: list[str]) -> dict[str, dict]:
+    """Dernier rapport oa.vps-report/v1 par nœud NON-local (jab, pantheos…)."""
+    reports: dict[str, dict] = {}
+    for root in INTER_VPS_REPORT_DIRS:
+        if not root.exists():
+            continue
+        paths = set(root.rglob("*health*.json")) | set(root.rglob("*vps-report*.json"))
+        for path in sorted(paths):
+            if any(part in {"_invalid", "_validated", "archive"} for part in path.parts):
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(payload, dict) or payload.get("schema") != "oa.vps-report/v1":
+                continue
+            node = _vps_report_node(payload, path)
+            if not node or node in LOCAL_VPS_NODES:
+                continue
+            prev = reports.get(node)
+            if not prev or str(payload.get("generated_at") or "") >= str(prev.get("generated_at") or ""):
+                payload = dict(payload)
+                payload["_node"] = node
+                reports[node] = payload
+    return reports
+
+
+def _norm_titre(text: str) -> str:
+    return " ".join(one_line(text, 140).lower().split())
+
+
+REDACTION_PLACEHOLDER_RE = re.compile(r"<redacted[^>]*>|\[redige\]|\[redacted\]", re.IGNORECASE)
+
+
+def _titre_deja_local(norm_remote: str, seen_titles: dict[str, dict]) -> dict | None:
+    """Entrée locale correspondant au titre remote, sinon None — tolère qu'un mot
+    rédigé côté remote soit en clair côté local (token → <redacted-word>)."""
+    if norm_remote in seen_titles:
+        return seen_titles[norm_remote]
+    parts = [p.strip() for p in REDACTION_PLACEHOLDER_RE.split(norm_remote) if p.strip()]
+    if len(parts) <= 1 and REDACTION_PLACEHOLDER_RE.search(norm_remote) is None:
+        return None  # pas de placeholder : seule l'égalité stricte compte
+    for local, local_entry in seen_titles.items():
+        pos, ok = 0, True
+        for part in parts:
+            idx = local.find(part, pos)
+            if idx < 0:
+                ok = False
+                break
+            pos = idx + len(part)
+        if ok:
+            return local_entry
+    return None
+
+
+def collect_vps_blockers(now: dt.datetime, local_entries: list[dict], errors: list[str]) -> tuple[list[dict], dict]:
+    """Agrège blockers[] des rapports VPS non-omar, dédupliqués contre le local.
+
+    Retourne (entrées uniques origine=<node>, stats par VPS). Un blocker remote
+    qui duplique une entrée locale ne crée PAS de doublon : l'entrée locale est
+    annotée `aussi_signale_par` (le kanban est partagé — jab relit les mêmes cartes).
+    """
+    entries: list[dict] = []
+    stats: dict[str, dict] = {}
+    seen_titles = {_norm_titre(e.get("titre") or ""): e for e in local_entries if e.get("titre")}
+    seen_refs = {str(r).lower(): e for e in local_entries for r in (e.get("refs") or [])}
+    qui_ok = {"alex", "h-omar", "agent"}
+    try:
+        reports = _read_remote_vps_reports(errors)
+    except Exception as exc:
+        errors.append("vps_reports_unavailable: " + safe(exc))
+        return entries, stats
+    for node in sorted(reports):
+        report = reports[node]
+        blockers = report.get("blockers") or []
+        if not isinstance(blockers, list):
+            continue
+        stats[node] = {"total": 0, "uniques": 0, "dedupliques": 0,
+                       "generated_at": str(report.get("generated_at") or "unknown")}
+        for i, b in enumerate(blockers, 1):
+            if not isinstance(b, dict):
+                continue
+            title = str(b.get("title") or "").strip()
+            if not title:
+                continue
+            stats[node]["total"] += 1
+            norm = _norm_titre(title)
+            pr_refs = {f"{repo.lower()}#{num}" for repo, num in PR_REF_RE.findall(title)}
+            local_match = _titre_deja_local(norm, seen_titles)
+            if local_match is None:
+                for ref in pr_refs:
+                    if ref in seen_refs:
+                        local_match = seen_refs[ref]
+                        break
+            if local_match is not None:
+                # Dédup : déjà porté localement — on annote, on ne double pas.
+                aussi = local_match.setdefault("aussi_signale_par", [])
+                if node not in aussi:
+                    aussi.append(node)
+                stats[node]["dedupliques"] += 1
+                continue
+            qui = str(b.get("who_unblocks") or "").strip().lower()
+            if qui not in qui_ok:
+                qui = "externe"  # inclut 'client' (schéma) et valeurs inconnues
+            try:
+                age = max(0, int(b.get("age_days") or 0))
+            except Exception:
+                age = 0
+            e = entry(
+                f"vps:{node}:{i}", qui, "vps", title, age,
+                str(b.get("action_1_line") or "action non renseignée"),
+                "/ops/", None, f"oa.vps-report/v1 ({node})",
+                sorted(pr_refs) or [f"vps:{node}:{i}"],
+                origine=node,
+            )
+            entries.append(e)
+            seen_titles[norm] = e
+            for ref in pr_refs:
+                seen_refs.setdefault(ref, e)
+            stats[node]["uniques"] += 1
+    return entries, stats
+
+
 # ── 5. Dernières PRs mergées — la boucle de contrôle d'Alex ──────────────────
 
 def collect_merged_prs(errors: list[str], limit: int = 10) -> list[dict]:
@@ -462,7 +612,11 @@ def collect(write: bool = True) -> dict:
     pr_entries = collect_stale_prs(now, nogo_prs, errors)
     dernieres_mergees = collect_merged_prs(errors)
 
-    blocages = decision_entries + card_entries + go_entries + rework_entries + pr_entries
+    # Blockers des AUTRES VPS (jab, pantheos…) — dédupliqués contre tout le local.
+    local_entries = decision_entries + card_entries + go_entries + rework_entries + pr_entries
+    vps_entries, vps_stats = collect_vps_blockers(now, local_entries, errors)
+
+    blocages = local_entries + vps_entries
     qui_rank = {"alex": 0, "h-omar": 1, "agent": 2, "externe": 3}
     blocages.sort(key=lambda e: (qui_rank.get(e["qui_debloque"], 9), -e["age_jours"]))
 
@@ -482,6 +636,8 @@ def collect(write: bool = True) -> dict:
             "par_qui": {q: sum(1 for e in blocages if e["qui_debloque"] == q) for q in qui_rank if any(e["qui_debloque"] == q for e in blocages)},
         },
         "blocages": blocages,
+        # Rapports oa.vps-report/v1 des autres VPS : total/uniques/dédupliqués par nœud.
+        "vps_blockers": vps_stats,
         "dernieres_mergees": dernieres_mergees,
         "errors": errors,
     }
