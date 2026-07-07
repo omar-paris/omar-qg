@@ -1006,9 +1006,10 @@ def _read_var_json(name: str) -> dict:
     snapshots committed in the repo. This keeps app pages factual while respecting
     the issue #26 boundary: no extra API calls or fresh collection for detail pages.
     """
-    paths = [ROOT / "var" / name, PUBLIC / "api" / name]
+    paths = []
     if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
         paths.append(ROOT / "tests" / "fixtures" / "qg-var" / name)
+    paths.extend([ROOT / "var" / name, PUBLIC / "api" / name])
     for path in paths:
         try:
             return json.loads(path.read_text(encoding="utf-8"))

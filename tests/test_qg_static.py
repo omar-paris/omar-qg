@@ -314,7 +314,8 @@ def test_qg_vps_app_inventory_api_and_clients_surface():
     assert omar["tenant"] == "oa-internal"
     assert omar["summary"]["pass"] >= 1
     assert omar["summary"]["fail"] >= 1
-    assert {"PASS", "FAIL", "UNKNOWN"} <= {standard["verdict"] for standard in omar["standards"]}
+    assert {"PASS", "FAIL"} <= {standard["verdict"] for standard in omar["standards"]}
+    assert "UNKNOWN" in {app["verdict"] for app in omar["apps"]}
     clients = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
     assert "Inventaire apps/version par VPS" in clients
     assert "oa.vps-report/v1" in clients

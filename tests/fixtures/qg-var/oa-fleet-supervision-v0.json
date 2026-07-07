@@ -11,8 +11,38 @@
     "unknown": 6
   },
   "nodes": [
-    {"node": "oa-master", "status": "ok", "controls": {"total": 15, "pass": 13, "fail": 1, "unknown": 1}, "apps": {"total": 10}},
-    {"node": "jab", "status": "degraded", "controls": {"total": 15, "pass": 11, "fail": 1, "unknown": 3}, "apps": {"total": 10}},
-    {"node": "pantheos", "status": "degraded", "controls": {"total": 15, "pass": 12, "fail": 1, "unknown": 2}, "apps": {"total": 10}}
+    {
+      "node": "oa-master",
+      "status": "ok",
+      "compliance": {"total": 15, "pass": 13, "fail": 1, "unknown": 1},
+      "controls": [
+        {"id": "OBS-SERVICES-01", "label": "Services critiques", "status": "pass"},
+        {"id": "MAINT-DOCTOR-01", "label": "Doctor quotidien", "status": "fail"},
+        {"id": "OBS-REPORT-01", "label": "Rapport inter-VPS", "status": "unknown"}
+      ],
+      "apps": {"total": 10}
+    },
+    {
+      "node": "jab",
+      "status": "degraded",
+      "compliance": {"total": 15, "pass": 11, "fail": 1, "unknown": 3},
+      "controls": [
+        {"id": "OBS-SERVICES-01", "label": "Services critiques", "status": "pass"},
+        {"id": "MAINT-DOCTOR-01", "label": "Doctor quotidien", "status": "fail"},
+        {"id": "TOO-REPORT-01", "label": "Rapport applicatif", "status": "unknown"}
+      ],
+      "apps": {"total": 10}
+    },
+    {
+      "node": "pantheos",
+      "status": "degraded",
+      "compliance": {"total": 15, "pass": 12, "fail": 1, "unknown": 2},
+      "controls": [
+        {"id": "OBS-SERVICES-01", "label": "Services critiques", "status": "pass"},
+        {"id": "MAINT-DOCTOR-01", "label": "Doctor quotidien", "status": "fail"},
+        {"id": "TOO-REPORT-01", "label": "Rapport applicatif", "status": "unknown"}
+      ],
+      "apps": {"total": 10}
+    }
   ]
 }
