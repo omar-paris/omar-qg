@@ -1819,7 +1819,7 @@ def qg_blocages_banner(blocages: dict | None) -> str:
 
 
 
-DOCS_ALLOWED_DIRS = (ROOT / "docs" / "plans", ROOT / "docs" / "references")
+DOCS_ALLOWED_DIRS = (ROOT / "docs" / "plans", ROOT / "docs" / "references", ROOT / "docs" / "reviews")
 
 
 def _doc_slug(path: Path) -> str:

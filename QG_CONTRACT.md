@@ -46,6 +46,7 @@ Afficher en un cockpit :
 /chantiers/
 /ops/
 /manifeste/
+/docs/
 /objectifs/
 /agent-loop/
 /clients/
@@ -120,6 +121,15 @@ Cible produit après gates de fusion : 5 pages.
 Les pages legacy restent accessibles jusqu'aux étapes 6-8 du plan de convergence. Toute suppression/fusion de page nécessite une review séparée. La route `/boucles/` reste une cible tant que le chantier boucles séparé n'est pas validé ; ce commit ne l'active pas.
 
 ## Rebuild automatique et publication
+
+### Boucle feedback Alex depuis /blocages/
+
+Les réponses inline `POST /api/blocages/answer` passent aussi dans `scripts/collect_feedback_alex.py` en best-effort. Le collecteur détecte les signaux faibles (`???`, ton négatif, lien/action impossible, erreur/cassé), rédige un extrait court redacted et déduplique via `var/feedback-alex-seen.json`.
+
+- Défaut sûr: `OA_FEEDBACK_ALEX_MODE=dry-run` (ou variable absente) écrit seulement `var/feedback-alex-local.log`, sans notification.
+- Désactivation: `OA_FEEDBACK_ALEX_MODE=off`.
+- Activation création locale: `OA_FEEDBACK_ALEX_MODE=create` crée une carte Kanban triage `[FEEDBACK-ALEX]` avec `--assignee default`, `--created-by oa-secretaire` et `--idempotency-key feedback-alex:*`.
+- Vérification: consulter le log local, puis le dashboard Kanban en triage; aucune donnée sensible brute ni @groupe automatique.
 
 Rebuild local :
 
