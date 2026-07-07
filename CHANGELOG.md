@@ -1,5 +1,11 @@
 # Changelog
 
+## V0.9.3 — 2026-07-07
+
+- Bandeau discret sur toutes les pages : indique côté navigateur « Données générées il y a X min » depuis les timestamps JSON et passe en rouge au-delà de 45 min.
+- Auto-refresh léger toutes les 5 minutes sur `/` et `/blocages/` : recharge les JSON publics et met à jour les compteurs visibles sans rechargement complet.
+- Accueil : libellés de tuiles clarifiés (sujet + chiffre + action), suppression des intitulés flous `Healthy` et `VPS rapportent` sur la home.
+
 ## V0.9.2 — 2026-07-07
 
 - Ajout de `/docs/` : visionneuse Markdown QG pour envoyer à Alex de vrais liens directs lisibles (`/docs/?doc=<slug>`), sans dépendre du `?file=` code-server qui n'ouvre pas l'onglet.

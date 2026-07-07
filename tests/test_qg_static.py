@@ -77,7 +77,7 @@ def test_qg_registry_has_core_oa_scopes():
     text = (PUBLIC / "index.html").read_text(encoding="utf-8")
     assert "CORE OA" in text
     assert "VPS Hermes OA" in text
-    assert "Healthy" in text
+    assert "Apps CORE OA joignables" in text
     # Partners page exists
     assert (PUBLIC / "partenaires" / "index.html").exists()
 
@@ -387,7 +387,7 @@ def test_qg_ops_vps_fleet_surface_and_api():
     assert "/api/ops/vps-fleet.json" in ops
     # La tuile flotte de la home pointe vers /ops/.
     home = (PUBLIC / "index.html").read_text(encoding="utf-8")
-    assert "VPS rapportent" in home
+    assert "Rapports VPS reçus" in home
 
 
 def test_qg_resource_onboarding_surface_and_appomar_spec():
@@ -448,4 +448,52 @@ def test_qg_resource_onboarding_surface_and_appomar_spec():
     ]:
         assert expected in app_page
     assert "aucune extraction texte V3" in app_page
+
+
+def test_qg_freshness_banner_and_refresh_hooks():
+    build()
+    pages = [
+        PUBLIC / "index.html",
+        PUBLIC / "blocages" / "index.html",
+        PUBLIC / "ops" / "index.html",
+        PUBLIC / "apps" / "qg" / "index.html",
+    ]
+    for path in pages:
+        text = path.read_text(encoding="utf-8")
+        assert 'id="qg-freshness"' in text
+        assert "Données générées" in text
+        assert "/api/core-repos.json" in text
+        assert "/api/blocages.json" in text
+        assert "STALE_MIN=45" in text
+    home = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    blocages = (PUBLIC / "blocages" / "index.html").read_text(encoding="utf-8")
+    assert "const AUTO_REFRESH=true" in home
+    assert "const AUTO_REFRESH=true" in blocages
+    assert "window.setInterval(tick,FIVE_MIN)" in home
+    assert "window.setInterval(tick,FIVE_MIN)" in blocages
+    assert "data-qg-blocages-total" in home
+    assert "data-qg-alex-actions" in home
+    assert "data-qg-blocages-page-total" in blocages
+    assert 'data-qg-blocage-type="carte"' in blocages
+    assert "data-qg-blocages-generated" in blocages
+
+
+def test_qg_home_tiles_have_clear_subjects_and_no_fuzzy_labels():
+    build()
+    home = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    assert "Healthy" not in home
+    assert "VPS rapportent" not in home
+    for expected in [
+        "Actions Alex à débloquer",
+        "Builds aujourd’hui",
+        "Orphelins Issue↔Kanban↔PR↔Gate",
+        "Rapports VPS reçus",
+        "Apps CORE OA joignables",
+        "Issues GitHub ouvertes",
+        "PRs à gated/merger",
+        "Apps CORE OA suivies",
+    ]:
+        assert expected in home
+    for action in ["Voir blocages", "Voir /ops/", "Ouvrir fiche app", "Prioriser P0/P1", "Contrôler registry"]:
+        assert action in home
 

@@ -1723,7 +1723,87 @@ def sidebar(active: str, built_at: str) -> str:
 </div>"""
 
 
+def freshness_bar(built_at: str) -> str:
+    return (
+        '<div class="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">'
+        '<div class="max-w-6xl px-6 py-2 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">'
+        f'<span id="qg-freshness" data-built-at="{escape(built_at)}" data-state="loading">Données générées — calcul en cours…</span>'
+        '<span class="text-slate-400">auto-refresh 5 min sur Accueil + Blocages</span>'
+        '</div></div>'
+    )
+
+
+def freshness_script(auto_refresh: bool) -> str:
+    interval = "true" if auto_refresh else "false"
+    return f'''<script>
+(function(){{
+  const APIS=["/api/core-repos.json","/api/blocages.json","/api/ops/vps-fleet.json"];
+  const AUTO_REFRESH={interval};
+  const FIVE_MIN=5*60*1000;
+  const STALE_MIN=45;
+  function pickTs(payload){{
+    if(!payload || typeof payload!=="object") return null;
+    const candidates=[payload.generated_at,payload.built_at,payload.checked_at,payload.builtAt,payload.meta&&payload.meta.generated_at,payload.meta&&payload.meta.built_at].filter(Boolean);
+    for(const value of candidates){{ const t=Date.parse(value); if(!Number.isNaN(t)) return t; }}
+    return null;
+  }}
+  function ageLabel(ts){{
+    const minutes=Math.max(0,Math.round((Date.now()-ts)/60000));
+    if(minutes<1) return "moins d’1 min";
+    if(minutes<60) return minutes+" min";
+    const hours=Math.floor(minutes/60), rest=minutes%60;
+    return hours+" h"+(rest?" "+rest+" min":"");
+  }}
+  function setText(sel,text){{ document.querySelectorAll(sel).forEach(el=>{{el.textContent=text;}}); }}
+  function refreshFreshness(payloads){{
+    const ts=payloads.map(pickTs).filter(Boolean).sort((a,b)=>b-a)[0];
+    const el=document.getElementById("qg-freshness");
+    if(!el) return;
+    if(!ts){{ el.textContent="Données générées — timestamp JSON indisponible"; el.className="font-medium text-amber-700"; return; }}
+    const minutes=Math.max(0,Math.round((Date.now()-ts)/60000));
+    el.textContent="Données générées il y a "+ageLabel(ts);
+    el.title="Timestamp source JSON: "+new Date(ts).toISOString();
+    el.className=minutes>STALE_MIN?"font-semibold text-red-700":"font-medium text-slate-600";
+  }}
+  function countType(items,type){{ return items.filter(b=>b && b.type===type).length; }}
+  function refreshBlocages(payload){{
+    if(!payload || typeof payload!=="object") return;
+    const items=Array.isArray(payload.blocages)?payload.blocages:[];
+    const c=payload.compteurs||{{}};
+    const total=Number(c.total ?? items.length ?? 0);
+    const alex=Number(c.pour_alex ?? items.filter(b=>b && b.qui_debloque==="alex").length ?? 0);
+    const effort=Number(c.effort_min_alex ?? 0);
+    let detail=total+" blocage(s), dont "+alex+" pour Alex";
+    if(effort) detail += " (~"+effort+" min d'actions connues)";
+    setText("[data-qg-blocages-total]", String(total));
+    setText("[data-qg-blocages-detail]", detail);
+    setText("[data-qg-alex-actions]", String(alex));
+    setText("[data-qg-alex-actions-text]", alex+" action(s) Alex dans le compteur blocages");
+    setText("[data-qg-blocages-page-total]", total+" blocage(s) au total");
+    setText("[data-qg-blocages-generated]", payload.generated_at || "non renseigné");
+    const byType={{decision:countType(items,"decision"),carte:countType(items,"carte"),sudo:countType(items,"sudo"),pr:countType(items,"pr")}};
+    Object.entries(byType).forEach(([k,v])=>setText('[data-qg-blocage-type="'+k+'"]', String(v)));
+  }}
+  async function fetchJson(url){{
+    const res=await fetch(url+"?t="+Date.now(),{{cache:"no-store"}});
+    if(!res.ok) throw new Error(url+" "+res.status);
+    return res.json();
+  }}
+  async function tick(){{
+    const settled=await Promise.allSettled(APIS.map(fetchJson));
+    const payloads=settled.filter(r=>r.status==="fulfilled").map(r=>r.value);
+    refreshFreshness(payloads);
+    const blocages=payloads.find(p=>p && (p.schema||"").startsWith("oa.blocages"));
+    refreshBlocages(blocages);
+  }}
+  tick();
+  if(AUTO_REFRESH) window.setInterval(tick,FIVE_MIN);
+}})();
+</script>'''
+
+
 def layout(active: str, title: str, built_at: str, body: str) -> str:
+    auto_refresh = active in {"registry", "blocages"}
     return f"""<!doctype html><html lang="fr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{escape(title)} · OA QG</title>
@@ -1737,8 +1817,10 @@ def layout(active: str, title: str, built_at: str, body: str) -> str:
 <body class="bg-gray-50 text-slate-800 min-h-screen">
 {sidebar(active, built_at)}
 <main class="md:ml-72 min-h-screen">
+{freshness_bar(built_at)}
 <div class="px-6 py-6 max-w-6xl">{body}</div>
 </main>
+{freshness_script(auto_refresh)}
 </body></html>"""
 
 
@@ -1778,7 +1860,7 @@ def qg_delivery_focus(builds: dict, pending_alex_actions: int) -> str:
         + '</div><div class="mt-2 text-xs text-blue-500">Voir builds/preuves →</div></a>'
         '<a href="/blocages/" class="block bg-white rounded-xl border border-amber-100 px-4 py-3 hover:border-amber-300 hover:shadow-sm transition">'
         '<div class="text-xs font-semibold uppercase tracking-wide text-amber-600">Blocages / mandats</div>'
-        f'<div class="mt-1 text-sm font-semibold text-gray-900">{pending_alex_actions} action(s) Alex dans le compteur blocages</div>'
+        f'<div class="mt-1 text-sm font-semibold text-gray-900"><span data-qg-alex-actions-text>{pending_alex_actions} action(s) Alex dans le compteur blocages</span></div>'
         '<div class="mt-1 text-xs text-gray-500">Source unique: collect_blocages.py · mandat:h-omar-night-2026-06-14 · décisions tracées en decision:* quand elles bloquent.</div>'
         '<div class="mt-2 text-xs text-amber-600">Voir blocages →</div></a>'
         '</div>'
@@ -1802,7 +1884,8 @@ def qg_blocages_banner(blocages: dict | None) -> str:
         return (
             '<a href="/blocages/" class="block bg-green-50 rounded-xl border border-green-200 px-4 py-3 mb-6 hover:border-green-300 transition">'
             '<div class="text-xs font-semibold uppercase tracking-wide text-green-700">Blocages</div>'
-            '<div class="mt-1 text-sm font-semibold text-green-700">Rien ne te bloque — le système avance seul.</div></a>'
+            '<div class="mt-1 text-sm font-semibold text-green-700"><span data-qg-blocages-detail>Rien ne te bloque — le système avance seul.</span></div>'
+            '<span class="sr-only" data-qg-blocages-total>0</span></a>'
         )
     accent = "amber" if pour_alex else "blue"
     detail = f"{total} blocage(s), dont {pour_alex} pour Alex"
@@ -1812,8 +1895,8 @@ def qg_blocages_banner(blocages: dict | None) -> str:
         f'<a href="/blocages/" class="block bg-white rounded-xl border border-{accent}-200 px-4 py-3 mb-6 hover:border-{accent}-400 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between gap-3">'
         f'<div><div class="text-xs font-semibold uppercase tracking-wide text-{accent}-600">Ce qui bloque — et qui débloque</div>'
-        f'<div class="mt-1 text-sm font-semibold text-gray-900">{escape(detail)}</div></div>'
-        f'<span class="text-2xl font-bold text-{accent}-600">{total}</span></div>'
+        f'<div class="mt-1 text-sm font-semibold text-gray-900" data-qg-blocages-detail>{escape(detail)}</div></div>'
+        f'<span class="text-2xl font-bold text-{accent}-600" data-qg-blocages-total>{total}</span></div>'
         f'<div class="mt-1 text-xs text-{accent}-600">Voir les blocages →</div></a>'
     )
 
@@ -1943,7 +2026,7 @@ def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int =
     fleet_tile = (
         f'<a href="/ops/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {fleet_accent}">{fleet_reporting}<span class="text-gray-400 text-sm font-normal">/{fleet_expected}</span></div>'
-        f'<div class="text-xs text-gray-500 mt-0.5">VPS rapportent · {fleet_fail} standard(s) FAIL</div></div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">Rapports VPS reçus · {fleet_fail} standard(s) FAIL</div></div>'
         f'<span class="text-xs text-blue-500">Voir /ops/ →</span></div></a>'
     ) if fleet_expected else ""
 
@@ -1953,7 +2036,7 @@ def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int =
     tiles = (
         f'<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-{4 if fleet_tile else 3} gap-3 mb-3">'
         f'<a href="/blocages/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
-        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}">{pending_alex_actions}</div>'
+        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}" data-qg-alex-actions>{pending_alex_actions}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Actions Alex à débloquer</div></div>'
         f'<span class="text-xs text-blue-500">Voir blocages →</span></div></a>'
         f'<a href="/builds/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
@@ -1971,10 +2054,10 @@ def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int =
     # Stats bar
     stats = (
         f'<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">'
-        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{counts["healthy"]}<span class="text-gray-400 text-sm font-normal">/{counts["total"]}</span></div><div class="text-xs text-gray-500 mt-0.5">Healthy</div></div>'
-        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{counts["open_issues_total"]}</div><div class="text-xs text-gray-500 mt-0.5">Issues ouvertes</div></div>'
-        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{counts["open_prs_total"]}</div><div class="text-xs text-gray-500 mt-0.5">PRs ouvertes</div></div>'
-        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{counts["core"]}</div><div class="text-xs text-gray-500 mt-0.5">Apps CORE OA</div></div>'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{counts["healthy"]}<span class="text-gray-400 text-sm font-normal">/{counts["total"]}</span></div><div class="text-xs text-gray-500 mt-0.5">Apps CORE OA joignables</div><div class="mt-2 text-xs text-blue-500">Ouvrir fiche app →</div></div>'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{counts["open_issues_total"]}</div><div class="text-xs text-gray-500 mt-0.5">Issues GitHub ouvertes</div><div class="mt-2 text-xs text-blue-500">Prioriser P0/P1 →</div></div>'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{counts["open_prs_total"]}</div><div class="text-xs text-gray-500 mt-0.5">PRs à gated/merger</div><div class="mt-2 text-xs text-blue-500">Voir GitHub →</div></div>'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{counts["core"]}</div><div class="text-xs text-gray-500 mt-0.5">Apps CORE OA suivies</div><div class="mt-2 text-xs text-blue-500">Contrôler registry →</div></div>'
         f'</div>'
     )
 
@@ -3255,9 +3338,9 @@ def page_blocages(payload: dict) -> str:
     html = (
         '<div class="mb-6">'
         '<h1 class="text-xl font-bold text-gray-900">Ce qui bloque — compte et pointe</h1>'
-        f'<p class="text-sm text-gray-500 mt-0.5">{total} blocage(s) au total. Cette page ne répète rien : '
+        f'<p class="text-sm text-gray-500 mt-0.5"><span data-qg-blocages-page-total>{total} blocage(s) au total</span>. Cette page ne répète rien : '
         'elle compte par endroit et te donne le lien pour y aller. Seuls les items sudo sont développés ici '
-        f'(ils ne vivent nulle part ailleurs) — source <a href="/api/blocages.json" class="text-blue-500 hover:underline">blocages.json</a> ({escape(generated_at)}).</p>'
+        f'(ils ne vivent nulle part ailleurs) — source <a href="/api/blocages.json" class="text-blue-500 hover:underline">blocages.json</a> (<span data-qg-blocages-generated>{escape(generated_at)}</span>).</p>'
         '</div>'
     )
 
@@ -3270,23 +3353,23 @@ def page_blocages(payload: dict) -> str:
         pr_detail += f", dont {n_reworks} rework(s) agent"
     gh_prs_url = "https://github.com/search?q=org%3Aomar-paris+is%3Apr+is%3Aopen&type=pullrequests"
     compteur_tuiles = [
-        ("Décisions", n_decisions, "ouvertes" if n_decisions != 1 else "ouverte",
+        ("Décisions", "decision", n_decisions, "ouvertes" if n_decisions != 1 else "ouverte",
          "/decisions/", "y aller : /decisions/", False),
-        ("Kanban", n_cartes, kanban_detail.split(" ", 1)[1],
+        ("Kanban", "carte", n_cartes, kanban_detail.split(" ", 1)[1],
          "https://hermes.omar.paris/kanban", "y aller : dashboard Kanban", True),
-        ("Sudo", n_sudo, "en attente — le détail est ici",
+        ("Sudo", "sudo", n_sudo, "en attente — le détail est ici",
          "#sudo", "liste complète ci-dessous", False),
-        ("PRs ouvertes", n_prs, pr_detail.split(" ", 1)[1],
+        ("PRs ouvertes", "pr", n_prs, pr_detail.split(" ", 1)[1],
          gh_prs_url, "y aller : GitHub", True),
     ]
     html += '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">'
-    for label, n, detail, lien, lien_label, externe in compteur_tuiles:
+    for label, label_key, n, detail, lien, lien_label, externe in compteur_tuiles:
         target = ' target="_blank" rel="noopener"' if externe else ""
         n_cls = "text-gray-300" if n == 0 else "text-gray-900"
         html += (
             f'<a href="{escape(lien)}"{target} class="block bg-white rounded-xl border border-gray-200 px-4 py-4 hover:border-blue-300 hover:shadow-sm transition">'
             f'<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{escape(label)}</div>'
-            f'<div class="text-3xl font-bold {n_cls} mt-1">{n}</div>'
+            f'<div class="text-3xl font-bold {n_cls} mt-1" data-qg-blocage-type="{escape(str(label_key))}">{n}</div>'
             f'<div class="text-xs text-gray-500 mt-0.5">{escape(detail)}</div>'
             f'<div class="text-xs text-blue-600 mt-2">{escape(lien_label)} &rarr;</div></a>'
         )
