@@ -1556,21 +1556,99 @@ def payload(built_at: str) -> dict:
 TAILWIND = "https://cdn.tailwindcss.com"
 FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
 
-NAV_ITEMS = [
-    ("/manifeste/",   "manifeste",   "Manifeste",   'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25'),
-    ("/carte/",       "carte",       "Carte",       'M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z'),
-    ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
-    ("/blocages/",    "blocages",    "Blocages",    'M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636'),
-    ("/objectifs/",   "objectifs",   "Objectifs",   'M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418'),
-    ("/chantiers/",   "chantiers",   "Chantiers",   'M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z'),
-    ("/agent-loop/",  "agent-loop",  "Agent loop",  'M3.75 12a8.25 8.25 0 0 1 14.49-5.42M20.25 6.75v-4.5m0 4.5h-4.5M20.25 12a8.25 8.25 0 0 1-14.49 5.42M3.75 17.25v4.5m0-4.5h4.5'),
-    ("/ops/",         "ops",         "Ops",         'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125C16.5 3.504 17.004 3 17.625 3h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z'),
-    ("/clients/",     "clients",     "Clients",     'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z'),
-    ("/partenaires/", "partenaires", "Partenaires", 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.015M3.75 9.349a3 3 0 0 0 3.75.616m-3.75-.616a3.001 3.001 0 0 1-.75-1.99V6h17.25v1.36a3 3 0 0 1-.75 1.99m0 0a2.993 2.993 0 0 1-2.25 1.016'),
-    ("/decisions/",   "decisions",   "Décisions",   'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z'),
-    ("/builds/",      "builds",      "Builds",      'M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0 4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0-5.571 3-5.571-3'),
-    ("/changelog/",   "changelog",   "Changelog",   'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'),
+ICON_DOC = 'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25'
+ICON_MAP = 'M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z'
+ICON_GRID = 'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'
+ICON_STOP = 'M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636'
+ICON_TOOLS = 'M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z'
+ICON_LOOP = 'M3.75 12a8.25 8.25 0 0 1 14.49-5.42M20.25 6.75v-4.5m0 4.5h-4.5M20.25 12a8.25 8.25 0 0 1-14.49 5.42M3.75 17.25v4.5m0-4.5h4.5'
+ICON_CHART = 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125C16.5 3.504 17.004 3 17.625 3h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z'
+ICON_CLOCK = 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'
+
+NAV_SECTIONS = [
+    {
+        "key": "commandement",
+        "label": "Commandement",
+        "href": "/",
+        "icon": ICON_GRID,
+        "hint": "Décider maintenant",
+        "children": [
+            ("/", "registry", "Accueil"),
+            ("/blocages/", "blocages", "Blocages"),
+            ("/decisions/", "decisions", "Décisions"),
+        ],
+    },
+    {
+        "key": "production",
+        "label": "Production",
+        "href": "/chantiers/",
+        "icon": ICON_TOOLS,
+        "hint": "Missions et livraisons",
+        "children": [
+            ("/chantiers/", "chantiers", "Chantiers"),
+            ("/agent-loop/", "agent-loop", "Agents"),
+            ("/builds/", "builds", "Builds"),
+        ],
+    },
+    {
+        "key": "supervision",
+        "label": "Supervision",
+        "href": "/ops/",
+        "icon": ICON_CHART,
+        "hint": "Fleet, clients, apps",
+        "children": [
+            ("/ops/", "ops", "Ops"),
+            ("/clients/", "clients", "Clients & VPS"),
+            ("/apps/qg/", "app-qg", "Fiche QG"),
+            ("/apps/hub/", "app-hub", "Fiche Hub"),
+            ("/apps/app/", "app-app", "Fiche AppOmar"),
+        ],
+    },
+    {
+        "key": "standards",
+        "label": "Standards",
+        "href": "/manifeste/",
+        "icon": ICON_DOC,
+        "hint": "OmarTop et doctrine",
+        "children": [
+            ("/manifeste/", "manifeste", "Manifeste"),
+            ("/docs/", "docs", "Docs"),
+            ("/carte/", "carte", "Carte"),
+            ("/partenaires/", "partenaires", "Partenaires"),
+            ("/apps/omartop/", "app-omartop", "Fiche OmarTop"),
+        ],
+    },
+    {
+        "key": "journal",
+        "label": "Journal",
+        "href": "/changelog/",
+        "icon": ICON_CLOCK,
+        "hint": "Historique et legacy",
+        "children": [
+            ("/objectifs/", "objectifs", "Objectifs legacy"),
+            ("/changelog/", "changelog", "Changelog"),
+            ("/apps/landing/", "app-landing", "Fiche Landing"),
+            ("/apps/catalogue/", "app-catalogue", "Fiche Catalogue"),
+            ("/apps/lab/", "app-lab", "Fiche Lab"),
+        ],
+    },
 ]
+
+# Compat: anciens tests / helpers peuvent encore itérer NAV_ITEMS.
+NAV_ITEMS = [
+    (href, key, label, ICON_GRID)
+    for section in NAV_SECTIONS
+    for href, key, label in section["children"]
+]
+
+
+def _active_section(active: str) -> dict:
+    for section in NAV_SECTIONS:
+        if any(child_key == active for _, child_key, _ in section["children"]):
+            return section
+    if active == "registry":
+        return NAV_SECTIONS[0]
+    return NAV_SECTIONS[0]
 
 
 def _icon(path_d: str, cls: str = "w-5 h-5") -> str:
@@ -1578,16 +1656,31 @@ def _icon(path_d: str, cls: str = "w-5 h-5") -> str:
 
 
 def sidebar(active: str, built_at: str) -> str:
-    nav_links = ""
-    for href, key, label, icon_d in NAV_ITEMS:
-        is_active = active == key
-        active_cls = "bg-blue-50 text-blue-700" if is_active else "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+    active_section = _active_section(active)
+    section_links = ""
+    for section in NAV_SECTIONS:
+        is_active = section["key"] == active_section["key"]
+        active_cls = "bg-blue-50 text-blue-700 border-blue-200" if is_active else "text-gray-700 border-transparent hover:bg-gray-50 hover:border-gray-200"
         icon_cls = "w-5 h-5 " + ("text-blue-600" if is_active else "text-gray-400")
-        nav_links += (
-            f'<a href="{href}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium {active_cls} transition-colors">'
-            f'<svg class="{icon_cls}" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="{escape(icon_d)}"/></svg>'
-            f'{escape(label)}</a>'
+        section_links += (
+            f'<a href="{section["href"]}" class="block rounded-xl border px-3 py-3 {active_cls} transition-colors">'
+            '<div class="flex items-center gap-3">'
+            f'<svg class="{icon_cls}" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="{escape(section["icon"])}"/></svg>'
+            f'<div><div class="text-sm font-semibold">{escape(section["label"])}</div>'
+            f'<div class="text-[11px] opacity-70">{escape(section["hint"])}</div></div>'
+            '</div></a>'
         )
+
+    child_links = ""
+    for href, key, label in active_section["children"]:
+        is_active = active == key
+        cls = "bg-blue-600 text-white" if is_active else "bg-white text-gray-700 border border-gray-200 hover:border-blue-200 hover:text-blue-700"
+        child_links += f'<a href="{href}" class="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium {cls}">{escape(label)}</a>'
+
+    mobile_links = "".join(
+        f'<a href="{section["href"]}" class="px-3 py-1.5 rounded-full text-xs font-medium {"bg-blue-50 text-blue-700" if section["key"] == active_section["key"] else "bg-white text-gray-600 border border-gray-200"}">{escape(section["label"])}</a>'
+        for section in NAV_SECTIONS
+    )
     ts_short = built_at[11:16] + "Z" if len(built_at) > 16 else built_at
     # Dernier push réel (git) en heure de Paris — pour qu'Alex se repère (demande 14/06)
     try:
@@ -1598,7 +1691,7 @@ def sidebar(active: str, built_at: str) -> str:
     except Exception:
         last_push = "?"
     return f"""
-<aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col z-30 hidden md:flex">
+<aside class="fixed inset-y-0 left-0 w-72 bg-white border-r border-gray-200 flex flex-col z-30 hidden md:flex">
   <div class="px-5 py-4 border-b border-gray-100">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded-lg bg-blue-600 text-white text-sm font-bold flex items-center justify-center">QG</div>
@@ -1607,16 +1700,26 @@ def sidebar(active: str, built_at: str) -> str:
         <div class="text-xs text-gray-400">{VERSION} · {escape(DOMAIN)}</div>
       </div>
     </div>
+    <div class="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-xs text-slate-600">
+      Menu court: 5 sections. Les anciennes routes restent accessibles comme sous-pages de la section active.
+    </div>
   </div>
-  <nav class="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">{nav_links}</nav>
+  <nav class="px-3 py-3 space-y-2">{section_links}</nav>
   <div class="px-5 py-3 border-t border-gray-100">
+    <div class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">Sous-pages · {escape(active_section["label"])}</div>
+    <div class="flex flex-wrap gap-2">{child_links}</div>
+  </div>
+  <div class="mt-auto px-5 py-3 border-t border-gray-100">
     <div class="text-xs text-gray-400">Rebuild {escape(ts_short)} · <span title="dernier commit poussé">push {escape(last_push)}</span></div>
     <a href="/api/core-repos.json" class="text-xs text-blue-500 hover:underline">API JSON</a>
   </div>
 </aside>
-<div class="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
-  <div class="w-8 h-8 rounded bg-blue-600 text-white text-xs font-bold flex items-center justify-center">QG</div>
-  <nav class="flex gap-1">{''.join(f'<a href="{h}" class="px-3 py-1.5 rounded text-xs font-medium {"bg-blue-50 text-blue-700" if a==active else "text-gray-600"}">{escape(l)}</a>' for h,a,l,_ in NAV_ITEMS)}</nav>
+<div class="md:hidden bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-20">
+  <div class="flex items-center gap-3 mb-2">
+    <div class="w-8 h-8 rounded bg-blue-600 text-white text-xs font-bold flex items-center justify-center">QG</div>
+    <div class="text-sm font-bold text-gray-900">OA QG</div>
+  </div>
+  <nav class="flex gap-2 overflow-x-auto pb-1">{mobile_links}</nav>
 </div>"""
 
 
@@ -1633,7 +1736,7 @@ def layout(active: str, title: str, built_at: str, body: str) -> str:
 </head>
 <body class="bg-gray-50 text-slate-800 min-h-screen">
 {sidebar(active, built_at)}
-<main class="md:ml-64 min-h-screen">
+<main class="md:ml-72 min-h-screen">
 <div class="px-6 py-6 max-w-6xl">{body}</div>
 </main>
 </body></html>"""
@@ -1715,6 +1818,114 @@ def qg_blocages_banner(blocages: dict | None) -> str:
     )
 
 
+
+DOCS_ALLOWED_DIRS = (ROOT / "docs" / "plans", ROOT / "docs" / "references")
+
+
+def _doc_slug(path: Path) -> str:
+    rel = path.relative_to(ROOT / "docs")
+    return rel.as_posix().replace("/", "__")
+
+
+def collect_public_docs(tmp: Path) -> list[dict]:
+    # Expose une selection de Markdown sous /docs/ sans secrets.
+    docs: list[dict] = []
+    files_dir = tmp / "docs" / "files"
+    files_dir.mkdir(parents=True, exist_ok=True)
+    for base in DOCS_ALLOWED_DIRS:
+        if not base.exists():
+            continue
+        for path in sorted(base.glob("*.md")):
+            rel = path.relative_to(ROOT)
+            slug = _doc_slug(path)
+            text = path.read_text(encoding="utf-8", errors="replace")
+            (files_dir / slug).write_text(text, encoding="utf-8")
+            first_heading = next((line.lstrip("# ").strip() for line in text.splitlines() if line.startswith("#")), "")
+            docs.append({
+                "slug": slug,
+                "title": first_heading or path.stem.replace("-", " "),
+                "path": rel.as_posix(),
+                "url": f"/docs/?doc={urllib.parse.quote(slug)}",
+                "raw_url": f"/docs/files/{urllib.parse.quote(slug)}",
+                "kind": rel.parts[1] if len(rel.parts) > 1 else "docs",
+                "size": path.stat().st_size,
+            })
+    (tmp / "api" / "docs-index.json").write_text(
+        json.dumps({"schema": "oa.docs-index/1", "items": docs}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return docs
+
+
+def page_docs(docs: list[dict]) -> str:
+    items = "".join(
+        '<a class="block rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-blue-300 hover:shadow-sm transition" '
+        f'href="{escape(doc["url"])}">'
+        f'<div class="text-xs font-semibold uppercase tracking-wide text-blue-600">{escape(doc.get("kind", "docs"))}</div>'
+        f'<div class="mt-1 text-sm font-semibold text-slate-900">{escape(doc.get("title", "Document"))}</div>'
+        f'<div class="mt-1 text-xs font-mono text-slate-500">{escape(doc.get("path", ""))}</div>'
+        '</a>'
+        for doc in docs
+    ) or '<div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Aucun document expose.</div>'
+    docs_json = json.dumps(docs, ensure_ascii=False).replace("</", "<\\/")
+    return f'''
+<section class="mb-6">
+  <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <div>
+      <div class="text-xs font-semibold uppercase tracking-wide text-blue-600">Docs QG</div>
+      <h1 class="text-2xl font-bold text-slate-950">Documents vérifiables</h1>
+      <p class="mt-1 text-sm text-slate-500">Liens directs lisibles pour décisions, blocages, plans et références. Source exposée: <span class="font-mono">docs/plans</span> + <span class="font-mono">docs/references</span>.</p>
+    </div>
+    <a class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:border-blue-300" href="/api/docs-index.json">Index JSON</a>
+  </div>
+</section>
+<section class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+  <aside class="space-y-2">{items}</aside>
+  <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm min-h-[60vh]">
+    <div id="doc-meta" class="mb-4 text-xs text-slate-500">Sélectionne un document à gauche, ou utilise <span class="font-mono">?doc=&lt;slug&gt;</span>.</div>
+    <div id="doc-view" class="max-w-none text-sm leading-7"><p class="text-slate-500">Aucun document sélectionné.</p></div>
+  </article>
+</section>
+<script type="application/json" id="docs-index">{docs_json}</script>
+<script>
+const docs = JSON.parse(document.getElementById("docs-index").textContent);
+const params = new URLSearchParams(window.location.search);
+const requested = params.get("doc") || (docs[0] && docs[0].slug);
+const doc = docs.find(d => d.slug === requested);
+const entityMap = {{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}};
+function esc(s) {{ return String(s).replace(/[&<>\"']/g, c => entityMap[c]); }}
+function inlineMd(s) {{
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code class='rounded bg-slate-100 px-1 py-0.5'>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "<a class='text-blue-600 hover:underline' href='$2' target='_blank' rel='noreferrer'>$1</a>");
+}}
+function render(md) {{
+  const out = [];
+  let inCode = false, code = [];
+  for (const line of md.split(/\r?\n/)) {{
+    if (line.startsWith("```")) {{
+      if (inCode) {{ out.push("<pre class='overflow-auto rounded-xl bg-slate-950 p-4 text-slate-100'><code>"+esc(code.join("\n"))+"</code></pre>"); code=[]; inCode=false; }}
+      else inCode = true;
+      continue;
+    }}
+    if (inCode) {{ code.push(line); continue; }}
+    if (/^###\s+/.test(line)) out.push("<h3 class='mt-6 text-lg font-bold text-slate-900'>"+inlineMd(line.replace(/^###\s+/,""))+"</h3>");
+    else if (/^##\s+/.test(line)) out.push("<h2 class='mt-8 border-t border-slate-100 pt-5 text-xl font-bold text-slate-950'>"+inlineMd(line.replace(/^##\s+/,""))+"</h2>");
+    else if (/^#\s+/.test(line)) out.push("<h1 class='mb-4 text-2xl font-bold text-slate-950'>"+inlineMd(line.replace(/^#\s+/,""))+"</h1>");
+    else if (/^[-*]\s+/.test(line)) out.push("<div class='my-1 pl-4 text-slate-700'>• "+inlineMd(line.replace(/^[-*]\s+/,""))+"</div>");
+    else if (/^>\s?/.test(line)) out.push("<blockquote class='my-3 border-l-4 border-blue-200 bg-blue-50 px-4 py-2 text-slate-700'>"+inlineMd(line.replace(/^>\s?/,""))+"</blockquote>");
+    else if (line.trim()==="") out.push("<div class='h-3'></div>");
+    else out.push("<p class='my-2 text-slate-700'>"+inlineMd(line)+"</p>");
+  }}
+  return out.join("\n");
+}}
+if (doc) {{
+  document.getElementById("doc-meta").innerHTML = "<span class='font-semibold text-slate-700'>"+esc(doc.title)+"</span><br><span class='font-mono'>"+esc(doc.path)+"</span> · <a class='text-blue-600 hover:underline' href='"+esc(doc.raw_url)+"'>raw</a>";
+  fetch(doc.raw_url).then(r => r.text()).then(md => {{ document.getElementById("doc-view").innerHTML = render(md); }});
+}}
+</script>
+'''
 def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None, vps_fleet: dict | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
@@ -3624,6 +3835,7 @@ def main(argv: list[str] | None = None) -> None:
         import shutil
         shutil.rmtree(tmp)
     (tmp / "api").mkdir(parents=True)
+    docs_index = collect_public_docs(tmp)
 
     (tmp / "api" / "core-repos.json").write_text(
         json.dumps(redact_public_api_payload(data), ensure_ascii=False, indent=2), encoding="utf-8"
@@ -3805,6 +4017,7 @@ def main(argv: list[str] | None = None) -> None:
 
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
+        ("/docs/",        "docs",        "Docs",                    page_docs(docs_index)),
         ("/carte/",       "carte",       "Carte du puzzle",         page_carte(carte_payload)),
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet)),
         ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
@@ -3819,7 +4032,17 @@ def main(argv: list[str] | None = None) -> None:
         ("/changelog/",   "changelog",   "Changelog",                page_changelog()),
     ]
     for app in data.get("items", []):
-        pages.append((_app_route(app), "registry", f'{app.get("name", "App")} · fiche app', page_app_detail(data, app, builds, ledger_history)))
+        app_route = _app_route(app)
+        app_active = {
+            "/apps/qg/": "app-qg",
+            "/apps/hub/": "app-hub",
+            "/apps/app/": "app-app",
+            "/apps/omartop/": "app-omartop",
+            "/apps/landing/": "app-landing",
+            "/apps/catalogue/": "app-catalogue",
+            "/apps/lab/": "app-lab",
+        }.get(app_route, "registry")
+        pages.append((app_route, app_active, f'{app.get("name", "App")} · fiche app', page_app_detail(data, app, builds, ledger_history)))
     for route, active, title, body in pages:
         out = tmp / "index.html" if route == "/" else tmp / route.strip("/") / "index.html"
         out.parent.mkdir(parents=True, exist_ok=True)

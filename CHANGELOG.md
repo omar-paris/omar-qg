@@ -1,5 +1,17 @@
 # Changelog
 
+## V0.9.2 — 2026-07-07
+
+- Ajout de `/docs/` : visionneuse Markdown QG pour envoyer à Alex de vrais liens directs lisibles (`/docs/?doc=<slug>`), sans dépendre du `?file=` code-server qui n'ouvre pas l'onglet.
+- Publication contrôlée des Markdown de `docs/plans` et `docs/references` vers `public/docs/files/` + index `/api/docs-index.json`.
+- Ajout du brief `Fable final — audit autonomie OA en 1h`, prêt à coller dans le Chat VS Code/Fable.
+
+## V0.9.1 — 2026-07-07
+
+- Navigation QG refondue en **5 sections courtes** (`Commandement`, `Production`, `Supervision`, `Standards`, `Journal`) pour éviter l'énorme menu latéral.
+- Les anciennes routes restent servies comme **sous-pages contextuelles** de la section active, afin de permettre la revue page-par-page avec Alex sans casser les URLs existantes.
+- Préparation durable de la revue Control Tower: conducteur `docs/plans/2026-07-07-qg-revue-page-par-page-control-tower.md` et copie du rapport Google Deepsearch dans `docs/references/2026-07-07-sovereign-multi-agent-architecture-google-deepsearch.md`.
+
 ## V0.9.0 — 2026-07-07
 
 - Nouvelle page `/carte/` (2e position de nav, sous le manifeste) — la vision Alex : le puzzle OA entier, une ligne par strate (Produit/Funnel, Fonctionnel/Apps, Technique/Infra, Sécurité, Data, Agents/Boucles), une cellule colorée par module avec KPI et lien source.
