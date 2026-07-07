@@ -1612,6 +1612,7 @@ NAV_SECTIONS = [
         "hint": "OmarTop et doctrine",
         "children": [
             ("/manifeste/", "manifeste", "Manifeste"),
+            ("/docs/", "docs", "Docs"),
             ("/carte/", "carte", "Carte"),
             ("/partenaires/", "partenaires", "Partenaires"),
             ("/apps/omartop/", "app-omartop", "Fiche OmarTop"),
@@ -1817,6 +1818,114 @@ def qg_blocages_banner(blocages: dict | None) -> str:
     )
 
 
+
+DOCS_ALLOWED_DIRS = (ROOT / "docs" / "plans", ROOT / "docs" / "references")
+
+
+def _doc_slug(path: Path) -> str:
+    rel = path.relative_to(ROOT / "docs")
+    return rel.as_posix().replace("/", "__")
+
+
+def collect_public_docs(tmp: Path) -> list[dict]:
+    # Expose une selection de Markdown sous /docs/ sans secrets.
+    docs: list[dict] = []
+    files_dir = tmp / "docs" / "files"
+    files_dir.mkdir(parents=True, exist_ok=True)
+    for base in DOCS_ALLOWED_DIRS:
+        if not base.exists():
+            continue
+        for path in sorted(base.glob("*.md")):
+            rel = path.relative_to(ROOT)
+            slug = _doc_slug(path)
+            text = path.read_text(encoding="utf-8", errors="replace")
+            (files_dir / slug).write_text(text, encoding="utf-8")
+            first_heading = next((line.lstrip("# ").strip() for line in text.splitlines() if line.startswith("#")), "")
+            docs.append({
+                "slug": slug,
+                "title": first_heading or path.stem.replace("-", " "),
+                "path": rel.as_posix(),
+                "url": f"/docs/?doc={urllib.parse.quote(slug)}",
+                "raw_url": f"/docs/files/{urllib.parse.quote(slug)}",
+                "kind": rel.parts[1] if len(rel.parts) > 1 else "docs",
+                "size": path.stat().st_size,
+            })
+    (tmp / "api" / "docs-index.json").write_text(
+        json.dumps({"schema": "oa.docs-index/1", "items": docs}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return docs
+
+
+def page_docs(docs: list[dict]) -> str:
+    items = "".join(
+        '<a class="block rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-blue-300 hover:shadow-sm transition" '
+        f'href="{escape(doc["url"])}">'
+        f'<div class="text-xs font-semibold uppercase tracking-wide text-blue-600">{escape(doc.get("kind", "docs"))}</div>'
+        f'<div class="mt-1 text-sm font-semibold text-slate-900">{escape(doc.get("title", "Document"))}</div>'
+        f'<div class="mt-1 text-xs font-mono text-slate-500">{escape(doc.get("path", ""))}</div>'
+        '</a>'
+        for doc in docs
+    ) or '<div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Aucun document expose.</div>'
+    docs_json = json.dumps(docs, ensure_ascii=False).replace("</", "<\\/")
+    return f'''
+<section class="mb-6">
+  <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <div>
+      <div class="text-xs font-semibold uppercase tracking-wide text-blue-600">Docs QG</div>
+      <h1 class="text-2xl font-bold text-slate-950">Documents vérifiables</h1>
+      <p class="mt-1 text-sm text-slate-500">Liens directs lisibles pour décisions, blocages, plans et références. Source exposée: <span class="font-mono">docs/plans</span> + <span class="font-mono">docs/references</span>.</p>
+    </div>
+    <a class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:border-blue-300" href="/api/docs-index.json">Index JSON</a>
+  </div>
+</section>
+<section class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+  <aside class="space-y-2">{items}</aside>
+  <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm min-h-[60vh]">
+    <div id="doc-meta" class="mb-4 text-xs text-slate-500">Sélectionne un document à gauche, ou utilise <span class="font-mono">?doc=&lt;slug&gt;</span>.</div>
+    <div id="doc-view" class="max-w-none text-sm leading-7"><p class="text-slate-500">Aucun document sélectionné.</p></div>
+  </article>
+</section>
+<script type="application/json" id="docs-index">{docs_json}</script>
+<script>
+const docs = JSON.parse(document.getElementById("docs-index").textContent);
+const params = new URLSearchParams(window.location.search);
+const requested = params.get("doc") || (docs[0] && docs[0].slug);
+const doc = docs.find(d => d.slug === requested);
+const entityMap = {{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}};
+function esc(s) {{ return String(s).replace(/[&<>\"']/g, c => entityMap[c]); }}
+function inlineMd(s) {{
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code class='rounded bg-slate-100 px-1 py-0.5'>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "<a class='text-blue-600 hover:underline' href='$2' target='_blank' rel='noreferrer'>$1</a>");
+}}
+function render(md) {{
+  const out = [];
+  let inCode = false, code = [];
+  for (const line of md.split(/\r?\n/)) {{
+    if (line.startsWith("```")) {{
+      if (inCode) {{ out.push("<pre class='overflow-auto rounded-xl bg-slate-950 p-4 text-slate-100'><code>"+esc(code.join("\n"))+"</code></pre>"); code=[]; inCode=false; }}
+      else inCode = true;
+      continue;
+    }}
+    if (inCode) {{ code.push(line); continue; }}
+    if (/^###\s+/.test(line)) out.push("<h3 class='mt-6 text-lg font-bold text-slate-900'>"+inlineMd(line.replace(/^###\s+/,""))+"</h3>");
+    else if (/^##\s+/.test(line)) out.push("<h2 class='mt-8 border-t border-slate-100 pt-5 text-xl font-bold text-slate-950'>"+inlineMd(line.replace(/^##\s+/,""))+"</h2>");
+    else if (/^#\s+/.test(line)) out.push("<h1 class='mb-4 text-2xl font-bold text-slate-950'>"+inlineMd(line.replace(/^#\s+/,""))+"</h1>");
+    else if (/^[-*]\s+/.test(line)) out.push("<div class='my-1 pl-4 text-slate-700'>• "+inlineMd(line.replace(/^[-*]\s+/,""))+"</div>");
+    else if (/^>\s?/.test(line)) out.push("<blockquote class='my-3 border-l-4 border-blue-200 bg-blue-50 px-4 py-2 text-slate-700'>"+inlineMd(line.replace(/^>\s?/,""))+"</blockquote>");
+    else if (line.trim()==="") out.push("<div class='h-3'></div>");
+    else out.push("<p class='my-2 text-slate-700'>"+inlineMd(line)+"</p>");
+  }}
+  return out.join("\n");
+}}
+if (doc) {{
+  document.getElementById("doc-meta").innerHTML = "<span class='font-semibold text-slate-700'>"+esc(doc.title)+"</span><br><span class='font-mono'>"+esc(doc.path)+"</span> · <a class='text-blue-600 hover:underline' href='"+esc(doc.raw_url)+"'>raw</a>";
+  fetch(doc.raw_url).then(r => r.text()).then(md => {{ document.getElementById("doc-view").innerHTML = render(md); }});
+}}
+</script>
+'''
 def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None, vps_fleet: dict | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
@@ -3726,6 +3835,7 @@ def main(argv: list[str] | None = None) -> None:
         import shutil
         shutil.rmtree(tmp)
     (tmp / "api").mkdir(parents=True)
+    docs_index = collect_public_docs(tmp)
 
     (tmp / "api" / "core-repos.json").write_text(
         json.dumps(redact_public_api_payload(data), ensure_ascii=False, indent=2), encoding="utf-8"
@@ -3907,6 +4017,7 @@ def main(argv: list[str] | None = None) -> None:
 
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
+        ("/docs/",        "docs",        "Docs",                    page_docs(docs_index)),
         ("/carte/",       "carte",       "Carte du puzzle",         page_carte(carte_payload)),
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet)),
         ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),

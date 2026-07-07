@@ -1,5 +1,11 @@
 # Changelog
 
+## V0.9.2 — 2026-07-07
+
+- Ajout de `/docs/` : visionneuse Markdown QG pour envoyer à Alex de vrais liens directs lisibles (`/docs/?doc=<slug>`), sans dépendre du `?file=` code-server qui n'ouvre pas l'onglet.
+- Publication contrôlée des Markdown de `docs/plans` et `docs/references` vers `public/docs/files/` + index `/api/docs-index.json`.
+- Ajout du brief `Fable final — audit autonomie OA en 1h`, prêt à coller dans le Chat VS Code/Fable.
+
 ## V0.9.1 — 2026-07-07
 
 - Navigation QG refondue en **5 sections courtes** (`Commandement`, `Production`, `Supervision`, `Standards`, `Journal`) pour éviter l'énorme menu latéral.
