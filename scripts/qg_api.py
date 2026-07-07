@@ -9,6 +9,7 @@ POST réponse → enregistre + débloque le processus en attente :
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import subprocess
@@ -41,6 +42,25 @@ def save(items: list[dict]) -> None:
             pub.write_text(payload, encoding="utf-8")
     except Exception:
         pass
+
+
+def _collect_feedback_alex(ref: str, answer: str) -> dict:
+    """Best-effort: réponse /blocages négative → carte triage locale/dry-run.
+
+    Le collecteur ne doit jamais casser l'API live: toute erreur revient en
+    statut local, sans exposer le contenu brut au-delà de l'extrait redacted du
+    module collect_feedback_alex.
+    """
+    try:
+        path = ROOT / "scripts" / "collect_feedback_alex.py"
+        spec = importlib.util.spec_from_file_location("collect_feedback_alex", path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("collect_feedback_alex introuvable")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.maybe_collect(ref, answer)
+    except Exception as exc:
+        return {"action": "feedback_collect_failed", "error": f"{exc.__class__.__name__}: {str(exc)[:120]}"}
 
 
 def unblock(ref: str, qid: str, answer: str) -> str:
@@ -100,7 +120,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(422, {"error": str(exc)})
                 return
             result = unblock(ref, "blocage", answer)
-            self._send(200, {"ref": ref, "answer": answer, "deblocage": result})
+            feedback = _collect_feedback_alex(ref, answer)
+            self._send(200, {"ref": ref, "answer": answer, "deblocage": result, "feedback_alex": feedback})
             return
         if self.path != "/api/decisions/answer":
             self._send(404, {"error": "not_found"})

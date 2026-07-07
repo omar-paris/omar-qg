@@ -1,5 +1,11 @@
 # Changelog
 
+## V0.9.3 — 2026-07-07
+
+- Intégration du rapport final Fable dans `docs/reviews/` et exposition via la visionneuse `/docs/?doc=reviews__...`.
+- Extension contrôlée de `/docs/` aux dossiers `docs/plans`, `docs/references` et `docs/reviews`.
+- Ajout de la boucle feedback Alex depuis `/blocages/answer` en mode sûr `dry-run` par défaut : signaux `???`/lien manquant/action impossible → log local, création Kanban seulement si variable explicite.
+
 ## V0.9.2 — 2026-07-07
 
 - Ajout de `/docs/` : visionneuse Markdown QG pour envoyer à Alex de vrais liens directs lisibles (`/docs/?doc=<slug>`), sans dépendre du `?file=` code-server qui n'ouvre pas l'onglet.
