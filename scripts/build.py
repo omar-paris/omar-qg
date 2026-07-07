@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import ssl
 import sqlite3
 import subprocess
@@ -73,6 +74,20 @@ def _load_storage_collector():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+def _load_blocages_collector():
+    """Importe scripts/collect_blocages.py — vue « Ce qui bloque » (var/blocages.json)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "collect_blocages", Path(__file__).resolve().parent / "collect_blocages.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("collect_blocages.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 
 VERSION = "V" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 DOMAIN = "qg.omar.paris"
@@ -163,7 +178,7 @@ VPS_META = {
         },
         "links": [
             {"kind": "hub",       "label": "Hub local",      "url": "https://hub.omar.paris/",          "status": "live"},
-            {"kind": "hermesui",  "label": "Hermes UI",      "url": "http://100.79.68.6:9119/",         "status": "live"},
+            {"kind": "hermesui",  "label": "Hermes UI",      "url": "https://hermes.omar.paris/",         "status": "live"},
             {"kind": "monitoring","label": "Glances",        "url": "http://100.79.68.6:61208/",        "status": "live"},
             {"kind": "monitoring","label": "Dashy",          "url": "http://100.79.68.6:8084/",         "status": "tailnet"},
             {"kind": "monitoring","label": "Console Hetzner","url": "https://console.hetzner.cloud/",   "status": "live"},
@@ -991,7 +1006,11 @@ def _read_var_json(name: str) -> dict:
     snapshots committed in the repo. This keeps app pages factual while respecting
     the issue #26 boundary: no extra API calls or fresh collection for detail pages.
     """
-    for path in (ROOT / "var" / name, PUBLIC / "api" / name):
+    paths = []
+    if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
+        paths.append(ROOT / "tests" / "fixtures" / "qg-var" / name)
+    paths.extend([ROOT / "var" / name, PUBLIC / "api" / name])
+    for path in paths:
         try:
             return json.loads(path.read_text(encoding="utf-8"))
         except Exception:
@@ -1036,6 +1055,373 @@ def _merge_daily_ledgers(current: dict, previous: list[dict], limit: int = 7) ->
     if isinstance(current, dict) and current.get("date"):
         dedup[str(current["date"])] = current
     return [dedup[k] for k in sorted(dedup.keys(), reverse=True)[:limit]]
+
+
+INTER_VPS_REPORT_DIRS = [
+    Path("/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox"),
+    # Legacy pre-canonical drop zone kept read-only until H-Aurel migrates its outbox.
+    Path("/home/omar/11-Pilotage/sujets-actifs/fable-5-rails-1-2/inbox-from-pantheos"),
+]
+if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
+    # Fixtures EXCLUSIVES : sinon un rapport réel plus frais que la fixture rend
+    # les tests non déterministes selon la machine (CI portable = fixtures only).
+    INTER_VPS_REPORT_DIRS = [ROOT / "tests" / "fixtures" / "inter-vps-inbox"]
+
+REQUIRED_VPS_APPS = [
+    {"app_id": "hermes", "name": "Hermes local"},
+    {"app_id": "omarhub", "name": "OmarHub local"},
+    {"app_id": "tailscale", "name": "Tailscale"},
+    {"app_id": "reverse-proxy", "name": "Caddy/nginx"},
+    {"app_id": "inter-vps-reporter", "name": "Inter-VPS reporter"},
+]
+
+_VALID_APP_STATUSES = {"ok", "outdated", "missing", "unknown", "blocked"}
+
+
+def _node_from_report(payload: dict, path: Path) -> str:
+    node = str(payload.get("node") or "").strip().lower()
+    if not node:
+        vps_id = str(payload.get("vps_id") or "").strip().lower()
+        if vps_id.startswith("vps-"):
+            node = vps_id.removeprefix("vps-")
+        elif vps_id:
+            node = vps_id
+    if not node and path.name == "vps-report-latest.json" and path.parent.name:
+        node = path.parent.name.strip().lower()
+    if not node:
+        node = path.stem.split("-", 1)[0].strip().lower()
+    return node
+
+
+def _inter_vps_report_paths(root: Path) -> list[Path]:
+    paths = set(root.rglob("*health*.json"))
+    paths.update(root.rglob("vps-report-latest.json"))
+    paths.update(root.rglob("*vps-report*.json"))
+    return sorted(paths)
+
+
+def _read_inter_vps_reports() -> list[dict]:
+    reports: dict[str, dict] = {}
+    for root in INTER_VPS_REPORT_DIRS:
+        if not root.exists():
+            continue
+        for path in _inter_vps_report_paths(root):
+            if any(part in {"_invalid", "_validated"} for part in path.parts):
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(payload, dict) or payload.get("schema") != "oa.vps-report/v1":
+                continue
+            node = _node_from_report(payload, path)
+            if not node:
+                continue
+            payload = dict(payload)
+            payload["node"] = node
+            payload["_source_path"] = str(path)
+            prev = reports.get(node)
+            if not prev or str(payload.get("generated_at") or "") >= str(prev.get("generated_at") or ""):
+                reports[node] = payload
+    return [reports[k] for k in sorted(reports)]
+
+
+def _infer_app_status_from_services(report: dict, app_id: str) -> tuple[str, str]:
+    services = report.get("services") or []
+    if not isinstance(services, list):
+        services = []
+    names = " ".join(str(s.get("name", "")) for s in services if isinstance(s, dict)).lower()
+    statuses = [str(s.get("status", "")).lower() for s in services if isinstance(s, dict)]
+    if app_id == "hermes" and "hermes" in names:
+        return ("ok" if any("active" in st or "up" in st for st in statuses) else "unknown", "services")
+    if app_id == "reverse-proxy" and ("caddy" in names or "nginx" in names):
+        return ("ok" if any("active" in st or "up" in st for st in statuses) else "unknown", "services")
+    security = report.get("security") or {}
+    resources = report.get("resources") or {}
+    sys_services = ((resources.get("system") or {}).get("services") if isinstance(resources, dict) else None) or {}
+    if app_id == "tailscale" and (
+        security.get("tailscale_first") is True
+        or str(sys_services.get("tailscaled", "")).lower() == "active"
+    ):
+        return "ok", "report"
+    return "unknown", "report"
+
+
+def _app_verdict_from_status(status: str) -> str:
+    normalized = str(status or "unknown").strip().lower()
+    if normalized in {"pass", "ok", "running", "active", "healthy", "up", "installed"}:
+        return "PASS"
+    if normalized in {"fail", "failed", "stopped", "inactive", "missing", "blocked", "down", "error", "critical", "outdated"}:
+        return "FAIL"
+    return "UNKNOWN"
+
+
+def _legacy_status_from_verdict(verdict: str, raw_status: str) -> str:
+    if verdict == "PASS":
+        return "ok"
+    if verdict == "FAIL":
+        raw = str(raw_status or "").strip().lower()
+        if raw in {"missing", "outdated", "blocked"}:
+            return raw
+        return "blocked"
+    return "unknown"
+
+
+def _normalize_installed_app(raw: dict, report: dict) -> dict:
+    app_id = str(raw.get("app_id") or raw.get("id") or raw.get("name") or "unknown").strip().lower()
+    raw_status = str(raw.get("status") or raw.get("verdict") or "unknown").strip().lower()
+    verdict = _app_verdict_from_status(str(raw.get("verdict") or raw_status))
+    status = raw_status if raw_status in _VALID_APP_STATUSES else _legacy_status_from_verdict(verdict, raw_status)
+    evidence = str(raw.get("evidence") or raw.get("proof_redacted") or "redacted report")
+    return {
+        "app_id": app_id,
+        "name": str(raw.get("name") or app_id),
+        "installed": bool(raw.get("installed", verdict == "PASS")),
+        "version_installed": str(raw.get("version_installed") or raw.get("version") or "unknown"),
+        "version_expected": str(raw.get("version_expected") or raw.get("version_min_required") or "policy-current"),
+        "status": status,
+        "verdict": verdict,
+        "raw_status": raw_status,
+        "source": str(raw.get("source") or raw.get("kind") or "report"),
+        "evidence": evidence,
+        "last_checked_at": str(raw.get("last_checked_at") or report.get("generated_at") or "unknown"),
+    }
+
+
+def _apps_for_report(report: dict) -> list[dict]:
+    provided = []
+    for key in ("installed_apps", "apps"):
+        values = report.get(key) or []
+        if isinstance(values, list):
+            provided.extend(values)
+    apps: dict[str, dict] = {}
+    for raw in provided:
+        if isinstance(raw, dict):
+            app = _normalize_installed_app(raw, report)
+            apps[app["app_id"]] = app
+    for req in REQUIRED_VPS_APPS:
+        app_id = req["app_id"]
+        if app_id in apps:
+            continue
+        status, source = _infer_app_status_from_services(report, app_id)
+        verdict = _app_verdict_from_status(status)
+        apps[app_id] = {
+            "app_id": app_id,
+            "name": req["name"],
+            "installed": verdict == "PASS",
+            "version_installed": "unknown",
+            "version_expected": "policy-current",
+            "status": status,
+            "verdict": verdict,
+            "raw_status": status,
+            "source": source,
+            "evidence": "inferred from oa.vps-report/v1 (redacted)",
+            "last_checked_at": str(report.get("generated_at") or "unknown"),
+        }
+    return [apps[k] for k in sorted(apps)]
+
+
+def _normalize_standard(raw: dict, report: dict) -> dict:
+    verdict = str(raw.get("verdict") or raw.get("status") or "UNKNOWN").strip().upper()
+    if verdict not in {"PASS", "FAIL", "UNKNOWN"}:
+        verdict = "UNKNOWN"
+    return {
+        "item_id": str(raw.get("item_id") or raw.get("id") or raw.get("control_id") or "unknown"),
+        "label": str(raw.get("label") or raw.get("name") or raw.get("item_id") or raw.get("id") or "Standard OA"),
+        "verdict": verdict,
+        "evidence": str(raw.get("evidence") or raw.get("proof_redacted") or "redacted report"),
+        "last_checked_at": str(raw.get("last_checked_at") or report.get("generated_at") or "unknown"),
+    }
+
+
+def _standards_for_report(report: dict) -> list[dict]:
+    standards = report.get("standards") or []
+    if not isinstance(standards, list):
+        return []
+    normalized = [_normalize_standard(raw, report) for raw in standards if isinstance(raw, dict)]
+    return sorted(normalized, key=lambda x: x["item_id"])
+
+
+def collect_vps_app_inventory(built_at: str) -> dict:
+    nodes = []
+    for report in _read_inter_vps_reports():
+        apps = _apps_for_report(report)
+        standards = _standards_for_report(report)
+        statuses = [a["status"] for a in apps]
+        app_verdicts = [a["verdict"] for a in apps]
+        standard_verdicts = [s["verdict"] for s in standards]
+        nodes.append({
+            "node": str(report.get("node") or "unknown").lower(),
+            "vps_id": str(report.get("vps_id") or report.get("node") or "unknown"),
+            "tenant": str(report.get("tenant") or report.get("scope") or "unknown"),
+            "agent": str(report.get("agent") or "unknown"),
+            "support": str(report.get("support") or ""),
+            "health_status": str((report.get("health") or {}).get("status") or report.get("status") or report.get("maturity") or "unknown").lower(),
+            "generated_at": str(report.get("generated_at") or "unknown"),
+            "source_path": str(report.get("_source_path") or ""),
+            "apps": apps,
+            "standards": standards,
+            "summary": {
+                "total": len(apps),
+                "ok": statuses.count("ok"),
+                "outdated": statuses.count("outdated"),
+                "missing": statuses.count("missing"),
+                "unknown": statuses.count("unknown"),
+                "blocked": statuses.count("blocked"),
+                "pass": app_verdicts.count("PASS"),
+                "fail": app_verdicts.count("FAIL"),
+                "verdict_unknown": app_verdicts.count("UNKNOWN"),
+            },
+            "standards_summary": {
+                "total": len(standards),
+                "pass": standard_verdicts.count("PASS"),
+                "fail": standard_verdicts.count("FAIL"),
+                "unknown": standard_verdicts.count("UNKNOWN"),
+            },
+        })
+    totals = {"nodes": len(nodes), "apps": sum(n["summary"]["total"] for n in nodes)}
+    for st in _VALID_APP_STATUSES:
+        totals[st] = sum(n["summary"].get(st, 0) for n in nodes)
+    for verdict_key in ("pass", "fail", "verdict_unknown"):
+        totals[verdict_key] = sum(n["summary"].get(verdict_key, 0) for n in nodes)
+    totals["standards"] = sum(n["standards_summary"].get("total", 0) for n in nodes)
+    totals["standards_pass"] = sum(n["standards_summary"].get("pass", 0) for n in nodes)
+    totals["standards_fail"] = sum(n["standards_summary"].get("fail", 0) for n in nodes)
+    totals["standards_unknown"] = sum(n["standards_summary"].get("unknown", 0) for n in nodes)
+    return {
+        "schema": "oa.vps-app-inventory/1",
+        "built_at": built_at,
+        "source": "oa.vps-report/v1 installed_apps/apps + standards + safe inference",
+        "required_apps": REQUIRED_VPS_APPS,
+        "totals": totals,
+        "nodes": nodes,
+    }
+
+
+# ── Flotte VPS (vue multi-VPS /ops/, Fable rescue J4 07/07) ──────────────────
+# Contrat : chaque VPS dépose un rapport oa.vps-report/v1 dans l'inbox inter-VPS.
+# Le QG affiche qui rapporte, qui dérive (maturité FAIL) et qui est muet
+# (rapport absent ou stale > 36 h) — un VPS muet est une alerte (doctrine H-Omar).
+
+VPS_REPORT_FRESH_HOURS = 36
+
+VPS_FLEET_EXPECTED = [
+    {
+        "node": "omar",
+        "vps_id": "vps-omar",
+        "label": "VPS-Omar — core OA",
+        "transport_owner": "h-omar (cron local quotidien 06h30)",
+        "expected_path": "/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/omar/vps-report-latest.json",
+    },
+    {
+        "node": "jab",
+        "vps_id": "vps-jab",
+        "label": "VPS-JAB — client JAB",
+        "transport_owner": "cc-jab",
+        "expected_path": "/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/jab/vps-report-latest.json",
+    },
+    {
+        "node": "pantheos",
+        "vps_id": "vps-pantheos",
+        "label": "Pantheos — famille alexgo.eu",
+        "transport_owner": "h-aurel",
+        "expected_path": "/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/pantheos/vps-report-latest.json",
+    },
+]
+
+
+def _parse_report_ts(value) -> dt.datetime | None:
+    try:
+        parsed = dt.datetime.fromisoformat(str(value or "").strip().replace("Z", "+00:00"))
+    except Exception:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
+
+
+def _vps_fleet_node(expected: dict, report: dict | None, now: dt.datetime) -> dict:
+    node: dict = dict(expected)
+    node["expected"] = "transport_owner" in expected and bool(expected.get("expected_path"))
+    if report is None:
+        node["report_status"] = "missing"
+        return node
+    ts = _parse_report_ts(report.get("generated_at"))
+    age_hours = round((now - ts).total_seconds() / 3600, 1) if ts else None
+    fresh = age_hours is not None and 0 <= age_hours < VPS_REPORT_FRESH_HOURS
+    standards = _standards_for_report(report)
+    fails = [s for s in standards if s["verdict"] == "FAIL"]
+    n_pass = sum(1 for s in standards if s["verdict"] == "PASS")
+    raw_apps = [a for a in (report.get("apps") or []) if isinstance(a, dict)]
+    partial = not standards
+    if not raw_apps:
+        raw_apps = [a for a in (report.get("installed_apps") or []) if isinstance(a, dict)]
+    kinds: dict[str, int] = {}
+    for app in raw_apps:
+        kind = str(app.get("kind") or "autre")
+        kinds[kind] = kinds.get(kind, 0) + 1
+    maturity = str(report.get("maturity") or "").upper()
+    if maturity not in {"PASS", "FAIL", "UNKNOWN"}:
+        maturity = "FAIL" if fails else ("PASS" if standards else "UNKNOWN")
+    next_action = report.get("next_action") if isinstance(report.get("next_action"), dict) else {}
+    node.update({
+        "report_status": "fresh" if fresh else "stale",
+        "vps_id": str(report.get("vps_id") or expected.get("vps_id") or f'vps-{expected["node"]}'),
+        "tenant": str(report.get("tenant") or "unknown"),
+        "generated_at": str(report.get("generated_at") or "unknown"),
+        "age_hours": age_hours,
+        "source_path": str(report.get("_source_path") or ""),
+        "maturity": maturity,
+        "partial": partial,  # rapport reçu mais sans standards[] → maturité invérifiable
+        "standards_pass": n_pass,
+        "standards_fail": len(fails),
+        "standards_total": len(standards),
+        "standards_pass_pct": round(n_pass / len(standards) * 100) if standards else None,
+        "fails": [{"item_id": s["item_id"], "proof_redacted": s["evidence"]} for s in fails],
+        "apps_total": len(raw_apps),
+        "apps_by_kind": dict(sorted(kinds.items(), key=lambda kv: -kv[1])),
+        "next_action": {
+            "owner": str(next_action.get("owner") or "unknown"),
+            "action_1_line": str(next_action.get("action_1_line") or "non renseignée"),
+        },
+    })
+    return node
+
+
+# oa-master = flux santé h-omar du MÊME VPS que vps-omar (rapport OmarTop) :
+# on ne le compte pas comme un 4e VPS, le bloc omar fait foi.
+VPS_FLEET_ALIAS_NODES = {"oa-master"}
+
+
+def collect_vps_fleet(built_at: str) -> dict:
+    """Vue flotte /ops/ : un bloc par VPS attendu + les nœuds surprises de l'inbox."""
+    now = _parse_report_ts(built_at) or dt.datetime.now(dt.timezone.utc)
+    reports = {r["node"]: r for r in _read_inter_vps_reports()}
+    expected_nodes = {e["node"] for e in VPS_FLEET_EXPECTED}
+    nodes = [_vps_fleet_node(e, reports.get(e["node"]), now) for e in VPS_FLEET_EXPECTED]
+    for extra in sorted(set(reports) - expected_nodes - VPS_FLEET_ALIAS_NODES):
+        nodes.append(_vps_fleet_node(
+            {"node": extra, "vps_id": f"vps-{extra}", "label": f"{extra} — hors flotte attendue",
+             "transport_owner": "inconnu", "expected_path": ""},
+            reports[extra], now,
+        ))
+    reporting = sum(1 for n in nodes if n["report_status"] == "fresh")
+    en_derive = sum(1 for n in nodes if n["report_status"] == "fresh" and n.get("maturity") == "FAIL")
+    muets = sum(1 for n in nodes if n["report_status"] in {"missing", "stale"})
+    return {
+        "schema": "oa.vps-fleet-status/1",
+        "built_at": built_at,
+        "source": "oa.vps-report/v1 (inbox inter-VPS) · fraîcheur attendue < 36 h",
+        "fresh_hours": VPS_REPORT_FRESH_HOURS,
+        "summary": {
+            "expected": len(VPS_FLEET_EXPECTED),
+            "nodes": len(nodes),
+            "reporting": reporting,
+            "en_derive": en_derive,
+            "muets": muets,
+            "standards_fail": sum(int(n.get("standards_fail") or 0) for n in nodes),
+        },
+        "sav": "non instrumenté — aucun flux SAV n'existe encore",
+        "nodes": nodes,
+    }
 
 
 def payload(built_at: str) -> dict:
@@ -1093,12 +1479,27 @@ def payload(built_at: str) -> dict:
         live["ovh"] = {"domains": [], "email_domains_with_accounts": []}
 
     fleet = hetzner_fleet()
+    fleet_supervision_v0 = _read_var_json("oa-fleet-supervision-v0.json")
+    if not isinstance(fleet_supervision_v0, dict):
+        fleet_supervision_v0 = {}
+    vps_app_inventory = collect_vps_app_inventory(built_at)
+    resource_onboarding_raw = _read_var_json("vps-resource-onboarding-v0.json")
+    if not isinstance(resource_onboarding_raw, dict):
+        resource_onboarding_raw = {}
+    # Public QG data object backs /api/core-repos.json as well as page render.
+    # Never carry the internal resource-onboarding payload into that object:
+    # it may include local paths/source names that are useful to builders but
+    # forbidden on public/API surfaces.
+    resource_onboarding = sanitize_resource_onboarding_public(resource_onboarding_raw)
     return {
         "version": VERSION, "domain": DOMAIN, "built_at": built_at,
         "items": items, "counts": counts,
         "catalog": CATALOG, "providers": providers, "live": live,
         "fleet": fleet,
+        "fleet_supervision_v0": fleet_supervision_v0,
         "vps": vps,
+        "vps_app_inventory": vps_app_inventory,
+        "resource_onboarding": resource_onboarding,
         "triage": {"built_at": triage.get("built_at"), "llm_used": triage.get("llm_used"),
                    "top3": triage.get("top3", [])},
     }
@@ -1110,8 +1511,11 @@ TAILWIND = "https://cdn.tailwindcss.com"
 FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
 
 NAV_ITEMS = [
+    ("/manifeste/",   "manifeste",   "Manifeste",   'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25'),
     ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
+    ("/blocages/",    "blocages",    "Blocages",    'M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636'),
     ("/objectifs/",   "objectifs",   "Objectifs",   'M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418'),
+    ("/chantiers/",   "chantiers",   "Chantiers",   'M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z'),
     ("/agent-loop/",  "agent-loop",  "Agent loop",  'M3.75 12a8.25 8.25 0 0 1 14.49-5.42M20.25 6.75v-4.5m0 4.5h-4.5M20.25 12a8.25 8.25 0 0 1-14.49 5.42M3.75 17.25v4.5m0-4.5h4.5'),
     ("/ops/",         "ops",         "Ops",         'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125C16.5 3.504 17.004 3 17.625 3h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z'),
     ("/clients/",     "clients",     "Clients",     'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z'),
@@ -1206,8 +1610,12 @@ def _latest_delivered_result(builds: dict) -> dict:
     return {"repo": "—", "hash": "—", "message": "Aucun résultat livré détecté sur 7 jours", "date": ""}
 
 
-def qg_delivery_focus(builds: dict, pending_decisions: int) -> str:
-    """mandat:h-omar-night-2026-06-14 — bloc cockpit résultat/mandats."""
+def qg_delivery_focus(builds: dict, pending_alex_actions: int) -> str:
+    """mandat:h-omar-night-2026-06-14 — bloc cockpit résultat/mandats.
+
+    Compteur canonique: collect_blocages.py / var/blocages.json.
+    Ne recompte pas directement var/decisions.json ici.
+    """
     latest = _latest_delivered_result(builds)
     when = (latest.get("date") or "")[:16].replace("T", " ")
     return (
@@ -1218,16 +1626,49 @@ def qg_delivery_focus(builds: dict, pending_decisions: int) -> str:
         f'<div class="mt-1 text-xs text-gray-500"><span class="font-mono">{escape(latest.get("repo", ""))}</span> · <span class="font-mono">{escape(latest.get("hash", ""))}</span>'
         + (f' · {escape(when)}' if when else '')
         + '</div><div class="mt-2 text-xs text-blue-500">Voir builds/preuves →</div></a>'
-        '<a href="/decisions/" class="block bg-white rounded-xl border border-amber-100 px-4 py-3 hover:border-amber-300 hover:shadow-sm transition">'
-        '<div class="text-xs font-semibold uppercase tracking-wide text-amber-600">Décisions / mandats</div>'
-        f'<div class="mt-1 text-sm font-semibold text-gray-900">{pending_decisions} décision(s) ouverte(s)</div>'
-        '<div class="mt-1 text-xs text-gray-500">Mandat actif: mandat:h-omar-night-2026-06-14 · décisions tracées en decision:*</div>'
-        '<div class="mt-2 text-xs text-amber-600">Voir décisions →</div></a>'
+        '<a href="/blocages/" class="block bg-white rounded-xl border border-amber-100 px-4 py-3 hover:border-amber-300 hover:shadow-sm transition">'
+        '<div class="text-xs font-semibold uppercase tracking-wide text-amber-600">Blocages / mandats</div>'
+        f'<div class="mt-1 text-sm font-semibold text-gray-900">{pending_alex_actions} action(s) Alex dans le compteur blocages</div>'
+        '<div class="mt-1 text-xs text-gray-500">Source unique: collect_blocages.py · mandat:h-omar-night-2026-06-14 · décisions tracées en decision:* quand elles bloquent.</div>'
+        '<div class="mt-2 text-xs text-amber-600">Voir blocages →</div></a>'
         '</div>'
     )
 
 
-def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None) -> str:
+def qg_blocages_banner(blocages: dict | None) -> str:
+    """Bandeau d'entrée de la home (demande Alex 06/07) : compteur live → /blocages/.
+
+    Même circulation que pending_decisions : le payload vient de collect_blocages.py
+    (var/blocages.json) et le bandeau est rendu EN PREMIER sur la home.
+    """
+    compteurs = (blocages or {}).get("compteurs", {}) if isinstance(blocages, dict) else {}
+    try:
+        total = int(compteurs.get("total") or 0)
+        pour_alex = int(compteurs.get("pour_alex") or 0)
+        effort = int(compteurs.get("effort_min_alex") or 0)
+    except Exception:
+        total, pour_alex, effort = 0, 0, 0
+    if total == 0:
+        return (
+            '<a href="/blocages/" class="block bg-green-50 rounded-xl border border-green-200 px-4 py-3 mb-6 hover:border-green-300 transition">'
+            '<div class="text-xs font-semibold uppercase tracking-wide text-green-700">Blocages</div>'
+            '<div class="mt-1 text-sm font-semibold text-green-700">Rien ne te bloque — le système avance seul.</div></a>'
+        )
+    accent = "amber" if pour_alex else "blue"
+    detail = f"{total} blocage(s), dont {pour_alex} pour Alex"
+    if effort:
+        detail += f" (~{effort} min d'actions connues)"
+    return (
+        f'<a href="/blocages/" class="block bg-white rounded-xl border border-{accent}-200 px-4 py-3 mb-6 hover:border-{accent}-400 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between gap-3">'
+        f'<div><div class="text-xs font-semibold uppercase tracking-wide text-{accent}-600">Ce qui bloque — et qui débloque</div>'
+        f'<div class="mt-1 text-sm font-semibold text-gray-900">{escape(detail)}</div></div>'
+        f'<span class="text-2xl font-bold text-{accent}-600">{total}</span></div>'
+        f'<div class="mt-1 text-xs text-{accent}-600">Voir les blocages →</div></a>'
+    )
+
+
+def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None, vps_fleet: dict | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
     objectifs = objectifs or []
@@ -1235,22 +1676,37 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0,
     audit_summary = (agent_loop_audit or {}).get("summary", {}) or {}
     total_orphans = int(audit_summary.get("total_orphans") or 0)
 
-    # Tuiles d'action : décisions à trancher + builds du jour (liens dédiés)
-    dec_accent = "text-amber-600" if pending_decisions else "text-gray-900"
+    # Tuile flotte VPS (rescue J4) : x/y rapportent + standards FAIL, détail sur /ops/.
+    fleet_summary = (vps_fleet or {}).get("summary", {}) or {}
+    fleet_reporting = int(fleet_summary.get("reporting") or 0)
+    fleet_expected = int(fleet_summary.get("expected") or 0)
+    fleet_fail = int(fleet_summary.get("standards_fail") or 0)
+    fleet_accent = "text-red-600" if fleet_fail or fleet_reporting < fleet_expected else "text-gray-900"
+    fleet_tile = (
+        f'<a href="/ops/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {fleet_accent}">{fleet_reporting}<span class="text-gray-400 text-sm font-normal">/{fleet_expected}</span></div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">VPS rapportent · {fleet_fail} standard(s) FAIL</div></div>'
+        f'<span class="text-xs text-blue-500">Voir /ops/ →</span></div></a>'
+    ) if fleet_expected else ""
+
+    # Tuiles d'action : blocages à trancher + builds du jour (liens dédiés).
+    # Source unique du compteur Alex: collect_blocages.py (plus de recomptage décisions ici).
+    dec_accent = "text-amber-600" if pending_alex_actions else "text-gray-900"
     tiles = (
-        '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">'
-        f'<a href="/decisions/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
-        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}">{pending_decisions}</div>'
-        f'<div class="text-xs text-gray-500 mt-0.5">Décisions en attente</div></div>'
-        f'<span class="text-xs text-blue-500">Trancher →</span></div></a>'
+        f'<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-{4 if fleet_tile else 3} gap-3 mb-3">'
+        f'<a href="/blocages/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}">{pending_alex_actions}</div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">Actions Alex à débloquer</div></div>'
+        f'<span class="text-xs text-blue-500">Voir blocages →</span></div></a>'
         f'<a href="/builds/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold text-gray-900">{builds_today}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Builds aujourd’hui</div></div>'
         f'<span class="text-xs text-blue-500">Voir →</span></div></a>'
         f'<a href="/agent-loop/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {"text-red-600" if total_orphans else "text-gray-900"}">{total_orphans}</div>'
-        f'<div class="text-xs text-gray-500 mt-0.5">Orphelins Issue↔Kanban↔PR↔Gate</div></div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">Orphelins Issue↔Kanban↔PR↔Gate · figé depuis 15/06 si non recronifié</div></div>'
         f'<span class="text-xs text-blue-500">Auditer →</span></div></a>'
+        + fleet_tile +
         '</div>'
     )
 
@@ -1330,8 +1786,8 @@ def page_registry(data: dict, pending_decisions: int = 0, builds_today: int = 0,
     rows += '</div>'
 
     header = '<div class="flex items-center justify-between mb-6"><h1 class="text-xl font-bold text-gray-900">Registry CORE OA</h1><span class="text-xs text-gray-400">Rebuild auto · 30 min · Référentiel VPS Hermes OA</span></div>'
-    # Les objectifs d'Alex viennent EN TÊTE de l'accueil, avant le registry de repos.
-    return objectifs_summary(objectifs) + header + qg_delivery_focus(builds, pending_decisions) + tiles + stats + rows
+    # EN PREMIER : le bandeau blocages (demande Alex 06/07), puis les objectifs, puis le registry.
+    return qg_blocages_banner(blocages) + objectifs_summary(objectifs) + header + qg_delivery_focus(builds, pending_alex_actions) + tiles + stats + rows
 
 
 def _app_route(item: dict) -> str:
@@ -1410,11 +1866,29 @@ def page_app_detail(data: dict, app: dict, builds: dict, ledgers: list[dict]) ->
         + '</div></div>'
     )
 
+    issues_value = escape(str(gh.get("open_issues") if gh.get("open_issues") is not None else "—"))
+    prs_value = escape(str(gh.get("open_prs") if gh.get("open_prs") is not None else "—"))
+    if repo:
+        issues_metric = (
+            f'<a href="https://github.com/{escape(repo)}/issues/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+            f'<div class="text-xs text-gray-500">Issues ouvertes</div><div class="text-2xl font-bold text-gray-900">{issues_value}</div></a>'
+        )
+        prs_metric = (
+            f'<a href="https://github.com/{escape(repo)}/pulls/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+            f'<div class="text-xs text-gray-500">PRs ouvertes</div><div class="text-2xl font-bold text-gray-900">{prs_value}</div></a>'
+        )
+    else:
+        issues_metric = f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">Issues ouvertes</div><div class="text-2xl font-bold text-gray-900">{issues_value}</div></div>'
+        prs_metric = f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">PRs ouvertes</div><div class="text-2xl font-bold text-gray-900">{prs_value}</div></div>'
+
     html += '<div class="grid md:grid-cols-3 gap-4 mb-6">'
-    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">Issues ouvertes</div><div class="text-2xl font-bold text-gray-900">{escape(str(gh.get("open_issues") if gh.get("open_issues") is not None else "—"))}</div></div>'
-    html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">PRs ouvertes</div><div class="text-2xl font-bold text-gray-900">{escape(str(gh.get("open_prs") if gh.get("open_prs") is not None else "—"))}</div></div>'
+    html += issues_metric
+    html += prs_metric
     html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">Head local</div><div class="text-sm font-mono text-gray-700 break-words mt-1">{escape(git.get("head") or "—")}</div></div>'
     html += '</div>'
+
+    if app.get("id") == "app":
+        html += appomar_resource_onboarding_spec(data.get("resource_onboarding") or {})
 
     html += '<div class="grid lg:grid-cols-2 gap-6 mb-6">'
     html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden"><div class="px-4 py-3 border-b border-gray-100"><h2 class="text-sm font-bold text-gray-900">P0/P1 du jour</h2><p class="text-xs text-gray-500">Source: triage QG existant, trié P0 puis P1.</p></div>'
@@ -1588,6 +2062,188 @@ def _link_status_dot(status: str) -> str:
     return colors.get(status, "#d1d5db")
 
 
+def _fmt_int(value) -> str:
+    try:
+        return f"{int(value):,}".replace(",", " ")
+    except Exception:
+        return "—"
+
+
+def _resource_onboarding_summary(payload: dict) -> dict:
+    canonical = payload.get("canonical_cloud_index") or {}
+    permissions = payload.get("default_permissions") or {}
+    onboarding = payload.get("onboarding_step") or {}
+    exclusions = payload.get("hard_exclusions") or []
+    return {
+        "schema": str(payload.get("resource_scope_schema") or "oa.resource-scope/v1"),
+        "generated_at": str(payload.get("generated_at") or "unknown"),
+        "status": str(payload.get("status") or "unknown"),
+        "total_records": canonical.get("total_unique_records"),
+        "google_records": canonical.get("google_drive_api_full_records"),
+        "onedrive_records": canonical.get("onedrive_rclone_targeted_records"),
+        "metadata_only": bool(canonical.get("metadata_only", True)),
+        "text_extraction_status": str(canonical.get("text_extraction_status") or "planned_v3_controlled"),
+        "permissions": permissions,
+        "onboarding_steps": onboarding.get("steps") or [],
+        "exclusions_count": len(exclusions) if isinstance(exclusions, list) else 0,
+        # Security gate: QG public surface must not expose source names/subsets.
+        # Keep only aggregate counts/status; full contract stays internal under var/.
+        "v3_priority_count": len(payload.get("v3_text_extraction_priority") or []) if isinstance(payload.get("v3_text_extraction_priority"), list) else 0,
+    }
+
+
+def sanitize_resource_onboarding_public(payload: dict) -> dict:
+    """Return the public/QG-safe resource onboarding snapshot.
+
+    The internal contract may contain absolute local paths and source labels. Athena
+    gate t_cb7a0754 requires public/api and /clients/ to expose counters/statuses
+    only: no local paths, no source names, no raw file/document labels.
+    """
+    if not isinstance(payload, dict) or not payload:
+        return {}
+    summary = _resource_onboarding_summary(payload)
+    permissions = summary.get("permissions") if isinstance(summary.get("permissions"), dict) else {}
+    steps = summary.get("onboarding_steps") if isinstance(summary.get("onboarding_steps"), list) else []
+    return {
+        "schema": "oa.resource-onboarding/public.v0",
+        "generated_at": summary.get("generated_at"),
+        "status": summary.get("status"),
+        "resource_scope_schema": summary.get("schema"),
+        "visibility": "public_qg_redacted_counters_only",
+        "canonical_cloud_index": {
+            "total_unique_records": summary.get("total_records"),
+            "google_drive_api_full_records": summary.get("google_records"),
+            "onedrive_rclone_targeted_records": summary.get("onedrive_records"),
+            "metadata_only": summary.get("metadata_only"),
+            "text_extraction_status": summary.get("text_extraction_status"),
+        },
+        "onboarding_step": {
+            "name": "Ressources & connaissances",
+            "position_after": "Connexions",
+            "steps": steps,
+        },
+        "default_permissions": permissions,
+        "redaction": {
+            "absolute_paths": "removed",
+            "source_names": "removed",
+            "file_names": "never_published",
+            "raw_content": "never_published",
+            "v3_priority_sources_count": summary.get("v3_priority_count"),
+            "hard_exclusions_count": summary.get("exclusions_count"),
+        },
+    }
+
+
+def redact_public_api_payload(value):
+    """Recursively redact local filesystem paths from public JSON payloads."""
+    if isinstance(value, dict):
+        return {k: redact_public_api_payload(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [redact_public_api_payload(v) for v in value]
+    if isinstance(value, str):
+        value = re.sub(r"/home/omar/[^\"'\\s<>]+", "[redacted-path]", value)
+        value = re.sub(r"/var/[^\"'\\s<>]+", "[redacted-path]", value)
+        return value
+    return value
+
+
+def _resource_metric_card(label: str, value: str, sub: str) -> str:
+    return (
+        '<div class="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">'
+        f'<div class="text-lg font-bold text-gray-900">{escape(value)}</div>'
+        f'<div class="text-xs font-semibold text-gray-600">{escape(label)}</div>'
+        f'<div class="text-xs text-gray-400 mt-1">{escape(sub)}</div>'
+        '</div>'
+    )
+
+
+def qg_resource_onboarding_section(payload: dict) -> str:
+    if not isinstance(payload, dict) or not payload:
+        return (
+            '<section class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 mb-8 text-sm text-amber-800">'
+            'Onboarding ressources documentaires absent — publier <span class="font-mono">vps-resource-onboarding-v0.json</span>.'
+            '</section>'
+        )
+    summary = _resource_onboarding_summary(payload)
+    permissions = summary["permissions"] if isinstance(summary["permissions"], dict) else {}
+    permission_rows = [
+        ("read_metadata", "lecture metadata"),
+        ("read_text", "lecture texte"),
+        ("write_new", "écriture nouvelle"),
+        ("update_existing", "modification"),
+        ("organize_suggest", "classement suggéré"),
+        ("organize_apply", "classement appliqué"),
+        ("delete", "suppression"),
+    ]
+    perms_html = "".join(
+        '<div class="flex items-center justify-between gap-2 py-1 border-t border-gray-50 first:border-0">'
+        f'<span>{escape(label)}</span><span class="font-mono text-gray-500 text-[11px]">{escape(str(permissions.get(key, "—")))}</span></div>'
+        for key, label in permission_rows
+    )
+    v3_count = int(summary.get("v3_priority_count") or 0)
+    v3_html = f'<span class="rounded bg-blue-50 text-blue-700 px-2 py-0.5 text-xs">{escape(str(v3_count))} lots candidats redacted</span>'
+    steps = [str(x).replace("_", " ") for x in (summary.get("onboarding_steps") or [])][:7]
+    steps_html = "".join(f'<li>{escape(step)}</li>' for step in steps)
+    return (
+        '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
+        '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        '<div><h2 class="text-sm font-bold text-gray-900">Ressources &amp; connaissances — onboarding VPS/client</h2>'
+        f'<p class="text-xs text-gray-500">Vue gouvernance metadata-only · modèle <span class="font-mono">{escape(summary["schema"])}</span> · aucun nom de fichier ni contenu brut.</p></div>'
+        '<a href="/api/vps-resource-onboarding-v0.json" class="text-xs text-blue-500 hover:underline">API onboarding</a>'
+        '</div>'
+        '<div class="grid md:grid-cols-4 gap-3 px-4 py-3 bg-gray-50">'
+        f'{_resource_metric_card("Cloud Index records", _fmt_int(summary.get("total_records")), "records uniques metadata")}'
+        f'{_resource_metric_card("Google Drive API full", _fmt_int(summary.get("google_records")), "crawl API complet, lecture seule")}'
+        f'{_resource_metric_card("OneDrive ciblé", _fmt_int(summary.get("onedrive_records")), "rclone ciblé V2 conservé")}'
+        f'{_resource_metric_card("V3 extraction contrôlée", "0 lancé", summary.get("text_extraction_status") or "planned")}'
+        '</div>'
+        '<div class="grid lg:grid-cols-3 gap-4 p-4">'
+        '<article class="rounded-xl border border-gray-100 px-4 py-3 bg-white"><h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Permissions agents</h3>'
+        f'<div class="text-xs text-gray-600">{perms_html}</div></article>'
+        '<article class="rounded-xl border border-gray-100 px-4 py-3 bg-white"><h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Étape AppOmar</h3>'
+        f'<ol class="list-decimal pl-4 text-xs text-gray-600 space-y-1">{steps_html}</ol></article>'
+        '<article class="rounded-xl border border-gray-100 px-4 py-3 bg-white"><h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Exclusions &amp; suivi</h3>'
+        f'<div class="text-sm font-semibold text-gray-900">{escape(str(summary.get("exclusions_count")))} familles exclues par défaut</div>'
+        '<div class="text-xs text-gray-500 mt-1">secrets, personnel, médical, corbeille, caches/builds/vendor restent hors surface.</div>'
+        f'<div class="flex flex-wrap gap-1.5 mt-3">{v3_html}</div></article>'
+        '</div></section>'
+    )
+
+
+def appomar_resource_onboarding_spec(payload: dict) -> str:
+    if not isinstance(payload, dict) or not payload:
+        return ""
+    summary = _resource_onboarding_summary(payload)
+    steps = [
+        ("1", "Sources", "Google Drive, OneDrive, PC local, GitHub, dossiers VPS — connexion explicite, pas tout par défaut."),
+        ("2", "Périmètres", "Choisir familles/dossiers autorisés; index_mode metadata_only ou text_extract_controlled."),
+        ("3", "Classification", "business_admin, clients, sales_marketing, operations, knowledge_base, finance_legal, team_hr, personal_excluded."),
+        ("4", "Permissions agents", "read_metadata, read_text contrôlé, write_new en zone autorisée, organize_suggest séparé de organize_apply."),
+        ("5", "Exclusions", "Secrets, personnel/famille, médical, banque/crypto, corbeille, caches/builds/vendor."),
+        ("6", "Boucle QG", "Résumé publié dans QG + prochaine action; extraction V3 uniquement par lot autorisé."),
+    ]
+    cards = "".join(
+        '<div class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">'
+        f'<div class="flex items-center gap-2 mb-1"><span class="w-5 h-5 rounded-full bg-gray-900 text-white text-[11px] font-bold flex items-center justify-center">{n}</span><span class="text-sm font-semibold text-gray-900">{escape(title)}</span></div>'
+        f'<div class="text-xs text-gray-600 leading-relaxed">{escape(text)}</div></div>'
+        for n, title, text in steps
+    )
+    return (
+        '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+        '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        '<div><h2 class="text-sm font-bold text-gray-900">Spec onboarding AppOmar · Ressources &amp; connaissances</h2>'
+        f'<p class="text-xs text-gray-500">Première UI/spec statique après Connexions · objet cible <span class="font-mono">{escape(summary["schema"])}</span>.</p></div>'
+        '<a href="/api/vps-resource-onboarding-v0.json" class="text-xs text-blue-500 hover:underline">contrat JSON</a>'
+        '</div>'
+        '<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">'
+        f'{cards}'
+        '</div>'
+        '<div class="px-4 py-3 bg-blue-50 border-t border-blue-100 text-xs text-blue-800">'
+        'Garde-fou V0: UI de choix et gouvernance seulement — aucune extraction texte V3, aucun renommage/déplacement, aucun contenu brut exposé.'
+        '</div></section>'
+    )
+
+
 def page_clients(data: dict) -> str:
     fleet = data.get("fleet", [])
     html = (
@@ -1596,6 +2252,7 @@ def page_clients(data: dict) -> str:
         '<p class="text-sm text-gray-500 mt-0.5">Flotte live Hetzner. Données rafraîchies au rebuild (30 min).</p></div>'
         '</div>'
     )
+    html += qg_resource_onboarding_section(data.get("resource_onboarding") or {})
 
     # Alignement des 3 VPS sur le standard VPS Hermes OA (vps-doctor quotidien)
     vps_data = data.get("vps") or {}
@@ -1626,6 +2283,148 @@ def page_clients(data: dict) -> str:
                     f'</div>'
                 )
         html += '</div>'
+
+    standards = data.get("fleet_supervision_v0") or {}
+    standards_nodes = standards.get("nodes") or []
+    if standards_nodes:
+        totals = standards.get("totals") or {}
+        html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
+        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Standards OA — supervision 3 VPS</h2><p class="text-xs text-gray-500">Score pass/fail/unknown issu de <span class="font-mono">oa.fleet-supervision.v0</span> · vue QG interne, sans IP ni identifiants sensibles.</p></div>'
+        html += '<a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API standards OA</a>'
+        html += '</div>'
+        html += '<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 px-4 py-3 bg-gray-50">'
+        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("nodes", len(standards_nodes))))}</div><div class="text-xs text-gray-500">VPS suivis</div></div>'
+        html += f'<div><div class="text-lg font-bold text-green-700">{escape(str(totals.get("pass", 0)))}</div><div class="text-xs text-gray-500">pass</div></div>'
+        html += f'<div><div class="text-lg font-bold text-red-700">{escape(str(totals.get("fail", 0)))}</div><div class="text-xs text-gray-500">fail</div></div>'
+        html += f'<div><div class="text-lg font-bold text-gray-700">{escape(str(totals.get("unknown", 0)))}</div><div class="text-xs text-gray-500">unknown</div></div>'
+        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("controls", 0)))}</div><div class="text-xs text-gray-500">contrôles</div></div>'
+        html += '</div>'
+        html += '<div class="grid lg:grid-cols-3 gap-4 p-4">'
+        for node in standards_nodes:
+            name = str(node.get("node") or "unknown")
+            compliance = node.get("compliance") or {}
+            passed = int(compliance.get("pass") or 0)
+            failed = int(compliance.get("fail") or 0)
+            unknown = int(compliance.get("unknown") or 0)
+            total = passed + failed + unknown
+            score = round((passed / total) * 100) if total else 0
+            score_cls = "text-green-700" if failed == 0 and unknown == 0 else "text-red-700" if failed else "text-amber-700"
+            gaps = [g for g in (node.get("top_gaps") or []) if isinstance(g, dict)][:3]
+            gap_rows = ""
+            if gaps:
+                for gap in gaps:
+                    st = str(gap.get("status") or "unknown")
+                    st_cls = "pill-err" if st == "fail" else "bg-gray-100 text-gray-600 border border-gray-200"
+                    gap_rows += (
+                        '<li class="flex items-start justify-between gap-2 py-1 border-t border-gray-50 first:border-0">'
+                        f'<span><span class="font-mono text-[10px] text-gray-400">{escape(str(gap.get("control_id") or ""))}</span> '
+                        f'{escape(str(gap.get("label") or "Gap non nommé"))}</span>'
+                        f'<span class="{st_cls} rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0">{escape(st)}</span>'
+                        '</li>'
+                    )
+            else:
+                gap_rows = '<li class="py-1 text-green-700">Aucun gap prioritaire remonté.</li>'
+            html += '<article class="rounded-xl border border-gray-200 p-4 bg-white">'
+            html += f'<div class="flex items-center justify-between gap-3"><h3 class="text-sm font-bold text-gray-900 uppercase">{escape(name)}</h3><div class="text-2xl font-bold {score_cls}">{escape(str(score))}%</div></div>'
+            html += f'<div class="mt-1 text-xs text-gray-500">{escape(str(passed))} pass · {escape(str(failed))} fail · {escape(str(unknown))} unknown</div>'
+            html += f'<ul class="mt-3 text-xs text-gray-600">{gap_rows}</ul>'
+            html += '</article>'
+        html += '</div></section>'
+
+    fleet_supervision = data.get("fleet_supervision_v0") or {}
+    fleet_nodes = fleet_supervision.get("nodes") or []
+    if fleet_nodes:
+        totals = fleet_supervision.get("totals") or {}
+        html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
+        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Standards OA · 3 VPS</h2><p class="text-xs text-gray-500">Matrice V0 OmarTop/QG/Hub · contrôles redacted · fail = action à fermer, unknown = preuve insuffisante.</p></div>'
+        html += '<a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API standards OA</a>'
+        html += '</div>'
+        html += '<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 px-4 py-3 bg-gray-50">'
+        for key, label in [("nodes", "VPS"), ("controls", "Contrôles"), ("pass", "Pass"), ("fail", "Fail"), ("unknown", "Unknown")]:
+            html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get(key, 0)))}</div><div class="text-xs text-gray-500">{label}</div></div>'
+        html += '</div>'
+        html += '<div class="grid md:grid-cols-3 gap-3 p-4">'
+        for node in fleet_nodes:
+            comp = node.get("compliance") or {}
+            gaps = [c for c in (node.get("controls") or []) if c.get("status") in {"fail", "unknown"}][:5]
+            html += '<div class="rounded-xl border border-gray-100 px-4 py-3 bg-gray-50">'
+            html += f'<div class="flex items-center justify-between gap-2"><div class="font-bold text-sm text-gray-900 uppercase">{escape(str(node.get("node") or "unknown"))}</div><div class="text-xs text-gray-500">{escape(str(comp.get("pass", 0)))} pass · {escape(str(comp.get("fail", 0)))} fail · {escape(str(comp.get("unknown", 0)))} unknown</div></div>'
+            html += '<ul class="mt-3 space-y-1 text-xs text-gray-600">'
+            if gaps:
+                for c in gaps:
+                    st = str(c.get("status") or "unknown")
+                    cls = "text-red-600" if st == "fail" else "text-amber-600"
+                    html += f'<li><span class="font-semibold {cls}">{escape(st)}</span> · <span class="font-mono">{escape(str(c.get("id") or ""))}</span> — {escape(str(c.get("label") or ""))}</li>'
+            else:
+                html += '<li class="text-green-700">Aucun gap V0 prioritaire.</li>'
+            html += '</ul></div>'
+        html += '</div></section>'
+
+    app_inventory = data.get("vps_app_inventory") or {}
+    inventory_nodes = app_inventory.get("nodes") or []
+    if inventory_nodes:
+        totals = app_inventory.get("totals") or {}
+        html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
+        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Inventaire apps/version par VPS</h2><p class="text-xs text-gray-500">Source: rapports <span class="font-mono">oa.vps-report/v1</span> · redacted · aucun log brut.</p></div>'
+        html += '<div class="flex gap-3"><a href="/api/vps-app-inventory.json" class="text-xs text-blue-500 hover:underline">API inventory</a><a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API standards OA</a></div>'
+        html += '</div>'
+        html += '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 px-4 py-3 bg-gray-50">'
+        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("nodes", 0)))}</div><div class="text-xs text-gray-500">VPS rapportés</div></div>'
+        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("apps", 0)))}</div><div class="text-xs text-gray-500">apps suivies</div></div>'
+        for st, label in [("pass", "PASS app"), ("fail", "FAIL app"), ("verdict_unknown", "UNKNOWN app"), ("standards_fail", "FAIL standards")]:
+            html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get(st, 0)))}</div><div class="text-xs text-gray-500">{label}</div></div>'
+        html += '</div>'
+        html += '<div class="divide-y divide-gray-100">'
+        for node in inventory_nodes:
+            summary = node.get("summary") or {}
+            standards_summary = node.get("standards_summary") or {}
+            apps = node.get("apps") or []
+            standards_reported = node.get("standards") or []
+            node_label = str(node.get("node") or "unknown")
+            tenant = str(node.get("tenant") or "unknown")
+            agent = str(node.get("agent") or "unknown")
+            generated = str(node.get("generated_at") or "unknown")
+            health = str(node.get("health_status") or "unknown")
+            health_cls = "pill-ok" if health == "ok" else "pill-err" if health in {"blocked", "fail"} else "pill-warn" if health in {"degraded", "warning"} else "bg-gray-100 text-gray-600 border border-gray-200"
+            html += '<div class="px-4 py-4">'
+            html += '<div class="flex flex-wrap items-center justify-between gap-2 mb-3">'
+            html += f'<div><div class="text-sm font-bold text-gray-900 uppercase">{escape(node_label)}</div><div class="text-xs text-gray-400">tenant {escape(tenant)} · agent {escape(agent)} · check {escape(generated)}</div></div>'
+            html += f'<div class="flex items-center gap-2"><span class="{health_cls} rounded-full px-2 py-0.5 text-xs font-medium">{escape(health)}</span><span class="text-xs text-gray-500">{escape(str(summary.get("pass", 0)))} PASS app · {escape(str(summary.get("fail", 0)))} FAIL app · {escape(str(standards_summary.get("fail", 0)))} FAIL standard</span></div>'
+            html += '</div>'
+            html += '<div class="overflow-x-auto"><table class="min-w-full text-xs"><thead><tr class="text-left text-gray-400 uppercase"><th class="py-1 pr-3">App</th><th class="py-1 pr-3">Installée</th><th class="py-1 pr-3">Version</th><th class="py-1 pr-3">Attendue</th><th class="py-1 pr-3">Verdict</th><th class="py-1 pr-3">Statut brut</th><th class="py-1 pr-3">Preuve</th></tr></thead><tbody>'
+            for app in apps:
+                verdict = str(app.get("verdict") or "UNKNOWN")
+                verdict_cls = "pill-ok" if verdict == "PASS" else "pill-err" if verdict == "FAIL" else "bg-gray-100 text-gray-600 border border-gray-200"
+                installed = "oui" if app.get("installed") else "non"
+                html += '<tr class="border-t border-gray-50">'
+                html += f'<td class="py-1.5 pr-3 font-semibold text-gray-800">{escape(str(app.get("name") or app.get("app_id") or ""))}</td>'
+                html += f'<td class="py-1.5 pr-3 text-gray-600">{installed}</td>'
+                html += f'<td class="py-1.5 pr-3 font-mono text-gray-600">{escape(str(app.get("version_installed") or "unknown"))}</td>'
+                html += f'<td class="py-1.5 pr-3 font-mono text-gray-500">{escape(str(app.get("version_expected") or "policy-current"))}</td>'
+                html += f'<td class="py-1.5 pr-3"><span class="{verdict_cls} rounded-full px-2 py-0.5 font-medium">{escape(verdict)}</span></td>'
+                html += f'<td class="py-1.5 pr-3 text-gray-500">{escape(str(app.get("raw_status") or app.get("status") or "unknown"))}</td>'
+                html += f'<td class="py-1.5 pr-3 text-gray-400">{escape(str(app.get("source") or "report"))}</td>'
+                html += '</tr>'
+            html += '</tbody></table></div>'
+            if standards_reported:
+                html += '<div class="mt-4 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">'
+                html += f'<div class="text-xs font-bold text-gray-700 mb-2">Standards reportés · {escape(str(standards_summary.get("pass", 0)))} PASS · {escape(str(standards_summary.get("fail", 0)))} FAIL · {escape(str(standards_summary.get("unknown", 0)))} UNKNOWN</div>'
+                html += '<div class="grid md:grid-cols-2 gap-2 text-xs">'
+                for standard in standards_reported[:12]:
+                    verdict = str(standard.get("verdict") or "UNKNOWN")
+                    verdict_cls = "pill-ok" if verdict == "PASS" else "pill-err" if verdict == "FAIL" else "bg-gray-100 text-gray-600 border border-gray-200"
+                    html += '<div class="flex items-center justify-between gap-2 rounded border border-gray-100 bg-white px-2 py-1">'
+                    html += f'<span><span class="font-mono text-gray-500">{escape(str(standard.get("item_id") or ""))}</span> · {escape(str(standard.get("label") or ""))}</span>'
+                    html += f'<span class="{verdict_cls} rounded-full px-2 py-0.5 font-medium shrink-0">{escape(verdict)}</span>'
+                    html += '</div>'
+                html += '</div></div>'
+            html += '</div>'
+        html += '</div></section>'
+    else:
+        html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800 mb-8">Inventaire apps/version absent — attendre un rapport <span class="font-mono">oa.vps-report/v1</span> avec <span class="font-mono">installed_apps</span>.</div>'
 
     if not fleet:
         return html + '<div class="bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 text-sm text-yellow-700">Flotte Hetzner indisponible — clef API absente ou en erreur.</div>'
@@ -1707,7 +2506,107 @@ def _num(v) -> int:
         return 0
 
 
-def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None) -> str:
+def _vps_fleet_section(vps_fleet: dict | None) -> str:
+    """Bloc « où j'en suis techniquement, sur chaque VPS » (demande Alex, rescue J4).
+
+    Un bloc par VPS attendu : maturité en grand, liste INTÉGRALE des standards
+    FAIL (item_id + preuve redacted, zéro ellipsis), compteur apps par kind,
+    next_action ownerisée, horodatage. Rapport absent/stale = bloc ambre —
+    c'est une alerte au sens de la doctrine H-Omar, pas une ligne discrète.
+    """
+    vps_fleet = vps_fleet if isinstance(vps_fleet, dict) else {}
+    nodes = vps_fleet.get("nodes") or []
+    if not nodes:
+        return (
+            '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 mb-6 text-sm text-amber-800">'
+            'Flotte VPS : aucun rapport <span class="font-mono">oa.vps-report/v1</span> lisible dans l&#39;inbox inter-VPS.</div>'
+        )
+    s = vps_fleet.get("summary") or {}
+    reporting = int(s.get("reporting") or 0)
+    en_derive = int(s.get("en_derive") or 0)
+    muets = int(s.get("muets") or 0)
+    html = '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+    html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+    html += ('<div><h2 class="text-sm font-bold text-gray-900">Flotte VPS — où j&#39;en suis, machine par machine</h2>'
+             '<p class="text-xs text-gray-500">Rapports <span class="font-mono">oa.vps-report/v1</span> · inbox inter-VPS · fraîcheur attendue &lt; 36 h · muet = alerte.</p></div>')
+    html += '<a href="/api/ops/vps-fleet.json" class="text-xs text-blue-500 hover:underline">API flotte</a>'
+    html += '</div>'
+    derive_cls = "text-red-700" if en_derive else "text-green-700"
+    muet_cls = "text-amber-700" if muets else "text-green-700"
+    html += (
+        '<div class="px-4 py-3 bg-gray-50 border-b border-gray-100 text-base font-bold text-gray-900">'
+        f'{reporting} VPS rapportent · <span class="{derive_cls}">{en_derive} en dérive</span> · '
+        f'<span class="{muet_cls}">{muets} muet(s)</span></div>'
+    )
+    for node in nodes:
+        status = str(node.get("report_status") or "missing")
+        label = str(node.get("label") or node.get("node") or "vps")
+        vps_id = str(node.get("vps_id") or "")
+        owner_transport = str(node.get("transport_owner") or "inconnu")
+        if status == "missing":
+            html += '<div class="px-4 py-4 border-b border-gray-100 last:border-0 bg-amber-50">'
+            html += ('<div class="flex items-center justify-between gap-2 flex-wrap">'
+                     f'<div class="text-sm font-bold text-gray-900 uppercase">{escape(vps_id)}</div>'
+                     '<span class="pill-warn rounded-full px-2 py-0.5 text-xs font-medium">rapport attendu — jamais reçu</span></div>')
+            html += f'<div class="text-xs text-gray-500 mt-0.5">{escape(label)}</div>'
+            html += ('<div class="text-sm text-amber-800 mt-2">Aucun rapport <span class="font-mono">oa.vps-report/v1</span> '
+                     'dans l&#39;inbox — VPS muet, alerte doctrine H-Omar.</div>')
+            html += f'<div class="text-xs text-gray-600 mt-1">Outbox attendue : <span class="font-mono">{escape(str(node.get("expected_path") or "non définie"))}</span></div>'
+            html += f'<div class="text-xs text-gray-600">Transport : owner <span class="font-semibold">{escape(owner_transport)}</span></div>'
+            html += '</div>'
+            continue
+        stale = status == "stale"
+        age_hours = node.get("age_hours")
+        age_txt = f"{age_hours} h" if age_hours is not None else "âge inconnu"
+        maturity = str(node.get("maturity") or "UNKNOWN")
+        partial = bool(node.get("partial"))
+        n_pass = int(node.get("standards_pass") or 0)
+        n_fail = int(node.get("standards_fail") or 0)
+        pct = node.get("standards_pass_pct")
+        mat_cls = "text-red-700" if maturity == "FAIL" else "text-green-700" if maturity == "PASS" else "text-amber-700"
+        row_cls = "bg-amber-50" if stale else ""
+        html += f'<div class="px-4 py-4 border-b border-gray-100 last:border-0 {row_cls}">'
+        pill = ('<span class="pill-warn rounded-full px-2 py-0.5 text-xs font-medium">stale depuis ' + escape(age_txt) + '</span>'
+                if stale else '<span class="pill-ok rounded-full px-2 py-0.5 text-xs font-medium">rapport frais</span>')
+        html += ('<div class="flex items-center justify-between gap-2 flex-wrap">'
+                 f'<div class="text-sm font-bold text-gray-900 uppercase">{escape(vps_id)}</div>{pill}</div>')
+        html += f'<div class="text-xs text-gray-500 mt-0.5">{escape(label)} · tenant {escape(str(node.get("tenant") or "unknown"))}</div>'
+        if stale:
+            html += ('<div class="text-sm text-amber-800 mt-2">Rapport attendu — stale depuis '
+                     f'{escape(age_txt)} (seuil {VPS_REPORT_FRESH_HOURS} h) : alerte doctrine H-Omar. '
+                     f'Outbox : <span class="font-mono">{escape(str(node.get("expected_path") or node.get("source_path") or ""))}</span> · '
+                     f'transport owner <span class="font-semibold">{escape(owner_transport)}</span>.</div>')
+        # Maturité en grand
+        if partial:
+            html += (f'<div class="mt-2 text-3xl font-bold {mat_cls}">maturité {escape(maturity)}</div>'
+                     '<div class="text-xs text-amber-700 mt-0.5">rapport partiel — aucun <span class="font-mono">standards[]</span> fourni, maturité invérifiable.</div>')
+        else:
+            html += (f'<div class="mt-2 text-3xl font-bold {mat_cls}">{n_pass} PASS / {n_fail} FAIL'
+                     + (f'<span class="text-lg font-semibold text-gray-500"> · {escape(str(pct))}%</span>' if pct is not None else '')
+                     + '</div>')
+            html += f'<div class="text-xs {mat_cls} mt-0.5 font-semibold">maturité {escape(maturity)}</div>'
+        fails = node.get("fails") or []
+        if fails:
+            html += '<div class="mt-2 space-y-1">'
+            for f_item in fails:
+                html += ('<div class="text-sm text-gray-800"><span class="font-mono text-xs font-semibold text-red-700">'
+                         f'{escape(str(f_item.get("item_id") or ""))}</span> — {escape(str(f_item.get("proof_redacted") or ""))}</div>')
+            html += '</div>'
+        kinds = node.get("apps_by_kind") or {}
+        kinds_txt = " · ".join(f"{k} {v}" for k, v in kinds.items()) or "aucune app rapportée"
+        html += f'<div class="text-xs text-gray-600 mt-2"><span class="font-semibold">{int(node.get("apps_total") or 0)} apps</span> : {escape(kinds_txt)}</div>'
+        na = node.get("next_action") or {}
+        html += (f'<div class="text-xs text-gray-700 mt-1">Next : {escape(str(na.get("action_1_line") or "non renseignée"))} '
+                 f'— owner <span class="font-semibold">{escape(str(na.get("owner") or "unknown"))}</span></div>')
+        html += f'<div class="text-xs text-gray-400 mt-1">généré {escape(str(node.get("generated_at") or "?"))} · il y a {escape(age_txt)} · source <span class="font-mono">{escape(str(node.get("source_path") or ""))}</span></div>'
+        html += '</div>'
+    html += ('<div class="px-4 py-3 bg-gray-50 text-xs text-gray-500">'
+             'SAV : non instrumenté — aucun flux SAV n&#39;existe encore.</div>')
+    html += '</section>'
+    return html
+
+
+def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None, vps_fleet: dict | None = None) -> str:
     gh = ledger.get("github_totals", {})
     hermes = ledger.get("sessions", {}).get("hermes", {})
     cc = ledger.get("sessions", {}).get("ccusage", {})
@@ -1730,6 +2629,8 @@ def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None
         '<a href="/api/daily-ledger/index.json" class="text-xs text-blue-500 hover:underline">API ledger</a>'
         '</div>'
     )
+    # EN TÊTE (demande Alex 07/07) : la flotte VPS — chaque machine, sa maturité.
+    html += _vps_fleet_section(vps_fleet)
     html += '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">'
     html += card("Sessions Hermes", hermes.get("sessions", 0), f'{hermes.get("messages", 0)} messages · {hermes.get("tool_calls", 0)} tools')
     html += card("Sessions Claude/CLI", cc_sessions, ", ".join(f"{k}:{v.get('sessions',0)}" for k, v in by_agent.items()) or "ccusage")
@@ -1884,7 +2785,8 @@ def page_objectifs(objectifs: list, decisions: list) -> str:
     html = (
         '<div class="flex items-center justify-between mb-6">'
         '<div><h1 class="text-xl font-bold text-gray-900">Objectifs</h1>'
-        f'<p class="text-sm text-gray-500 mt-0.5">{len(objectifs)} objectif(s) — ce qu\'Alex vise, relié aux décisions qui les débloquent.</p></div></div>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{len(objectifs)} objectif(s) — snapshot figé depuis le 14/06, relié aux décisions qui les débloquent.</p></div></div>'
+        '<div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">Donnée figée depuis le 14/06 : page conservée pour lecture, pas présentée comme live.</div>'
     )
     if not objectifs:
         html += '<div class="bg-white border border-gray-200 rounded-xl px-5 py-4 text-sm text-gray-500">Aucun objectif défini.</div>'
@@ -1956,9 +2858,461 @@ def objectifs_summary(objectifs: list) -> str:
     )
 
 
+def page_manifeste(manifeste: dict) -> str:
+    """Page 1 du QG — le manifeste en 1-2-3 lisible, zéro colonnes (refonte Alex 06/07).
+
+    Source de vérité = docs 02/02bis/INDEX du dossier « Renew OA V2 - validated
+    by Claude » (28/05/2026) + décision pricing 3f7d86e712 (tranchée 06/07).
+    Structure numérotée pure, une seule largeur de colonne de texte, liens inline.
+    Chaque section porte son statut honnête : validé 28/05 / tranché 06/07 /
+    projection — pas de pourcentage inventé.
+    """
+    if not manifeste:
+        return ('<h1 class="text-xl font-bold text-gray-900 mb-4">Manifeste</h1>'
+                '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-700">'
+                'var/manifeste.json absent ou vide — le manifeste source reste '
+                '<span class="font-mono">11-Pilotage/Renew OA V2 - validated by Claude/02-manifeste-business-interne.md</span>.</div>')
+
+    offre = manifeste.get("offre") or {}
+    footer = manifeste.get("footer") or {}
+    lettres = ["A", "B", "C", "D", "E", "F"]
+
+    badges = {
+        "valide":     ("validé 28/05", "pill-ok"),
+        "tranche":    ("tranché 06/07", "bg-blue-50 text-blue-700 border border-blue-200"),
+        "projection": ("projection", "pill-warn"),
+    }
+
+    def badge(statut: str) -> str:
+        label, cls = badges.get(statut, badges["projection"])
+        return f'<span class="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal {cls}">{escape(label)}</span>'
+
+    def section_titre(num: int, titre: str, statut: str) -> str:
+        return (f'<h2 class="text-base font-bold text-gray-900 mt-8 mb-2 flex items-baseline flex-wrap">'
+                f'<span>{num}. {escape(titre)}</span>{badge(statut)}</h2>')
+
+    def sous_point(lettre: str, texte_html: str) -> str:
+        return (f'<div class="flex gap-2 py-1 text-sm text-gray-700 leading-relaxed">'
+                f'<span class="font-semibold text-gray-400 shrink-0 w-5">{lettre}.</span>'
+                f'<span>{texte_html}</span></div>')
+
+    def lien_inline(url: str, label: str | None = None) -> str:
+        if not url:
+            return '<span class="text-gray-400">pas encore live</span>'
+        label = label or url.replace("https://", "").rstrip("/")
+        return f'<a href="{escape(url)}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">{escape(label)}</a>'
+
+    # Statuts par section — le début du % de complétion demandé par Alex :
+    # validé / tranché / projection, section par section, rien d'inventé.
+    statuts = ["valide", "valide", "tranche", "projection", "valide"]
+    n_valides = statuts.count("valide")
+    n_tranches = statuts.count("tranche")
+    n_projections = statuts.count("projection")
+    indicateur = f"{n_valides} sections sur {len(statuts)} validées (28/05)"
+    if n_tranches:
+        indicateur += f" · {n_tranches} tranchée (06/07)"
+    if n_projections:
+        indicateur += f" · {n_projections} en projection"
+
+    html = '<div class="max-w-3xl">'
+    html += (
+        '<div class="mb-2">'
+        '<h1 class="text-xl font-bold text-gray-900">Manifeste — la boussole OA</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{escape(indicateur)} — '
+        'source <a href="/api/manifeste.json" class="text-blue-500 hover:underline">manifeste.json</a>, '
+        'docs 02/02bis du dossier Renew OA V2.</p>'
+        '</div>'
+    )
+
+    # ── 1. La promesse (2 phrases) ─────────────────────────────────────────────
+    html += section_titre(1, "La promesse", statuts[0])
+    html += (
+        f'<p class="text-sm text-gray-800 leading-relaxed">« {escape(str(manifeste.get("promesse") or ""))} » '
+        f'{escape(str(offre.get("profil") or ""))}</p>'
+    )
+
+    # ── 2. Le funnel (A-B-C-D, une ligne + lien + état) ───────────────────────
+    html += section_titre(2, "Le funnel", statuts[1])
+    for i, step in enumerate(manifeste.get("funnel", [])):
+        nom = escape(str(step.get("nom") or ""))
+        role = escape(str(step.get("role") or ""))
+        horizon = escape(str(step.get("chantier_horizon") or "?"))
+        rang = step.get("chantier_rang", "?")
+        texte = (f'<span class="font-semibold text-gray-900">{nom}</span> — {role} '
+                 f'{lien_inline(str(step.get("lien") or ""))} '
+                 f'<span class="text-xs text-gray-400">({horizon} · rang {rang})</span>')
+        html += sous_point(lettres[i], texte)
+    html += ('<p class="text-xs text-gray-400 mt-1">Ordre de finition détaillé dans '
+             '<a href="/chantiers/" class="text-blue-500 hover:underline">/chantiers/</a>.</p>')
+
+    # ── 3. L'offre (3 lignes — pricing tranché 06/07) ─────────────────────────
+    html += section_titre(3, "L'offre", statuts[2])
+    pricing = str(offre.get("pricing_note") or "")
+    if not pricing or "arbitrage" in pricing:
+        # Filet : la décision 3f7d86e712 a tranché le 06/07 — même si le JSON
+        # runtime n'a pas encore été mis à jour, la page dit la vérité du jour.
+        pricing = ("Entrée à 67 EUR/mois — le reste est variable selon le devis et les modules retenus. "
+                   "La grille par module sera définie avec la brique devis.")
+    decision_lien = str(offre.get("pricing_decision_lien") or "/decisions/#card-3f7d86e712")
+    cibles = [str(p).split("(")[0].strip() for p in offre.get("pour_qui", []) if p]
+    pour_qui_ligne = " · ".join(cibles) if cibles else "cibles non renseignées (voir doc 02)"
+    html += sous_point("A", '<span class="font-semibold text-gray-900">Pour qui</span> — '
+                       + escape(pour_qui_ligne))
+    html += sous_point("B", '<span class="font-semibold text-gray-900">Ce qu\'on livre</span> — '
+                       + escape(str(offre.get("quoi") or "")))
+    html += sous_point("C", '<span class="font-semibold text-gray-900">Le prix</span> — '
+                       + escape(pricing) + " "
+                       + f'<a href="{escape(decision_lien)}" class="text-blue-600 hover:underline">décision 3f7d86e712</a>')
+
+    # ── 4. Les 4 socles (A-B-C-D, une ligne + lien) ───────────────────────────
+    html += section_titre(4, "Les 4 socles", statuts[3])
+    for i, socle in enumerate(manifeste.get("socles", [])):
+        nom = escape(str(socle.get("nom") or ""))
+        role = escape(str(socle.get("role") or ""))
+        texte = (f'<span class="font-semibold text-gray-900">{nom}</span> — {role} '
+                 f'{lien_inline(str(socle.get("lien") or ""))}')
+        html += sous_point(lettres[i], texte)
+
+    # ── 5. La règle (handbook-first, 1 phrase) ────────────────────────────────
+    html += section_titre(5, "La règle", statuts[4])
+    html += (
+        f'<p class="text-sm text-gray-800 leading-relaxed">{escape(str(manifeste.get("regle") or ""))} '
+        f'{escape(str(footer.get("handbook_first") or ""))}</p>'
+    )
+
+    # ── Sources (fichiers de vérité) ──────────────────────────────────────────
+    html += '<div class="border-t border-gray-200 mt-8 pt-4">'
+    html += f'<div class="text-xs text-gray-500 mb-1">{escape(str(footer.get("validation") or ""))}</div>'
+    for s in manifeste.get("sources", []):
+        html += (
+            '<div class="text-xs py-0.5">'
+            f'<span class="text-gray-500">{escape(str(s.get("label") or ""))}</span> '
+            f'<span class="font-mono text-gray-400 break-all">{escape(str(s.get("path") or ""))}</span></div>'
+        )
+    html += '</div></div>'
+    return html
+
+
+def page_chantiers(chantiers: list) -> str:
+    """Tableau Now/Next/Later des 8 briques (PRODUCT-TRUTH, Fable 4D System Rescue).
+
+    Source statique : var/chantiers.json (republié en /api/chantiers.json). Chaque
+    brique = carte avec rang de finition, objectif, écart vs promesse, effort et
+    renvoi /decisions/ quand une décision Alex ouverte la bloque.
+    """
+    horizons = [
+        ("now",   "Now",   "text-blue-700",  "à finir en premier — débloque le client réel"),
+        ("next",  "Next",  "text-gray-700",  "juste après — funnel et outillage"),
+        ("later", "Later", "text-gray-500",  "cohérence interne — aucun client n'attend dessus"),
+    ]
+    effort_cls = {"S": "pill-ok", "M": "pill-warn"}
+    html = (
+        '<div class="mb-6">'
+        '<h1 class="text-xl font-bold text-gray-900">Chantiers — quoi finir, dans l\'ordre</h1>'
+        '<p class="text-sm text-gray-500 mt-0.5">8 briques classées par le test doctrine « livrable client réel cette semaine ? » '
+        '— source <a href="/api/chantiers.json" class="text-blue-500 hover:underline">chantiers.json</a> (PRODUCT-TRUTH 04/07).</p>'
+        '</div>'
+    )
+    if not chantiers:
+        return html + '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-700">Aucun chantier chargé — var/chantiers.json absent ou vide.</div>'
+    for key, label, title_cls, hint in horizons:
+        briques = sorted([c for c in chantiers if c.get("horizon") == key], key=lambda c: c.get("rang", 99))
+        if not briques:
+            continue
+        html += (
+            f'<div class="flex items-baseline gap-2 mt-6 mb-3"><h2 class="text-sm font-bold uppercase tracking-wide {title_cls}">{escape(label)}</h2>'
+            f'<span class="text-xs text-gray-400">{escape(hint)}</span></div>'
+            '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">'
+        )
+        for c in briques:
+            effort = str(c.get("effort") or "?")
+            pill = effort_cls.get(effort, "pill-warn")
+            nom = escape(str(c.get("nom") or "Brique"))
+            titre = (f'<a href="{escape(c["lien"])}" target="_blank" rel="noopener" class="hover:underline">{nom}</a>'
+                     if c.get("lien") else nom)
+            html += (
+                '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4 flex flex-col">'
+                '<div class="flex items-center justify-between mb-2">'
+                '<div class="flex items-center gap-2">'
+                f'<span class="w-6 h-6 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center">{c.get("rang", "?")}</span>'
+                f'<span class="text-sm font-semibold text-gray-900">{titre}</span></div>'
+                f'<span class="px-2 py-0.5 rounded text-xs font-medium {pill}">effort {escape(effort)}</span></div>'
+                f'<div class="text-sm text-gray-700 mb-2">{escape(str(c.get("objectif") or ""))}</div>'
+                f'<div class="text-xs text-gray-500 mb-2"><span class="font-medium text-gray-600">Écart :</span> {escape(str(c.get("ecart") or ""))}</div>'
+            )
+            if c.get("preuve"):
+                html += f'<div class="text-xs text-gray-400 mb-2"><span class="font-medium">Preuve :</span> <span class="font-mono">{escape(str(c["preuve"]))}</span></div>'
+            html += '<div class="mt-auto pt-2 flex items-center justify-between gap-2">'
+            html += f'<span class="text-xs text-gray-400">{escape(str(c.get("owner") or ""))}</span>'
+            if c.get("decision_attendue"):
+                html += '<a href="/decisions/" class="text-xs font-medium text-amber-600 hover:underline">décision en attente →</a>'
+            html += '</div></div>'
+        html += '</div>'
+    return html
+
+
+def page_blocages(payload: dict) -> str:
+    """« Ce qui bloque » — le QG COMPTE et POINTE, il ne répète pas (refonte Alex 06/07).
+
+    Source : var/blocages.json (collect_blocages.py, republié en /api/blocages.json).
+    En tête : les compteurs par endroit avec le lien pour Y ALLER — aucun contenu
+    répété depuis /decisions/, le Kanban ou GitHub. Seule exception développée sur
+    place : les items sudo (ils ne vivent nulle part ailleurs) — texte complet,
+    jamais tronqué, commande exacte en bloc code. Règle globale : ZÉRO ellipsis.
+    En bas : les 10 dernières PRs mergées — la boucle de contrôle d'Alex.
+    """
+    payload = payload if isinstance(payload, dict) else {}
+    blocages = payload.get("blocages") if isinstance(payload.get("blocages"), list) else []
+    generated_at = str(payload.get("generated_at") or "non renseigné")
+
+    def _count(pred) -> int:
+        return sum(1 for b in blocages if isinstance(b, dict) and pred(b))
+
+    n_decisions = _count(lambda b: b.get("type") == "decision")
+    n_cartes = _count(lambda b: b.get("type") == "carte")
+    n_cartes_alex = _count(lambda b: b.get("type") == "carte" and b.get("qui_debloque") == "alex")
+    n_sudo = _count(lambda b: b.get("type") == "sudo")
+    n_prs = _count(lambda b: b.get("type") == "pr")
+    n_reworks = _count(lambda b: b.get("type") == "pr" and b.get("qui_debloque") == "agent")
+    total = len(blocages)
+
+    html = (
+        '<div class="mb-6">'
+        '<h1 class="text-xl font-bold text-gray-900">Ce qui bloque — compte et pointe</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{total} blocage(s) au total. Cette page ne répète rien : '
+        'elle compte par endroit et te donne le lien pour y aller. Seuls les items sudo sont développés ici '
+        f'(ils ne vivent nulle part ailleurs) — source <a href="/api/blocages.json" class="text-blue-500 hover:underline">blocages.json</a> ({escape(generated_at)}).</p>'
+        '</div>'
+    )
+
+    # ── Tableau de bord : gros chiffres + lien direct, zéro contenu répété ────
+    kanban_detail = f"{n_cartes} bloquée(s)"
+    if n_cartes_alex:
+        kanban_detail += f", dont {n_cartes_alex} pour toi"
+    pr_detail = f"{n_prs} en attente"
+    if n_reworks:
+        pr_detail += f", dont {n_reworks} rework(s) agent"
+    gh_prs_url = "https://github.com/search?q=org%3Aomar-paris+is%3Apr+is%3Aopen&type=pullrequests"
+    compteur_tuiles = [
+        ("Décisions", n_decisions, "ouvertes" if n_decisions != 1 else "ouverte",
+         "/decisions/", "y aller : /decisions/", False),
+        ("Kanban", n_cartes, kanban_detail.split(" ", 1)[1],
+         "https://hermes.omar.paris/kanban", "y aller : dashboard Kanban", True),
+        ("Sudo", n_sudo, "en attente — le détail est ici",
+         "#sudo", "liste complète ci-dessous", False),
+        ("PRs ouvertes", n_prs, pr_detail.split(" ", 1)[1],
+         gh_prs_url, "y aller : GitHub", True),
+    ]
+    html += '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">'
+    for label, n, detail, lien, lien_label, externe in compteur_tuiles:
+        target = ' target="_blank" rel="noopener"' if externe else ""
+        n_cls = "text-gray-300" if n == 0 else "text-gray-900"
+        html += (
+            f'<a href="{escape(lien)}"{target} class="block bg-white rounded-xl border border-gray-200 px-4 py-4 hover:border-blue-300 hover:shadow-sm transition">'
+            f'<div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{escape(label)}</div>'
+            f'<div class="text-3xl font-bold {n_cls} mt-1">{n}</div>'
+            f'<div class="text-xs text-gray-500 mt-0.5">{escape(detail)}</div>'
+            f'<div class="text-xs text-blue-600 mt-2">{escape(lien_label)} &rarr;</div></a>'
+        )
+    html += '</div>'
+
+    if total == 0:
+        html += (
+            '<div class="bg-green-50 border border-green-200 rounded-xl px-5 py-4 mb-8 text-sm text-green-700">'
+            'Rien ne te bloque — le système avance seul.</div>'
+        )
+
+    # ── Pour toi : TA liste en clair + encart de réponse (demande Alex 06/07 :
+    # « pouvoir ajouter la réponse juste en dessous — parfois juste dire c'est
+    # fait, parfois expliquer pour que le système sache quoi faire après »).
+    # Le compte-et-pointe vaut pour le bruit machine, pas pour la file d'Alex.
+    # Les entrées origine autre VPS (type=vps) vivent dans la section Multi-VPS :
+    # leur réponse passe par le VPS d'origine, pas par l'encart kanban local.
+    alex_items = sorted(
+        [b for b in blocages if isinstance(b, dict) and b.get("qui_debloque") == "alex" and b.get("type") != "vps"],
+        key=lambda b: -(b.get("age_jours") or 0),
+    )
+    if alex_items:
+        html += (
+            '<div id="pour-toi" class="flex items-baseline gap-2 mb-2">'
+            '<h2 class="text-sm font-bold uppercase tracking-wide text-amber-700">Pour toi — en clair, avec réponse directe</h2>'
+            f'<span class="text-xs text-gray-400">{len(alex_items)} item(s) — réponds ici : « fait » suffit, ou explique pour orienter la suite</span></div>'
+            '<div class="bg-white rounded-xl border border-amber-200 divide-y divide-gray-100 mb-8">'
+        )
+        for b in alex_items:
+            ref = (b.get("refs") or [""])[0]
+            titre = b.get("titre") or ""
+            action = b.get("action_1_ligne") or ""
+            age = b.get("age_jours")
+            effort = b.get("effort_min")
+            lien = b.get("lien") or ""
+            meta_bits = []
+            if age is not None:
+                meta_bits.append(f"{int(age)} j")
+            if effort:
+                meta_bits.append(f"~{int(effort)} min")
+            meta = " · ".join(meta_bits)
+            badge = str(b.get("type") or "")
+            rid = escape(ref.replace("#", "-"))
+            html += (
+                '<div class="px-5 py-4">'
+                '<div class="flex items-baseline justify-between gap-3">'
+                f'<div class="text-sm font-semibold text-gray-900">{escape(titre)}</div>'
+                f'<div class="text-xs text-gray-400 whitespace-nowrap">{escape(badge)}{(" · " + escape(meta)) if meta else ""}</div></div>'
+                + (f'<div class="text-sm text-gray-700 mt-1">{escape(action)}</div>' if action else "")
+                + (f'<div class="text-xs mt-1"><a href="{escape(lien)}" class="text-blue-500 hover:underline" target="_blank" rel="noopener">ouvrir &rarr;</a></div>' if lien else "")
+                + f'<div id="repzone-{rid}" class="mt-2 flex flex-wrap gap-2 items-center">'
+                f'<input id="rep-{rid}" type="text" placeholder="ta réponse (optionnelle)…" '
+                'class="flex-1 min-w-40 text-sm border border-gray-300 rounded-lg px-3 py-1.5">'
+                f'<button onclick="repondreBlocage(\'{escape(ref)}\',\'{rid}\',true)" '
+                'class="text-sm bg-green-600 text-white rounded-lg px-3 py-1.5 hover:bg-green-700">C&#39;est fait</button>'
+                f'<button onclick="repondreBlocage(\'{escape(ref)}\',\'{rid}\',false)" '
+                'class="text-sm bg-gray-800 text-white rounded-lg px-3 py-1.5 hover:bg-gray-900">Répondre</button>'
+                '</div></div>'
+            )
+        html += '</div>'
+        html += (
+            '<script>async function repondreBlocage(ref, rid, fait){'
+            'const inp=document.getElementById("rep-"+rid);'
+            'let txt=(inp&&inp.value.trim())||"";'
+            'let answer=fait?("FAIT"+(txt?" — "+txt:"")):txt;'
+            'if(!answer){inp&&inp.focus();return;}'
+            'const z=document.getElementById("repzone-"+rid);'
+            'try{const r=await fetch("/api/blocages/answer",{method:"POST",'
+            'headers:{"content-type":"application/json"},'
+            'body:JSON.stringify({ref:ref,answer:answer})});'
+            'if(r.ok){z.innerHTML=\'<span class="text-sm text-green-700">&#10003; Transmis — \'+answer.replace(/</g,"&lt;")+\' (le système reprend la main)</span>\';}'
+            'else{z.insertAdjacentHTML("beforeend",\'<span class="text-xs text-red-600">Erreur — réessaie ou réponds en session.</span>\');}}'
+            'catch(e){z.insertAdjacentHTML("beforeend",\'<span class="text-xs text-red-600">Erreur réseau.</span>\');}}'
+            '</script>'
+        )
+
+    # ── Multi-VPS : blockers remontés par les rapports oa.vps-report/v1 des
+    # autres VPS (jab, pantheos…), dédupliqués contre le local — badge d'origine.
+    vps_items = sorted(
+        [b for b in blocages if isinstance(b, dict) and b.get("type") == "vps"],
+        key=lambda b: -(b.get("age_jours") or 0),
+    )
+    vps_stats = payload.get("vps_blockers") if isinstance(payload.get("vps_blockers"), dict) else {}
+    if vps_items or vps_stats:
+        html += (
+            '<div id="multi-vps" class="flex items-baseline gap-2 mb-2">'
+            '<h2 class="text-sm font-bold uppercase tracking-wide text-violet-700">Multi-VPS — remonté par les autres VPS</h2>'
+            '<span class="text-xs text-gray-400">source rapports oa.vps-report/v1 · dédupliqué contre le kanban local · détail flotte sur /ops/</span></div>'
+            '<div class="bg-white rounded-xl border border-violet-200 mb-8">'
+        )
+        if vps_stats:
+            html += '<div class="px-5 py-3 border-b border-gray-100 text-xs text-gray-600 space-y-0.5">'
+            for node in sorted(vps_stats):
+                st = vps_stats[node] if isinstance(vps_stats[node], dict) else {}
+                html += (
+                    f'<div><span class="font-semibold uppercase">{escape(str(node))}</span> — '
+                    f'{int(st.get("total") or 0)} blocker(s) rapporté(s) · '
+                    f'{int(st.get("dedupliques") or 0)} déjà suivi(s) localement (dédupliqués) · '
+                    f'{int(st.get("uniques") or 0)} propre(s) à ce VPS</div>'
+                )
+            html += '</div>'
+        if vps_items:
+            html += '<div class="divide-y divide-gray-100">'
+            for b in vps_items:
+                origine = str(b.get("origine") or "vps")
+                qui = str(b.get("qui_debloque") or "")
+                age = int(b.get("age_jours") or 0)
+                html += (
+                    '<div class="px-5 py-4">'
+                    '<div class="flex items-baseline gap-2 flex-wrap">'
+                    f'<span class="text-xs font-semibold rounded-full px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-200">origine {escape(origine)}</span>'
+                    f'<span class="text-sm font-semibold text-gray-900">{escape(str(b.get("titre") or ""))}</span>'
+                    f'<span class="text-xs text-gray-400">{age} j · débloque : {escape(qui)}</span></div>'
+                    f'<div class="text-sm text-gray-700 mt-1">{escape(str(b.get("action_1_ligne") or ""))}</div>'
+                    '</div>'
+                )
+            html += '</div>'
+        else:
+            html += ('<div class="px-5 py-3 text-sm text-gray-600">Aucun blocker propre à un autre VPS : '
+                     'tout ce que les VPS remontent est déjà suivi dans le kanban local (badge « aussi signalé par » ci-dessus).</div>')
+        html += '</div>'
+
+    # ── Sudo : SEULE section développée — texte complet, jamais tronqué ───────
+    sudo_items = sorted(
+        [b for b in blocages if isinstance(b, dict) and b.get("type") == "sudo"],
+        key=lambda b: -(b.get("age_jours") or 0),
+    )
+    if sudo_items:
+        html += (
+            '<div id="sudo" class="flex items-baseline gap-2 mb-2">'
+            '<h2 class="text-sm font-bold uppercase tracking-wide text-red-700">Sudo — à toi seul</h2>'
+            f'<span class="text-xs text-gray-400">{len(sudo_items)} item(s), texte intégral — ils ne vivent nulle part ailleurs</span></div>'
+            '<div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 mb-8">'
+        )
+        for b in sudo_items:
+            titre = escape(str(b.get("titre") or "Item sudo sans titre"))
+            age = int(b.get("age_jours") or 0)
+            age_cls = "text-red-600 font-semibold" if age >= 7 else ("text-amber-600" if age >= 3 else "text-gray-400")
+            texte = str(b.get("texte_complet") or b.get("action_1_ligne") or "")
+            commande = str(b.get("commande") or "")
+            source = str(b.get("source") or "")
+            html += (
+                '<div class="px-5 py-4">'
+                '<div class="flex items-baseline gap-2 flex-wrap">'
+                f'<span class="text-sm font-semibold text-gray-900">{titre}</span>'
+                f'<span class="text-xs {age_cls}">{age} j</span>'
+                + (f'<span class="text-xs text-gray-400 font-mono">{escape(source)}</span>' if source else '')
+                + '</div>'
+                f'<div class="text-sm text-gray-700 mt-2 whitespace-pre-line">{escape(texte)}</div>'
+            )
+            if commande:
+                html += (
+                    '<div class="text-xs text-gray-500 mt-3 mb-1">Commande à copier :</div>'
+                    f'<pre class="bg-gray-900 text-gray-100 rounded-lg px-4 py-3 text-xs overflow-x-auto"><code>{escape(commande)}</code></pre>'
+                )
+            html += '</div>'
+        html += '</div>'
+
+    # ── Dernières mergées — la boucle de contrôle d'Alex ──────────────────────
+    mergees = payload.get("dernieres_mergees") if isinstance(payload.get("dernieres_mergees"), list) else []
+    html += (
+        '<div class="flex items-baseline gap-2 mb-2">'
+        '<h2 class="text-sm font-bold uppercase tracking-wide text-gray-700">Dernières mergées — à contrôler</h2>'
+        '<span class="text-xs text-gray-400">tu vérifies les résultats, tu n\'approuves plus</span></div>'
+    )
+    if mergees:
+        html += '<div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">'
+        for m in mergees:
+            if not isinstance(m, dict):
+                continue
+            ref = escape(str(m.get("ref") or ""))
+            url = str(m.get("url") or "")
+            quand = str(m.get("merged_at") or "")[:16].replace("T", " ")
+            lien = (f'<a href="{escape(url)}" target="_blank" rel="noopener" class="font-mono text-xs text-blue-600 hover:underline shrink-0">{ref}</a>'
+                    if url else f'<span class="font-mono text-xs text-gray-600 shrink-0">{ref}</span>')
+            html += (
+                '<div class="px-4 py-2.5 flex items-baseline gap-3 flex-wrap">'
+                f'{lien}'
+                f'<span class="text-sm text-gray-800 flex-1 min-w-0">{escape(str(m.get("titre") or ""))}</span>'
+                f'<span class="text-xs text-gray-400 shrink-0">{escape(quand)}</span>'
+                '</div>'
+            )
+        html += '</div>'
+    else:
+        html += ('<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-sm text-amber-700">'
+                 'Aucun merge récupéré (gh indisponible ?) — voir les erreurs sources ci-dessous.</div>')
+
+    errors = payload.get("errors") if isinstance(payload.get("errors"), list) else []
+    if errors:
+        html += (
+            '<div class="mt-6 text-xs text-gray-400">Sources partielles : '
+            + escape(" · ".join(str(e) for e in errors))
+            + '</div>'
+        )
+    return html
+
+
 def page_decisions(decisions: list) -> str:
     """Boîte de décisions Alex (qg#27) — réponse = bouton → qg-api → déblocage kanban/issue."""
-    api = "http://100.79.68.6:8097/api/decisions/answer"
+    # URL relative: passe par le vhost qg.omar.paris (proxy Caddy /api/decisions* -> 8097).
+    # L'ancienne URL http:// en dur etait bloquee en mixed-content depuis la page https.
+    api = "/api/decisions/answer"
     ouvertes = [q for q in decisions if q.get("statut") == "ouverte"]
     repondues = [q for q in decisions if q.get("statut") == "répondue"][-5:]
     html = (
@@ -2100,7 +3454,7 @@ def page_agent_loop_audit(report: dict, registry: dict | None = None) -> str:
     return (
         '<div class="flex items-center justify-between mb-6"><div>'
         '<h1 class="text-xl font-bold text-gray-900">Audit anti-orphelins</h1>'
-        f'<p class="text-sm text-gray-500 mt-0.5">Issue ↔ Kanban ↔ PR ↔ Gate — dernier scan {escape(str(checked_at))}.</p></div>'
+        f'<p class="text-sm text-gray-500 mt-0.5">Issue ↔ Kanban ↔ PR ↔ Gate — dernier scan {escape(str(checked_at))} · figé depuis le 15/06 si non recronifié.</p></div>'
         '<div class="flex gap-3"><a href="/api/agent-loop-registry.json" class="text-xs text-blue-500 hover:underline">API registry</a><a href="/api/agent-loop-audit.json" class="text-xs text-blue-500 hover:underline">API audit</a></div></div>'
         '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">'
         f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold {"text-red-600" if total else "text-gray-900"}">{total}</div><div class="text-xs text-gray-500 mt-0.5">Total orphelins</div></div>'
@@ -2239,6 +3593,10 @@ def _parse_args(argv: list[str]) -> dict:
 
 def main(argv: list[str] | None = None) -> None:
     import sys
+    import fcntl
+    lock_path = PUBLIC.parent / ".qg-build.lock"
+    lock_fh = lock_path.open("w")
+    fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
     opts = _parse_args(list(argv) if argv is not None else sys.argv[1:])
 
     # NIVEAU 2 (rbac-model §5) : build d'une vue client isolée. Artefact statique
@@ -2258,6 +3616,22 @@ def main(argv: list[str] | None = None) -> None:
 
     built_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     previous_ledgers = _read_existing_daily_ledgers()
+    # Blocages (« Ce qui bloque — et qui débloque ») : collecte AU DÉBUT du build,
+    # best-effort — le cron n'appelle que build.py, jamais le collecteur seul.
+    try:
+        blocages_payload = _load_blocages_collector().collect(write=True)
+    except Exception as exc:  # ne casse jamais le build QG
+        blocages_payload = _read_var_json("blocages.json")
+        if not isinstance(blocages_payload, dict) or not blocages_payload:
+            blocages_payload = {
+                "schema": "oa.blocages/1",
+                "generated_at": built_at,
+                "compteurs": {"total": 0, "pour_alex": 0, "effort_min_alex": 0, "par_type": {}, "par_qui": {}},
+                "blocages": [],
+                "errors": [f"blocages_unavailable: {exc.__class__.__name__}"],
+            }
+
+
     data = payload(built_at)
     ledger = daily_ledger(data, built_at)
     ledger_history = _merge_daily_ledgers(ledger, previous_ledgers)
@@ -2269,14 +3643,23 @@ def main(argv: list[str] | None = None) -> None:
     (tmp / "api").mkdir(parents=True)
 
     (tmp / "api" / "core-repos.json").write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(redact_public_api_payload(data), ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (tmp / "api" / "vps-app-inventory.json").write_text(
+        json.dumps(data.get("vps_app_inventory", {}), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
-    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "builder-pr-autogate.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "manifeste.json", "builder-pr-autogate.json", "oa-fleet-supervision-v0.json", "vps-resource-onboarding-v0.json"):
         var_payload = _read_var_json(var_name)
         if var_payload:
+            if var_name == "vps-resource-onboarding-v0.json":
+                var_payload = sanitize_resource_onboarding_public(var_payload)
             (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # Blocages : snapshot collecté en tête de build → /api/blocages.json.
+    (tmp / "api" / "blocages.json").write_text(
+        json.dumps(blocages_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     ledger_dir = tmp / "api" / "daily-ledger"
     ledger_dir.mkdir(parents=True, exist_ok=True)
     (ledger_dir / f"{ledger['date']}.json").write_text(
@@ -2302,10 +3685,27 @@ def main(argv: list[str] | None = None) -> None:
         snap = _read_var_json("decisions.json")
         decisions = snap if isinstance(snap, list) else []
 
-    # Couche OBJECTIFS (qg) : ce qu'Alex vise. var/ runtime, fallback public/api en worktree propre.
+    # Couche OBJECTIFS (qg) : ce qu'Alex vise. var/ runtime, fallback snapshot figé 14/06.
     objectifs = _read_var_json("objectifs.json")
     if not isinstance(objectifs, list):
-        objectifs = []
+        objectifs = [
+            {"id": "jab-servi", "titre": "JAB pleinement servi", "statut": "en_cours", "progression": 55, "description": "Le premier client (JAB) recoit le service complet : facturation PennyLane, relais Maryse, presence Google MyBusiness. CRM en place avant la visite Jean-Alex.", "decisions_liees": ["2fa0610f95", "46cb4e7dc1", "b17cd03aed"]},
+            {"id": "maturite-3-vps", "titre": "Maturite des 3 VPS", "statut": "en_cours", "progression": 40, "description": "VPS-OA (core), VPS clients (CCCU/JAB) et Pantheos (vie personnelle, sites Theo/Hugo/Victoria, H-Aurel) operationnels, observables et sauvegardes.", "decisions_liees": ["25f69efa80", "14192085d0", "d9beee76e6"]},
+            {"id": "catalogue-10-apps", "titre": "Catalogue 10 apps reelles", "statut": "a_faire", "progression": 15, "description": "Transformer les stubs du catalogue en bundles reels et utilisables par les clients (priorite marketing actuellement a 0%).", "decisions_liees": ["447fac7271", "46cb4e7dc1"]},
+            {"id": "observabilite-langfuse", "titre": "Observabilite Langfuse", "statut": "a_faire", "progression": 10, "description": "Tracage et observabilite des agents et pipelines LLM via Langfuse, pour mesurer cout, latence et qualite des boucles d'agents.", "decisions_liees": []},
+        ]
+    (tmp / "api" / "objectifs.json").write_text(json.dumps(objectifs, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    # Couche CHANTIERS (Fable 4D rescue) : ordre de finition Now/Next/Later des 8 briques.
+    chantiers = _read_var_json("chantiers.json")
+    if not isinstance(chantiers, list):
+        chantiers = []
+
+    # Couche MANIFESTE (Fable 4D rescue, handbook-first) : extrait fidèle des docs
+    # 02/02bis validés 28/05 — la page d'entrée conceptuelle du QG.
+    manifeste = _read_var_json("manifeste.json")
+    if not isinstance(manifeste, dict):
+        manifeste = {}
 
     # Audit anti-orphelins Issue↔Kanban↔PR↔Gate : produit par scripts/agent_loop_audit.py.
     # Le build reste read-only et republie le dernier snapshot disponible.
@@ -2385,6 +3785,21 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(storage, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    # Flotte VPS (rescue J4 07/07) : qui rapporte, qui dérive, qui est muet.
+    try:
+        vps_fleet = collect_vps_fleet(built_at)
+    except Exception as exc:  # ne casse jamais le build QG
+        vps_fleet = {
+            "schema": "oa.vps-fleet-status/1",
+            "built_at": built_at,
+            "summary": {"expected": len(VPS_FLEET_EXPECTED), "nodes": 0, "reporting": 0, "en_derive": 0, "muets": len(VPS_FLEET_EXPECTED), "standards_fail": 0},
+            "nodes": [],
+            "errors": [f"vps_fleet_unavailable: {exc.__class__.__name__}"],
+        }
+    (tmp / "api" / "ops" / "vps-fleet.json").write_text(
+        json.dumps(vps_fleet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
     # Builds du jour (commits par repo, 7 j) → public/api/builds.json
     try:
         builds = _load_build_ledger().collect_builds()
@@ -2394,14 +3809,21 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(builds, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    pending_decisions = sum(1 for d in decisions if (d.get("statut") or "").lower() == "ouverte")
+    blocages_compteurs = blocages_payload.get("compteurs", {}) if isinstance(blocages_payload, dict) else {}
+    try:
+        pending_alex_actions = int(blocages_compteurs.get("pour_alex") or 0)
+    except Exception:
+        pending_alex_actions = 0
     builds_today = (builds.get("totals", {}) or {}).get("today", 0)
 
     pages = [
-        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_decisions, builds_today, objectifs, builds, agent_loop_audit)),
+        ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
+        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet)),
+        ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
+        ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
-        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage)),
+        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage, vps_fleet)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),
         ("/builds/",      "builds",      "Builds du jour",           page_builds(builds)),

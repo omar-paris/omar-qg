@@ -1,0 +1,21 @@
+{
+  "schema": "oa.vps-report/v1",
+  "node": "pantheos",
+  "agent": "H-Aurel",
+  "generated_at": "2026-07-07T00:00:00Z",
+  "scope": "pantheos_family",
+  "visibility": "h-omar-supervision",
+  "sensitive_redactions": true,
+  "health": {"status": "degraded", "summary": "Fixture Pantheos report for CI"},
+  "installed_apps": [
+    {"app_id": "hermes", "name": "Hermes local", "installed": true, "version_installed": "0.18.0", "version_expected": "0.18.0", "status": "ok", "source": "fixture", "evidence": "redacted fixture", "last_checked_at": "2026-07-07T00:00:00Z"},
+    {"app_id": "omarhub", "name": "OmarHub local", "installed": false, "version_installed": "unknown", "version_expected": "v1", "status": "missing", "source": "fixture", "evidence": "redacted fixture", "last_checked_at": "2026-07-07T00:00:00Z"},
+    {"app_id": "tailscale", "name": "Tailscale", "installed": true, "version_installed": "1.x", "version_expected": "active", "status": "ok", "source": "fixture", "evidence": "redacted fixture", "last_checked_at": "2026-07-07T00:00:00Z"},
+    {"app_id": "reverse-proxy", "name": "Caddy/nginx", "installed": true, "version_installed": "active", "version_expected": "active", "status": "ok", "source": "fixture", "evidence": "redacted fixture", "last_checked_at": "2026-07-07T00:00:00Z"},
+    {"app_id": "inter-vps-reporter", "name": "Inter-VPS reporter", "installed": true, "version_installed": "oa.vps-report/v1", "version_expected": "oa.vps-report/v1", "status": "ok", "source": "fixture", "evidence": "redacted fixture", "last_checked_at": "2026-07-07T00:00:00Z"}
+  ],
+  "services": [],
+  "maintenance_needs": [],
+  "requires_alex_decision": [],
+  "requires_h_omar_decision": []
+}

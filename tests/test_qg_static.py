@@ -1,9 +1,11 @@
 from pathlib import Path
 import json
+import os
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
+_LAST_BUILD_KEY = object()
 
 ROUTES = {
     "/": PUBLIC / "index.html",
@@ -16,7 +18,14 @@ ROUTES = {
 
 
 def build():
-    subprocess.run(["python3", "scripts/build.py"], cwd=ROOT, check=True)
+    global _LAST_BUILD_KEY
+    # scripts/build.py interroge GitHub/health/providers et coûte plusieurs dizaines
+    # de secondes. Dans ce module, un rebuild par contexte d'environnement suffit ;
+    # le test monkeypatch OA_AGENT_LOOP_REGISTRY_SEED force naturellement un 2e build.
+    key = (os.environ.get("OA_AGENT_LOOP_REGISTRY_SEED"),)
+    if _LAST_BUILD_KEY != key:
+        subprocess.run(["python3", "scripts/build.py"], cwd=ROOT, check=True, env={**os.environ, "QG_USE_TEST_FIXTURES": "1"})
+        _LAST_BUILD_KEY = key
 
 
 def test_qg_builds_core_routes_and_api():
@@ -162,10 +171,19 @@ def test_qg_home_surfaces_latest_result_and_mandates():
     build()
     home = (PUBLIC / "index.html").read_text(encoding="utf-8")
     assert "Dernier résultat livré" in home
-    assert "Décisions / mandats" in home
+    assert "Blocages / mandats" in home
+    assert "Source unique: collect_blocages.py" in home
     assert "mandat:h-omar-night-2026-06-14" in home
     assert 'href="/builds/"' in home
-    assert 'href="/decisions/"' in home
+    assert 'href="/blocages/"' in home
+
+
+def test_qg_marks_known_stale_layers_honestly():
+    build()
+    objectifs = (PUBLIC / "objectifs" / "index.html").read_text(encoding="utf-8")
+    agent_loop = (PUBLIC / "agent-loop" / "index.html").read_text(encoding="utf-8")
+    assert "Donnée figée depuis le 14/06" in objectifs
+    assert "figé depuis le 15/06" in agent_loop
 
 
 def test_qg_app_detail_hides_unmeasured_app_sources():
@@ -272,3 +290,135 @@ def test_qg_storage_summary_api_and_ops_surface():
     assert "Docker prune sûr" in ops
     assert "/api/ops/storage-summary.json" in ops
     assert "Backups Hermes DB" in ops
+
+def test_qg_vps_app_inventory_api_and_clients_surface():
+    build()
+    api = PUBLIC / "api" / "vps-app-inventory.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.vps-app-inventory/1"
+    assert payload["source"] == "oa.vps-report/v1 installed_apps/apps + standards + safe inference"
+    assert payload["totals"]["nodes"] >= 1
+    assert payload["totals"]["apps"] >= 5
+    assert {"hermes", "omarhub", "tailscale", "reverse-proxy", "inter-vps-reporter"} <= {
+        app["app_id"] for node in payload["nodes"] for app in node["apps"]
+    }
+    for node in payload["nodes"]:
+        assert {"node", "tenant", "agent", "health_status", "generated_at", "apps", "summary", "standards", "standards_summary"} <= set(node)
+        for app in node["apps"]:
+            assert {"app_id", "name", "installed", "version_installed", "version_expected", "status", "verdict", "raw_status", "source", "evidence", "last_checked_at"} <= set(app)
+            assert app["status"] in {"ok", "outdated", "missing", "unknown", "blocked"}
+            assert app["verdict"] in {"PASS", "FAIL", "UNKNOWN"}
+            assert "REDACTED" not in app["evidence"] or isinstance(app["evidence"], str)
+    omar = next(node for node in payload["nodes"] if node["node"] == "omar")
+    assert omar["tenant"] == "oa-internal"
+    assert omar["summary"]["pass"] >= 1
+    assert omar["summary"]["fail"] >= 1
+    assert {"PASS", "FAIL"} <= {standard["verdict"] for standard in omar["standards"]}
+    assert "UNKNOWN" in {app["verdict"] for app in omar["apps"]}
+    clients = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
+    assert "Inventaire apps/version par VPS" in clients
+    assert "oa.vps-report/v1" in clients
+    assert "/api/vps-app-inventory.json" in clients
+    assert "Hermes local" in clients
+    assert "tenant oa-internal" in clients
+    assert "Standards reportés" in clients
+    assert "OBS-SERVICES-01" in clients
+    assert "MAINT-DOCTOR-01" in clients
+    assert "PASS" in clients
+    assert "FAIL" in clients
+    assert "UNKNOWN" in clients
+
+
+def test_qg_ops_vps_fleet_surface_and_api():
+    build()
+    api = PUBLIC / "api" / "ops" / "vps-fleet.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.vps-fleet-status/1"
+    assert payload["summary"]["expected"] == 3
+    assert {"reporting", "en_derive", "muets", "standards_fail"} <= set(payload["summary"])
+    nodes = {node["node"]: node for node in payload["nodes"]}
+    # Les 3 VPS attendus ont TOUJOURS un bloc, rapport reçu ou pas.
+    assert {"omar", "jab", "pantheos"} <= set(nodes)
+    assert "oa-master" not in nodes  # alias du même VPS que omar, jamais un 4e nœud
+    for node in payload["nodes"]:
+        assert node["report_status"] in {"fresh", "stale", "missing"}
+        assert node["transport_owner"]
+        if node["report_status"] == "missing":
+            assert node["expected_path"]
+        else:
+            assert node["maturity"] in {"PASS", "FAIL", "UNKNOWN"}
+            assert {"standards_pass", "standards_fail", "fails", "apps_total", "apps_by_kind", "next_action", "generated_at"} <= set(node)
+
+    ops = (PUBLIC / "ops" / "index.html").read_text(encoding="utf-8")
+    assert "Flotte VPS" in ops
+    assert "VPS rapportent" in ops
+    assert "en dérive" in ops
+    assert "muet(s)" in ops
+    assert "SAV : non instrumenté — aucun flux SAV" in ops
+    assert "/api/ops/vps-fleet.json" in ops
+    # La tuile flotte de la home pointe vers /ops/.
+    home = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    assert "VPS rapportent" in home
+
+
+def test_qg_resource_onboarding_surface_and_appomar_spec():
+    build()
+    api = PUBLIC / "api" / "vps-resource-onboarding-v0.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.resource-onboarding/public.v0"
+    assert payload["visibility"] == "public_qg_redacted_counters_only"
+    assert payload["resource_scope_schema"] == "oa.resource-scope/v1"
+    assert payload["canonical_cloud_index"]["total_unique_records"] == 222634
+    assert payload["canonical_cloud_index"]["google_drive_api_full_records"] == 194326
+    assert payload["canonical_cloud_index"]["onedrive_rclone_targeted_records"] == 20901
+    forbidden_public_tokens = [
+        "/home/omar",
+        "cloud-index/db",
+        "Pantheos Drive",
+        "Drive Omar",
+        "Google AI Studio",
+        "LADB/Boulangerie",
+    ]
+    api_text = api.read_text(encoding="utf-8")
+    core_api = PUBLIC / "api" / "core-repos.json"
+    assert core_api.exists()
+    core_payload = json.loads(core_api.read_text(encoding="utf-8"))
+    assert core_payload["resource_onboarding"]["schema"] == "oa.resource-onboarding/public.v0"
+    assert core_payload["resource_onboarding"]["visibility"] == "public_qg_redacted_counters_only"
+    core_text = core_api.read_text(encoding="utf-8")
+    for token in forbidden_public_tokens:
+        assert token not in api_text
+        assert token not in core_text
+
+    clients = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
+    for expected in [
+        "Ressources &amp; connaissances",
+        "Cloud Index records",
+        "Google Drive API full",
+        "OneDrive ciblé",
+        "V3 extraction contrôlée",
+        "oa.resource-scope/v1",
+        "aucun nom de fichier ni contenu brut",
+    ]:
+        assert expected in clients
+    assert "/home/omar/32-Infra/cloud-index" not in clients
+    for token in forbidden_public_tokens:
+        assert token not in clients
+    assert "lots candidats redacted" in clients
+
+    app_page = (PUBLIC / "apps" / "app" / "index.html").read_text(encoding="utf-8")
+    for expected in [
+        "Spec onboarding AppOmar",
+        "Sources",
+        "Périmètres",
+        "Classification",
+        "Permissions agents",
+        "Exclusions",
+        "Garde-fou V0",
+    ]:
+        assert expected in app_page
+    assert "aucune extraction texte V3" in app_page
+

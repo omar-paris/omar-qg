@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 STORE = ROOT / "var" / "decisions.json"
 HOST, PORT = "100.79.68.6", 8097
+HERMES = "/home/omar/.local/bin/hermes"  # chemin absolu: PATH systemd ne contient pas ~/.local/bin
 ISSUE_RE = re.compile(r"^([a-z0-9-]+)#(\d+)$")
 
 
@@ -46,9 +47,9 @@ def unblock(ref: str, qid: str, answer: str) -> str:
     if not ref:
         return "no_ref"
     if ref.startswith("t_"):
-        subprocess.run(["hermes", "kanban", "comment", ref,
+        subprocess.run([HERMES, "kanban", "comment", ref,
                         f"RÉPONSE ALEX ({qid}) : {answer}"], capture_output=True, timeout=30)
-        r = subprocess.run(["hermes", "kanban", "unblock", ref], capture_output=True, text=True, timeout=30)
+        r = subprocess.run([HERMES, "kanban", "unblock", ref], capture_output=True, text=True, timeout=30)
         return "kanban_unblocked" if r.returncode == 0 else f"kanban_error:{r.stderr.strip()[:80]}"
     m = ISSUE_RE.match(ref)
     if m:
@@ -84,6 +85,23 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"error": "not_found"})
 
     def do_POST(self) -> None:
+        # Réponse directe à un blocage depuis /blocages/ (Alex 06/07) :
+        # « fait » ou explication → commentaire + déblocage de la ref
+        # (carte kanban t_xxx ou issue repo#n) via le même helper que les
+        # décisions. Le système reprend la main derrière.
+        if self.path == "/api/blocages/answer":
+            try:
+                length = int(self.headers.get("content-length", "0"))
+                data = json.loads(self.rfile.read(length).decode("utf-8"))
+                ref, answer = str(data["ref"]).strip(), str(data["answer"]).strip()
+                if not ref or not answer:
+                    raise ValueError("ref et answer requis")
+            except Exception as exc:
+                self._send(422, {"error": str(exc)})
+                return
+            result = unblock(ref, "blocage", answer)
+            self._send(200, {"ref": ref, "answer": answer, "deblocage": result})
+            return
         if self.path != "/api/decisions/answer":
             self._send(404, {"error": "not_found"})
             return

@@ -1,0 +1,670 @@
+#!/usr/bin/env python3
+"""Collecteur blocages QG — « Ce qui bloque — et qui débloque ».
+
+Agrège en read-only les 4 familles de blocages (demande Alex 06/07, Fable rescue) :
+  1. Décisions QG ouvertes (var/decisions.json)
+  2. Cartes Kanban blocked qui attendent un humain (kanban.db, mode=ro)
+  3. Blocages sudo (cartes 'sudo' + GO list CHANTIER2-APPLIED-040726.md, best effort)
+  4. PRs : gates Athena NO-GO dont la source attend un rework + PRs GitHub ouvertes >7 j
+
+DÉDUPLICATION (le point d'Alex — « parfois redondants ») :
+  - décision ouverte liée à une carte (blocked_ref) → UNE entrée, la décision gagne,
+    la carte est référencée dedans ;
+  - carte source d'un gate NO-GO → UNE entrée type=pr (le rework), pas deux ;
+  - PR GitHub déjà couverte par un gate NO-GO → l'entrée PR porte le verdict.
+
+Refonte 06/07 (feedback Alex) : la page /blocages/ COMPTE et POINTE, elle ne répète
+pas. Le collecteur porte donc en plus :
+  - texte_complet + commande sur les items sudo (seul contenu développé sur place,
+    jamais tronqué — la commande exacte à copier est extraite en bloc code) ;
+  - dernieres_mergees : les 10 derniers merges GitHub (boucle de contrôle d'Alex).
+
+Sortie : var/blocages.json (schéma oa.blocages/2). Aucun secret : raisons rédigées.
+Jamais bloquant : chaque source échoue en silence (liste errors) — le build QG survit.
+"""
+from __future__ import annotations
+
+import datetime as dt
+import json
+import os
+import re
+import sqlite3
+import subprocess
+import time
+import urllib.parse
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+VAR = ROOT / "var"
+OUT = VAR / "blocages.json"
+SCHEMA = "oa.blocages/2"
+KANBAN_DB = Path(os.environ.get("OA_KANBAN_DB", "/home/omar/.hermes/kanban.db"))
+GO_LIST_FILE = Path(os.environ.get(
+    "OA_GO_LIST_FILE",
+    "/home/omar/11-Pilotage/sujets-actifs/fable-4d-system-rescue/CHANTIER2-APPLIED-040726.md",
+))
+GO_LIST_DATE = "2026-07-04"  # date du fichier (040726) — âge best effort
+GH_ORG = "omar-paris"
+GH_REPOS = ["omar-qg", "omar-top", "omar-hub", "omar-app", "omar-catalogue", "omi-bridge", "oa-crm"]
+STALE_PR_DAYS = 7
+GH_TIMEOUT_S = 15          # par repo
+GH_BUDGET_S = 60           # global — au-delà on arrête d'interroger GitHub
+
+ACTION_ALEX_RE = re.compile(r"ACTION ALEX\s*\((\d+)\s*min\)\s*:?\s*", re.IGNORECASE)
+COUT_MIN_RE = re.compile(r"co[uû]t\s*:?\s*~?(\d+)\s*min", re.IGNORECASE)
+TASK_ID_RE = re.compile(r"\bt_[0-9a-f]{8}\b")
+GATE_SOURCE_RE = re.compile(r"\(from (t_[0-9a-f]+)\)")
+GATE_PR_RE = re.compile(r"\b(omar-[a-z]+|oa-[a-z-]+|omi-bridge)\b[^\n]{0,40}?PR\s*#?(\d+)", re.IGNORECASE)
+# Rédaction : tokens/clés/blobs — jamais de secret dans le JSON publié.
+SECRET_RE = re.compile(
+    r"(sk-[A-Za-z0-9_-]{10,}|ghp_[A-Za-z0-9]{10,}|github_pat_[A-Za-z0-9_]{10,}"
+    r"|xox[a-z]-[A-Za-z0-9-]{10,}|AKIA[A-Z0-9]{12,}|eyJ[A-Za-z0-9_-]{20,}"
+    r"|(?i:(?:token|secret|password|passwd|api[_-]?key|bearer)\s*[=:]\s*)[^\s'\"]{6,})"
+)
+RESOLVED_MARKERS = ("✅", "sans objet", "supprimé", "résolu", "décommissionné")
+# Extraction de commande (items sudo) : une ligne qui commence par un binaire connu.
+CMD_PREFIX_RE = re.compile(
+    r"^(sudo|hermes|systemctl|caddy|bash|sh|rsync|git|docker|python3|journalctl"
+    r"|cp|mv|chmod|crontab|ln|tee)\b"
+)
+
+
+def now_utc() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+
+
+def iso(v: dt.datetime) -> str:
+    return v.astimezone(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def safe(exc: BaseException) -> str:
+    return f"{exc.__class__.__name__}: {str(exc)[:140]}"
+
+
+def redact(text: str) -> str:
+    return SECRET_RE.sub("[REDIGE]", text or "")
+
+
+def one_line(text: str, limit: int = 180) -> str:
+    line = " ".join(redact(str(text or "")).split())
+    return line[: limit - 1] + "…" if len(line) > limit else line
+
+
+def age_days(then: dt.datetime | None, now: dt.datetime) -> int:
+    if then is None:
+        return 0
+    return max(0, int((now - then).total_seconds() // 86400))
+
+
+def parse_iso(v: Any) -> dt.datetime | None:
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)) or (isinstance(v, str) and v.isdigit()):
+        try:
+            return dt.datetime.fromtimestamp(float(v), tz=dt.timezone.utc)
+        except Exception:
+            return None
+    try:
+        d = dt.datetime.fromisoformat(str(v).strip().replace("Z", "+00:00"))
+    except Exception:
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
+
+
+def extract_command(text: str) -> str:
+    """Meilleure commande à copier trouvée dans un texte (blocs ```, `spans`, lignes nues)."""
+    text = str(text or "")
+    for block in re.findall(r"```(?:\w+)?\n(.*?)```", text, re.S):
+        lines = [l.strip() for l in block.strip().splitlines() if CMD_PREFIX_RE.match(l.strip())]
+        if lines:
+            return redact("\n".join(lines))
+    spans = [s.strip() for s in re.findall(r"`([^`\n]+)`", text) if CMD_PREFIX_RE.match(s.strip())]
+    if spans:
+        return redact("\n".join(dict.fromkeys(spans)))
+    lines = [l.strip() for l in text.splitlines() if CMD_PREFIX_RE.match(l.strip())]
+    return redact("\n".join(dict.fromkeys(lines)))
+
+
+def entry(eid: str, qui: str, etype: str, titre: str, age: int, action: str,
+          lien: str = "", effort_min: int | None = None, source: str = "", refs: list[str] | None = None,
+          texte_complet: str = "", commande: str = "", origine: str = "") -> dict:
+    e = {
+        "id": eid,
+        "qui_debloque": qui,          # alex | h-omar | agent | externe
+        "type": etype,                # decision | carte | sudo | pr | vps
+        "titre": one_line(titre, 140),
+        "age_jours": age,
+        "action_1_ligne": one_line(action),
+        "lien": lien,
+        "effort_min": effort_min,
+        "source": source,
+        "refs": refs or [],
+        "origine": origine,           # "" = local (VPS-Omar) | vps_id/node d'origine (jab, pantheos…)
+    }
+    if etype == "sudo":
+        # Les items sudo ne vivent nulle part ailleurs : titre + texte COMPLETS,
+        # jamais tronqués, et la commande exacte à copier si on en trouve une.
+        e["titre"] = redact(" ".join(str(titre or "").split()))
+        e["texte_complet"] = redact(str(texte_complet or action or "")).strip()
+        e["commande"] = commande or extract_command(texte_complet or action or "")
+    return e
+
+
+# ── 1. Décisions QG ouvertes ─────────────────────────────────────────────────
+
+def collect_decisions(now: dt.datetime, errors: list[str]) -> tuple[list[dict], set[str]]:
+    """Retourne (entrées, ids de cartes kanban couvertes par une décision)."""
+    entries: list[dict] = []
+    covered_cards: set[str] = set()
+    try:
+        decisions = json.loads((VAR / "decisions.json").read_text(encoding="utf-8"))
+        if not isinstance(decisions, list):
+            raise ValueError("decisions.json: liste attendue")
+    except Exception as exc:
+        errors.append("decisions_unavailable: " + safe(exc))
+        return entries, covered_cards
+    for d in decisions:
+        if not isinstance(d, dict) or (d.get("statut") or "").lower() != "ouverte":
+            continue
+        ref = str(d.get("blocked_ref") or "").strip()
+        refs = []
+        if ref:
+            covered_cards.add(ref)
+            refs.append(ref)
+        effort = None
+        m = COUT_MIN_RE.search(str(d.get("contexte") or ""))
+        if m:
+            effort = int(m.group(1))
+        options = [str(o) for o in (d.get("options") or []) if o]
+        action = "Répondre sur /decisions/"
+        if options:
+            action += " — options : " + " / ".join(options)
+        if ref:
+            action += f" (débloque la carte {ref})"
+        entries.append(entry(
+            f"decision:{d.get('id')}", "alex", "decision",
+            str(d.get("texte") or "Décision sans texte"),
+            age_days(parse_iso(d.get("posee_le")), now),
+            action, "/decisions/", effort, "var/decisions.json", refs,
+        ))
+    return entries, covered_cards
+
+
+# ── 2+3. Kanban blocked + gates NO-GO + sudo (une seule connexion ro) ────────
+
+def _kanban_connect() -> sqlite3.Connection:
+    con = sqlite3.connect(f"file:{urllib.parse.quote(str(KANBAN_DB))}?mode=ro", uri=True, timeout=5)
+    con.row_factory = sqlite3.Row
+    con.execute("PRAGMA query_only=ON")
+    return con
+
+
+def collect_kanban(now: dt.datetime, covered_cards: set[str], errors: list[str]) -> tuple[list[dict], list[dict], set[str]]:
+    """Retourne (entrées cartes/sudo, entrées rework NO-GO, refs PR GitHub couvertes 'repo#num')."""
+    card_entries: list[dict] = []
+    rework_entries: list[dict] = []
+    nogo_prs: set[str] = set()
+    if not KANBAN_DB.exists():
+        errors.append("kanban_db_missing: " + str(KANBAN_DB))
+        return card_entries, rework_entries, nogo_prs
+    try:
+        con = _kanban_connect()
+    except Exception as exc:
+        errors.append("kanban_unavailable: " + safe(exc))
+        return card_entries, rework_entries, nogo_prs
+    try:
+        blocked = con.execute(
+            "SELECT id, title, assignee, block_kind, created_at, result FROM tasks "
+            "WHERE status='blocked' AND (assignee='alex' OR block_kind IN ('needs_input','capability'))"
+        ).fetchall()
+        comments: dict[str, list[str]] = {}
+        for r in con.execute(
+            "SELECT task_id, body FROM task_comments WHERE task_id IN (%s) ORDER BY id"
+            % ",".join("?" * len(blocked)), [r["id"] for r in blocked]
+        ) if blocked else []:
+            comments.setdefault(r["task_id"], []).append(str(r["body"] or ""))
+
+        # Gates NO-GO → la source (rework) est LE blocage ; on dédoublonne les cartes sources.
+        gates = con.execute(
+            "SELECT id, title, result, completed_at FROM tasks "
+            "WHERE result LIKE 'VERDICT: NO-GO%' ORDER BY completed_at DESC"
+        ).fetchall()
+        rework_sources: dict[str, sqlite3.Row] = {}
+        for g in gates:
+            for repo, num in GATE_PR_RE.findall(g["title"] or ""):
+                nogo_prs.add(f"{repo.lower()}#{num}")
+            m = GATE_SOURCE_RE.search(g["title"] or "")
+            if m and m.group(1) not in rework_sources:
+                rework_sources[m.group(1)] = g
+        for src_id, gate in rework_sources.items():
+            src = con.execute(
+                "SELECT id, title, status, assignee, created_at FROM tasks WHERE id=?", (src_id,)
+            ).fetchone()
+            if src is None or src["status"] not in ("blocked", "todo", "in_progress", "scheduled"):
+                continue  # la source a été retravaillée/fermée : plus un blocage
+            if src_id in covered_cards:
+                continue  # une décision QG couvre déjà cette carte
+            verdict = one_line(str(gate["result"] or "")[len("VERDICT: NO-GO"):].lstrip(" —-"), 140)
+            rework_entries.append(entry(
+                f"pr:rework:{src_id}", "agent", "pr",
+                str(src["title"] or src_id),
+                age_days(parse_iso(src["created_at"]), now),
+                f"Rework demandé par gate Athena {gate['id']} (NO-GO) : {verdict}",
+                "https://hermes.omar.paris/", None, "kanban.db", [src_id, str(gate["id"])],
+            ))
+        rework_ids = set(rework_sources)
+
+        for r in blocked:
+            tid = str(r["id"])
+            if tid in covered_cards or (tid in rework_ids and any(e["refs"][0] == tid for e in rework_entries)):
+                continue  # dédup : décision QG ou rework NO-GO déjà listés
+            title = str(r["title"] or tid)
+            result = str(r["result"] or "")
+            body_all = " ".join([title, result] + comments.get(tid, []))
+            effort = None
+            action = ""
+            for c in reversed(comments.get(tid, [])):
+                m = ACTION_ALEX_RE.search(c)
+                if m:
+                    effort = int(m.group(1))
+                    action = c[m.end():]
+                    break
+            is_sudo = "sudo" in body_all.lower()
+            if r["assignee"] == "alex" or effort is not None or is_sudo:
+                qui = "alex"
+            elif r["block_kind"] == "capability":
+                qui = "h-omar"
+            else:
+                qui = "h-omar"  # needs_input sans action Alex explicite → arbitrage H-Omar
+            action_complet = action  # commentaire ACTION ALEX intégral (peut être vide)
+            if not action:
+                raison = one_line(result, 120) or "carte bloquée sans raison renseignée"
+                action = f"Débloquer ({r['block_kind'] or 'blocked'}) : {raison}"
+            texte_complet = ""
+            commande = ""
+            if is_sudo:
+                # Texte intégral (jamais tronqué) : commentaire ACTION ALEX complet + result
+                # complet — pas la version one_line() qui sert au reste du payload.
+                texte_complet = "\n\n".join(
+                    t.strip() for t in [action_complet, result] if t and t.strip()
+                ) or title
+                commande = extract_command("\n".join([result] + comments.get(tid, [])))
+            card_entries.append(entry(
+                f"carte:{tid}", qui, "sudo" if is_sudo else "carte", title,
+                age_days(parse_iso(r["created_at"]), now),
+                action, "https://hermes.omar.paris/", effort, "kanban.db", [tid],
+                texte_complet=texte_complet, commande=commande,
+            ))
+    except Exception as exc:
+        errors.append("kanban_query_failed: " + safe(exc))
+    finally:
+        con.close()
+    return card_entries, rework_entries, nogo_prs
+
+
+def _kanban_done_ids(ids: set[str]) -> set[str]:
+    """Cartes citées déjà terminées/archivées — pour filtrer la GO list."""
+    if not ids or not KANBAN_DB.exists():
+        return set()
+    try:
+        con = _kanban_connect()
+        try:
+            rows = con.execute(
+                "SELECT id FROM tasks WHERE id IN (%s) AND status IN ('done','archived','cancelled')"
+                % ",".join("?" * len(ids)), sorted(ids)
+            ).fetchall()
+            return {r["id"] for r in rows}
+        finally:
+            con.close()
+    except Exception:
+        return set()
+
+
+# ── 3bis. GO list sudo/infra (CHANTIER2, parse léger best effort) ────────────
+
+def collect_go_list(now: dt.datetime, existing_refs: set[str], errors: list[str]) -> list[dict]:
+    entries: list[dict] = []
+    try:
+        text = GO_LIST_FILE.read_text(encoding="utf-8")
+    except Exception as exc:
+        errors.append("go_list_unavailable: " + safe(exc))
+        return entries
+    lines = text.splitlines()
+    start = next((i for i, l in enumerate(lines) if l.startswith("##") and "go list" in l.lower()), None)
+    if start is None:
+        errors.append("go_list_section_missing")
+        return entries
+    bullets: list[str] = []
+    for l in lines[start + 1:]:
+        if l.startswith("##") or l.startswith("```"):
+            break
+        if l.strip().startswith("- "):
+            bullets.append(l.strip()[2:].strip())
+    rest_of_doc = "\n".join(lines[start + 1:])
+    cited = {t for b in bullets for t in TASK_ID_RE.findall(b)}
+    done_ids = _kanban_done_ids(cited)
+    age = age_days(parse_iso(GO_LIST_DATE + "T00:00:00Z"), now)
+    for i, b in enumerate(bullets, 1):
+        b_ids = TASK_ID_RE.findall(b)
+        if b_ids and all(t in done_ids for t in b_ids):
+            continue  # la carte citée est terminée — item réglé
+        if b_ids and any(t in existing_refs for t in b_ids):
+            continue  # déjà porté par une décision/carte listée
+        m = re.match(r"\*\*(.+?)\*\*", b)
+        titre = m.group(1) if m else b[:100]
+        # Marqué réglé plus loin dans le doc (ex: open-webui décommissionné) → on saute.
+        key = (m.group(1).split("(")[0].strip() if m else titre).strip(" *:").lower()
+        key_token = next((w for w in re.split(r"[^a-z0-9_\-]+", key) if len(w) >= 8), "")
+        if key_token and any(
+            key_token in l.lower() and any(mark in l for mark in RESOLVED_MARKERS)
+            for l in rest_of_doc.splitlines()
+        ):
+            continue
+        plein = re.sub(r"\*\*", "", b)
+        entries.append(entry(
+            f"sudo:golist:{i}", "alex", "sudo", titre, age,
+            "GO list CHANTIER2 (04/07) : " + plein,
+            "", None, GO_LIST_FILE.name, b_ids,
+            texte_complet="GO list CHANTIER2 (04/07) : " + plein,
+            commande=extract_command(b),
+        ))
+    return entries
+
+
+# ── 4. PRs GitHub ouvertes > 7 jours ─────────────────────────────────────────
+
+def collect_stale_prs(now: dt.datetime, nogo_prs: set[str], errors: list[str]) -> list[dict]:
+    entries: list[dict] = []
+    started = time.monotonic()
+    for repo in GH_REPOS:
+        if time.monotonic() - started > GH_BUDGET_S:
+            errors.append("gh_budget_exhausted: repos restants ignorés")
+            break
+        try:
+            proc = subprocess.run(
+                ["gh", "pr", "list", "--repo", f"{GH_ORG}/{repo}", "--state", "open",
+                 "--json", "number,title,createdAt,url", "--limit", "30"],
+                capture_output=True, text=True, timeout=GH_TIMEOUT_S,
+            )
+            if proc.returncode != 0:
+                raise RuntimeError((proc.stderr or "gh error").strip()[:80])
+            prs = json.loads(proc.stdout or "[]")
+        except Exception as exc:
+            errors.append(f"gh_pr_list_failed:{repo}: " + safe(exc))
+            continue
+        for pr in prs:
+            created = parse_iso(pr.get("createdAt"))
+            age = age_days(created, now)
+            if age <= STALE_PR_DAYS:
+                continue
+            key = f"{repo}#{pr.get('number')}"
+            # Décision Alex 06/07 (git autonome) : les PRs ne vont JAMAIS dans
+            # la file d'Alex — le circuit est gate Athena (GO=merge autonome,
+            # NO-GO=rework agent) orchestré par h-omar. Alex voit le résultat
+            # dans « Dernières mergées ».
+            action = f"PR ouverte depuis {age} j — passer en gate Athena puis merge autonome, ou fermer"
+            qui = "h-omar"
+            if key in nogo_prs:
+                action = f"PR ouverte depuis {age} j — gate Athena NO-GO : rework agent avant merge"
+                qui = "agent"
+            entries.append(entry(
+                f"pr:{key}", qui, "pr",
+                f"{key} — {pr.get('title') or ''}", age, action,
+                str(pr.get("url") or ""), None, "github", [key],
+            ))
+    return entries
+
+
+# ── 4bis. Blockers remontés par les AUTRES VPS (oa.vps-report/v1) ─────────────
+# Les blockers d'omar.json PROVIENNENT de var/blocages.json (générés ici même) :
+# on ne lit donc QUE les rapports non-omar, et on déduplique contre les entrées
+# locales (titre normalisé + refs repo#num) — champ origine=<node> sur le reste.
+
+INTER_VPS_REPORT_DIRS = [
+    Path("/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox"),
+    Path("/home/omar/11-Pilotage/sujets-actifs/fable-5-rails-1-2/inbox-from-pantheos"),
+]
+if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
+    # Fixtures EXCLUSIVES en mode test — mêmes entrées qu'en CI, déterministe.
+    INTER_VPS_REPORT_DIRS = [ROOT / "tests" / "fixtures" / "inter-vps-inbox"]
+LOCAL_VPS_NODES = {"omar", "oa-master"}  # rapports générés sur CE VPS — jamais réimportés
+PR_REF_RE = re.compile(r"\b(omar-[a-z-]+|oa-[a-z-]+|omi-bridge)#(\d+)\b", re.IGNORECASE)
+
+
+def _vps_report_node(payload: dict, path: Path) -> str:
+    node = str(payload.get("node") or "").strip().lower()
+    if not node:
+        vps_id = str(payload.get("vps_id") or "").strip().lower()
+        node = vps_id.removeprefix("vps-") if vps_id else ""
+    if not node and path.parent.name not in ("", "inter-vps-inbox"):
+        node = path.parent.name.strip().lower()
+    return node
+
+
+def _read_remote_vps_reports(errors: list[str]) -> dict[str, dict]:
+    """Dernier rapport oa.vps-report/v1 par nœud NON-local (jab, pantheos…)."""
+    reports: dict[str, dict] = {}
+    for root in INTER_VPS_REPORT_DIRS:
+        if not root.exists():
+            continue
+        paths = set(root.rglob("*health*.json")) | set(root.rglob("*vps-report*.json"))
+        for path in sorted(paths):
+            if any(part in {"_invalid", "_validated", "archive"} for part in path.parts):
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(payload, dict) or payload.get("schema") != "oa.vps-report/v1":
+                continue
+            node = _vps_report_node(payload, path)
+            if not node or node in LOCAL_VPS_NODES:
+                continue
+            prev = reports.get(node)
+            if not prev or str(payload.get("generated_at") or "") >= str(prev.get("generated_at") or ""):
+                payload = dict(payload)
+                payload["_node"] = node
+                reports[node] = payload
+    return reports
+
+
+def _norm_titre(text: str) -> str:
+    return " ".join(one_line(text, 140).lower().split())
+
+
+REDACTION_PLACEHOLDER_RE = re.compile(r"<redacted[^>]*>|\[redige\]|\[redacted\]", re.IGNORECASE)
+
+
+def _titre_deja_local(norm_remote: str, seen_titles: dict[str, dict]) -> dict | None:
+    """Entrée locale correspondant au titre remote, sinon None — tolère qu'un mot
+    rédigé côté remote soit en clair côté local (token → <redacted-word>)."""
+    if norm_remote in seen_titles:
+        return seen_titles[norm_remote]
+    parts = [p.strip() for p in REDACTION_PLACEHOLDER_RE.split(norm_remote) if p.strip()]
+    if len(parts) <= 1 and REDACTION_PLACEHOLDER_RE.search(norm_remote) is None:
+        return None  # pas de placeholder : seule l'égalité stricte compte
+    for local, local_entry in seen_titles.items():
+        pos, ok = 0, True
+        for part in parts:
+            idx = local.find(part, pos)
+            if idx < 0:
+                ok = False
+                break
+            pos = idx + len(part)
+        if ok:
+            return local_entry
+    return None
+
+
+def collect_vps_blockers(now: dt.datetime, local_entries: list[dict], errors: list[str]) -> tuple[list[dict], dict]:
+    """Agrège blockers[] des rapports VPS non-omar, dédupliqués contre le local.
+
+    Retourne (entrées uniques origine=<node>, stats par VPS). Un blocker remote
+    qui duplique une entrée locale ne crée PAS de doublon : l'entrée locale est
+    annotée `aussi_signale_par` (le kanban est partagé — jab relit les mêmes cartes).
+    """
+    entries: list[dict] = []
+    stats: dict[str, dict] = {}
+    seen_titles = {_norm_titre(e.get("titre") or ""): e for e in local_entries if e.get("titre")}
+    seen_refs = {str(r).lower(): e for e in local_entries for r in (e.get("refs") or [])}
+    qui_ok = {"alex", "h-omar", "agent"}
+    try:
+        reports = _read_remote_vps_reports(errors)
+    except Exception as exc:
+        errors.append("vps_reports_unavailable: " + safe(exc))
+        return entries, stats
+    for node in sorted(reports):
+        report = reports[node]
+        blockers = report.get("blockers") or []
+        if not isinstance(blockers, list):
+            continue
+        stats[node] = {"total": 0, "uniques": 0, "dedupliques": 0,
+                       "generated_at": str(report.get("generated_at") or "unknown")}
+        for i, b in enumerate(blockers, 1):
+            if not isinstance(b, dict):
+                continue
+            title = str(b.get("title") or "").strip()
+            if not title:
+                continue
+            stats[node]["total"] += 1
+            norm = _norm_titre(title)
+            pr_refs = {f"{repo.lower()}#{num}" for repo, num in PR_REF_RE.findall(title)}
+            local_match = _titre_deja_local(norm, seen_titles)
+            if local_match is None:
+                for ref in pr_refs:
+                    if ref in seen_refs:
+                        local_match = seen_refs[ref]
+                        break
+            if local_match is not None:
+                # Dédup : déjà porté localement — on JETTE le reflet, sans
+                # annotation. (Correction 07/07, feedback Alex : le badge
+                # « aussi signalé par jab » sur ses cartes personnelles était
+                # un non-sens — CC-JAB relit le kanban CENTRAL, ce n'est pas
+                # un signal JAB. Pire : ça mélangeait les tenants (Maryse
+                # badgée jab). Un rapport VPS tenant-scoped ne devrait
+                # remonter QUE ses blockers propres — défaut signalé côté
+                # CC-JAB via carte kanban.)
+                stats[node]["dedupliques"] += 1
+                continue
+            qui = str(b.get("who_unblocks") or "").strip().lower()
+            if qui not in qui_ok:
+                qui = "externe"  # inclut 'client' (schéma) et valeurs inconnues
+            try:
+                age = max(0, int(b.get("age_days") or 0))
+            except Exception:
+                age = 0
+            e = entry(
+                f"vps:{node}:{i}", qui, "vps", title, age,
+                str(b.get("action_1_line") or "action non renseignée"),
+                "/ops/", None, f"oa.vps-report/v1 ({node})",
+                sorted(pr_refs) or [f"vps:{node}:{i}"],
+                origine=node,
+            )
+            entries.append(e)
+            seen_titles[norm] = e
+            for ref in pr_refs:
+                seen_refs.setdefault(ref, e)
+            stats[node]["uniques"] += 1
+    return entries, stats
+
+
+# ── 5. Dernières PRs mergées — la boucle de contrôle d'Alex ──────────────────
+
+def collect_merged_prs(errors: list[str], limit: int = 10) -> list[dict]:
+    """Les derniers merges GitHub (7 repos actifs, tri date desc) — Alex contrôle
+    les résultats, il n'approuve plus. Titre COMPLET, jamais tronqué."""
+    items: list[dict] = []
+    started = time.monotonic()
+    for repo in GH_REPOS:
+        if time.monotonic() - started > GH_BUDGET_S:
+            errors.append("gh_merged_budget_exhausted: repos restants ignorés")
+            break
+        try:
+            proc = subprocess.run(
+                ["gh", "pr", "list", "--repo", f"{GH_ORG}/{repo}", "--state", "merged",
+                 "--json", "number,title,mergedAt,url", "--limit", str(limit)],
+                capture_output=True, text=True, timeout=GH_TIMEOUT_S,
+            )
+            if proc.returncode != 0:
+                raise RuntimeError((proc.stderr or "gh error").strip()[:80])
+            prs = json.loads(proc.stdout or "[]")
+        except Exception as exc:
+            errors.append(f"gh_merged_list_failed:{repo}: " + safe(exc))
+            continue
+        for pr in prs:
+            items.append({
+                "ref": f"{repo}#{pr.get('number')}",
+                "repo": repo,
+                "titre": redact(" ".join(str(pr.get("title") or "").split())),
+                "merged_at": str(pr.get("mergedAt") or ""),
+                "url": str(pr.get("url") or ""),
+            })
+    items.sort(key=lambda p: p["merged_at"], reverse=True)
+    return items[:limit]
+
+
+# ── Agrégation ────────────────────────────────────────────────────────────────
+
+def collect(write: bool = True) -> dict:
+    now = now_utc()
+    errors: list[str] = []
+    decision_entries, covered_cards = collect_decisions(now, errors)
+    card_entries, rework_entries, nogo_prs = collect_kanban(now, covered_cards, errors)
+    existing_refs = {ref for e in decision_entries + card_entries + rework_entries for ref in e["refs"]}
+    # GO-list CHANTIER2 desactivee (06/07 soir, feedback Alex): c'etait un
+    # SNAPSHOT documentaire — 7 items sur 8 etaient deja faits, la page
+    # affichait des sudos fantomes. Et depuis le NOPASSWD complet accorde a
+    # Fable, plus rien n'attend le sudo d'Alex par principe: les vrais
+    # blocages sudo, s'il en renait, vivent dans des cartes kanban (source
+    # live deja collectee ci-dessus).
+    go_entries = []
+    pr_entries = collect_stale_prs(now, nogo_prs, errors)
+    dernieres_mergees = collect_merged_prs(errors)
+
+    # Blockers des AUTRES VPS (jab, pantheos…) — dédupliqués contre tout le local.
+    local_entries = decision_entries + card_entries + go_entries + rework_entries + pr_entries
+    vps_entries, vps_stats = collect_vps_blockers(now, local_entries, errors)
+
+    blocages = local_entries + vps_entries
+    qui_rank = {"alex": 0, "h-omar": 1, "agent": 2, "externe": 3}
+    blocages.sort(key=lambda e: (qui_rank.get(e["qui_debloque"], 9), -e["age_jours"]))
+
+    pour_alex = [e for e in blocages if e["qui_debloque"] == "alex"]
+    par_type: dict[str, int] = {}
+    for e in blocages:
+        par_type[e["type"]] = par_type.get(e["type"], 0) + 1
+    payload = {
+        "schema": SCHEMA,
+        "generated_at": iso(now),
+        "definition": "Un blocage = quelque chose qui n'avance plus tant qu'un humain/agent précis n'agit pas. Dédupliqué décisions↔cartes↔gates↔PRs.",
+        "compteurs": {
+            "total": len(blocages),
+            "pour_alex": len(pour_alex),
+            "effort_min_alex": sum(e["effort_min"] or 0 for e in pour_alex),
+            "par_type": par_type,
+            "par_qui": {q: sum(1 for e in blocages if e["qui_debloque"] == q) for q in qui_rank if any(e["qui_debloque"] == q for e in blocages)},
+        },
+        "blocages": blocages,
+        # Rapports oa.vps-report/v1 des autres VPS : total/uniques/dédupliqués par nœud.
+        "vps_blockers": vps_stats,
+        "dernieres_mergees": dernieres_mergees,
+        "errors": errors,
+    }
+    if write:
+        VAR.mkdir(parents=True, exist_ok=True)
+        OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return payload
+
+
+def main() -> None:
+    payload = collect(write=True)
+    c = payload["compteurs"]
+    print(f"blocages: {c['total']} total · {c['pour_alex']} pour Alex (~{c['effort_min_alex']} min) · "
+          f"types {c['par_type']} · {len(payload['errors'])} erreur(s) → {OUT.relative_to(ROOT)}")
+    for err in payload["errors"]:
+        print("  warn:", err)
+
+
+if __name__ == "__main__":
+    main()
