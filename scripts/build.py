@@ -3153,9 +3153,6 @@ def page_blocages(payload: dict) -> str:
                 meta_bits.append(f"~{int(effort)} min")
             meta = " · ".join(meta_bits)
             badge = str(b.get("type") or "")
-            aussi = [str(n) for n in (b.get("aussi_signale_par") or []) if n]
-            if aussi:
-                badge += " · aussi signalé par " + ", ".join(aussi)
             rid = escape(ref.replace("#", "-"))
             html += (
                 '<div class="px-5 py-4">'

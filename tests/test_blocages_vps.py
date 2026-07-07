@@ -79,7 +79,9 @@ def test_vps_blockers_origin_and_dedup(tmp_path, monkeypatch):
     assert unique["qui_debloque"] == "agent"
     assert "PennyLane" in unique["titre"]
     # Les dupliqués annotent l'entrée locale au lieu de la doubler.
-    assert local[0]["aussi_signale_par"] == ["jab"]
-    assert local[1]["aussi_signale_par"] == ["jab"]
+    # Correction 07/07 (feedback Alex) : les reflets du kanban central relus
+    # par un VPS sont JETES sans annotation — pas de badge sur la file locale.
+    assert "aussi_signale_par" not in local[0]
+    assert "aussi_signale_par" not in local[1]
     # Les entrées locales portent origine vide (= VPS-Omar).
     assert local[0]["origine"] == ""

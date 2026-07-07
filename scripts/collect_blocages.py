@@ -399,11 +399,17 @@ def collect_stale_prs(now: dt.datetime, nogo_prs: set[str], errors: list[str]) -
             if age <= STALE_PR_DAYS:
                 continue
             key = f"{repo}#{pr.get('number')}"
-            action = f"PR ouverte depuis {age} j — reviewer puis merger ou fermer"
+            # Décision Alex 06/07 (git autonome) : les PRs ne vont JAMAIS dans
+            # la file d'Alex — le circuit est gate Athena (GO=merge autonome,
+            # NO-GO=rework agent) orchestré par h-omar. Alex voit le résultat
+            # dans « Dernières mergées ».
+            action = f"PR ouverte depuis {age} j — passer en gate Athena puis merge autonome, ou fermer"
+            qui = "h-omar"
             if key in nogo_prs:
                 action = f"PR ouverte depuis {age} j — gate Athena NO-GO : rework agent avant merge"
+                qui = "agent"
             entries.append(entry(
-                f"pr:{key}", "agent" if key in nogo_prs else "alex", "pr",
+                f"pr:{key}", qui, "pr",
                 f"{key} — {pr.get('title') or ''}", age, action,
                 str(pr.get("url") or ""), None, "github", [key],
             ))
@@ -531,10 +537,14 @@ def collect_vps_blockers(now: dt.datetime, local_entries: list[dict], errors: li
                         local_match = seen_refs[ref]
                         break
             if local_match is not None:
-                # Dédup : déjà porté localement — on annote, on ne double pas.
-                aussi = local_match.setdefault("aussi_signale_par", [])
-                if node not in aussi:
-                    aussi.append(node)
+                # Dédup : déjà porté localement — on JETTE le reflet, sans
+                # annotation. (Correction 07/07, feedback Alex : le badge
+                # « aussi signalé par jab » sur ses cartes personnelles était
+                # un non-sens — CC-JAB relit le kanban CENTRAL, ce n'est pas
+                # un signal JAB. Pire : ça mélangeait les tenants (Maryse
+                # badgée jab). Un rapport VPS tenant-scoped ne devrait
+                # remonter QUE ses blockers propres — défaut signalé côté
+                # CC-JAB via carte kanban.)
                 stats[node]["dedupliques"] += 1
                 continue
             qui = str(b.get("who_unblocks") or "").strip().lower()
