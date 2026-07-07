@@ -100,6 +100,41 @@ def test_cli_json_outputs_structured_findings_for_fixture(tmp_path):
     assert payload["findings"][0]["idempotency_key"].startswith("oa-observe:VPS-Omar:kanban_loop:")
 
 
+def test_file_bloat_uses_specific_hermes_state_db_threshold(monkeypatch):
+    mod = load_oa_observe()
+
+    def fake_run_on(target, cmd, timeout=90):
+        del target, cmd, timeout
+        return 0, "\n".join([
+            f"{600 * 1024**2}\t/home/omar/.hermes/state.db",
+            f"{600 * 1024**2}\t/home/omar/oa-admin/live.sqlite",
+        ])
+
+    monkeypatch.setattr(mod, "run_on", fake_run_on)
+
+    findings = mod.det_file_bloat({"homes": ["/home/omar"], "name": "VPS-Omar"})
+
+    assert len(findings) == 1
+    assert findings[0].titre == "Fichier volumineux : live.sqlite (0.6 Go)"
+    assert "seuil P1 500 MiB" in findings[0].detail
+
+
+def test_file_bloat_reports_hermes_state_db_above_specific_threshold(monkeypatch):
+    mod = load_oa_observe()
+
+    def fake_run_on(target, cmd, timeout=90):
+        del target, cmd, timeout
+        return 0, f"{800 * 1024**2}\t/home/omar/.hermes/state.db"
+
+    monkeypatch.setattr(mod, "run_on", fake_run_on)
+
+    findings = mod.det_file_bloat({"homes": ["/home/omar"], "name": "VPS-Omar"})
+
+    assert len(findings) == 1
+    assert findings[0].titre == "Fichier volumineux : state.db (0.8 Go)"
+    assert "seuil P1 768 MiB" in findings[0].detail
+
+
 def mod_finding_dict():
     return {
         "severite": "P1",

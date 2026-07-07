@@ -66,7 +66,12 @@ TARGETS = [
 ]
 
 # Seuils (centralisés pour ajustement facile)
-BLOAT_WARN = 500 * 1024**2     # 500 Mo  -> P1
+BLOAT_WARN = 500 * 1024**2     # 500 Mo  -> P1 générique
+# Hermes state.db embarque l'historique + FTS/trigram: après cleanup sain du
+# 2026-07-03, la baseline VPS-Omar est ~407 MiB. On garde une marge non
+# destructrice (~1.9x baseline) avant d'alerter, sans masquer le seuil P0 2 GiB
+# hérité de l'incident 3 Go du 11/06.
+HERMES_STATE_DB_BLOAT_WARN = 768 * 1024**2  # 768 MiB -> P1 spécifique state.db
 BLOAT_CRIT = 2 * 1024**3       # 2 Go    -> P0
 SESS_WARN = 1_000              # P1
 SESS_CRIT = 10_000            # P0
@@ -359,8 +364,18 @@ def sqlite_query(target: dict, db: str, sql: str,
 # DÉTECTEURS — chacun prend (target) et retourne List[Finding].
 # Ils sont défensifs : toute sortie inattendue = pas de finding (pas de crash).
 # --------------------------------------------------------------------------- #
+def bloat_warn_threshold(path: str) -> int:
+    """Seuil P1 par fichier: générique 500 MiB, Hermes state.db 768 MiB.
+
+    La base Hermes state.db est une base vivante avec historique + index FTS;
+    elle peut dépasser 500 MiB sans fuite. Le seuil spécifique évite les faux
+    positifs après cleanup sain, tout en gardant le P0 global à 2 GiB.
+    """
+    return HERMES_STATE_DB_BLOAT_WARN if path.endswith("/.hermes/state.db") else BLOAT_WARN
+
+
 def det_file_bloat(t: dict) -> list[Finding]:
-    """Fichiers de DONNÉES > 500 Mo dans les répertoires agents/apps.
+    """Fichiers de DONNÉES au-dessus de leur seuil dans les répertoires agents/apps.
     Exclut node_modules/venv/.git (dépendances build, pas une fuite)."""
     out: list[Finding] = []
     excl = " ".join(f"-not -path '*/{d}/*'" for d in EXCLUDE_BLOAT_DIRS)
@@ -381,14 +396,19 @@ def det_file_bloat(t: dict) -> list[Finding]:
             size = int(size_s)
         except ValueError:
             continue
+        threshold = bloat_warn_threshold(path)
+        if size < threshold:
+            continue
         gb = size / 1024**3
         if size >= BLOAT_CRIT:
             sev = "P0"
         else:
             sev = "P1"
+        threshold_mib = threshold / 1024**2
         out.append(Finding(
             sev, f"Fichier volumineux : {os.path.basename(path)} ({gb:.1f} Go)",
-            f"{path} pèse {gb:.2f} Go. Un fichier de données qui gonfle ainsi est "
+            f"{path} pèse {gb:.2f} Go (seuil P1 {threshold_mib:.0f} MiB). "
+            f"Un fichier de données qui gonfle ainsi est "
             f"souvent le signe d'une fuite (sessions, logs, dump non purgé) — "
             f"comme la base passée à 3 Go le 11/06.",
             t["name"],
