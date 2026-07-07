@@ -1006,7 +1006,10 @@ def _read_var_json(name: str) -> dict:
     snapshots committed in the repo. This keeps app pages factual while respecting
     the issue #26 boundary: no extra API calls or fresh collection for detail pages.
     """
-    for path in (ROOT / "var" / name, PUBLIC / "api" / name):
+    paths = [ROOT / "var" / name, PUBLIC / "api" / name]
+    if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
+        paths.append(ROOT / "tests" / "fixtures" / "qg-var" / name)
+    for path in paths:
         try:
             return json.loads(path.read_text(encoding="utf-8"))
         except Exception:
@@ -1058,6 +1061,8 @@ INTER_VPS_REPORT_DIRS = [
     # Legacy pre-canonical drop zone kept read-only until H-Aurel migrates its outbox.
     Path("/home/omar/11-Pilotage/sujets-actifs/fable-5-rails-1-2/inbox-from-pantheos"),
 ]
+if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
+    INTER_VPS_REPORT_DIRS.append(ROOT / "tests" / "fixtures" / "inter-vps-inbox")
 
 REQUIRED_VPS_APPS = [
     {"app_id": "hermes", "name": "Hermes local"},
@@ -1070,12 +1075,34 @@ REQUIRED_VPS_APPS = [
 _VALID_APP_STATUSES = {"ok", "outdated", "missing", "unknown", "blocked"}
 
 
+def _node_from_report(payload: dict, path: Path) -> str:
+    node = str(payload.get("node") or "").strip().lower()
+    if not node:
+        vps_id = str(payload.get("vps_id") or "").strip().lower()
+        if vps_id.startswith("vps-"):
+            node = vps_id.removeprefix("vps-")
+        elif vps_id:
+            node = vps_id
+    if not node and path.name == "vps-report-latest.json" and path.parent.name:
+        node = path.parent.name.strip().lower()
+    if not node:
+        node = path.stem.split("-", 1)[0].strip().lower()
+    return node
+
+
+def _inter_vps_report_paths(root: Path) -> list[Path]:
+    paths = set(root.rglob("*health*.json"))
+    paths.update(root.rglob("vps-report-latest.json"))
+    paths.update(root.rglob("*vps-report*.json"))
+    return sorted(paths)
+
+
 def _read_inter_vps_reports() -> list[dict]:
     reports: dict[str, dict] = {}
     for root in INTER_VPS_REPORT_DIRS:
         if not root.exists():
             continue
-        for path in sorted(root.rglob("*health*.json")):
+        for path in _inter_vps_report_paths(root):
             if any(part in {"_invalid", "_validated"} for part in path.parts):
                 continue
             try:
@@ -1084,10 +1111,11 @@ def _read_inter_vps_reports() -> list[dict]:
                 continue
             if not isinstance(payload, dict) or payload.get("schema") != "oa.vps-report/v1":
                 continue
-            node = str(payload.get("node") or path.stem.split("-", 1)[0]).strip().lower()
+            node = _node_from_report(payload, path)
             if not node:
                 continue
             payload = dict(payload)
+            payload["node"] = node
             payload["_source_path"] = str(path)
             prev = reports.get(node)
             if not prev or str(payload.get("generated_at") or "") >= str(prev.get("generated_at") or ""):
@@ -1116,44 +1144,73 @@ def _infer_app_status_from_services(report: dict, app_id: str) -> tuple[str, str
     return "unknown", "report"
 
 
+def _app_verdict_from_status(status: str) -> str:
+    normalized = str(status or "unknown").strip().lower()
+    if normalized in {"pass", "ok", "running", "active", "healthy", "up", "installed"}:
+        return "PASS"
+    if normalized in {"fail", "failed", "stopped", "inactive", "missing", "blocked", "down", "error", "critical", "outdated"}:
+        return "FAIL"
+    return "UNKNOWN"
+
+
+def _legacy_status_from_verdict(verdict: str, raw_status: str) -> str:
+    if verdict == "PASS":
+        return "ok"
+    if verdict == "FAIL":
+        raw = str(raw_status or "").strip().lower()
+        if raw in {"missing", "outdated", "blocked"}:
+            return raw
+        return "blocked"
+    return "unknown"
+
+
 def _normalize_installed_app(raw: dict, report: dict) -> dict:
     app_id = str(raw.get("app_id") or raw.get("id") or raw.get("name") or "unknown").strip().lower()
-    status = str(raw.get("status") or "unknown").strip().lower()
-    if status not in _VALID_APP_STATUSES:
-        status = "unknown"
+    raw_status = str(raw.get("status") or raw.get("verdict") or "unknown").strip().lower()
+    verdict = _app_verdict_from_status(str(raw.get("verdict") or raw_status))
+    status = raw_status if raw_status in _VALID_APP_STATUSES else _legacy_status_from_verdict(verdict, raw_status)
+    evidence = str(raw.get("evidence") or raw.get("proof_redacted") or "redacted report")
     return {
         "app_id": app_id,
         "name": str(raw.get("name") or app_id),
-        "installed": bool(raw.get("installed", status not in {"missing", "blocked"})),
+        "installed": bool(raw.get("installed", verdict == "PASS")),
         "version_installed": str(raw.get("version_installed") or raw.get("version") or "unknown"),
         "version_expected": str(raw.get("version_expected") or raw.get("version_min_required") or "policy-current"),
         "status": status,
-        "source": str(raw.get("source") or "report"),
-        "evidence": str(raw.get("evidence") or "redacted report"),
+        "verdict": verdict,
+        "raw_status": raw_status,
+        "source": str(raw.get("source") or raw.get("kind") or "report"),
+        "evidence": evidence,
         "last_checked_at": str(raw.get("last_checked_at") or report.get("generated_at") or "unknown"),
     }
 
 
 def _apps_for_report(report: dict) -> list[dict]:
-    provided = report.get("installed_apps") or []
+    provided = []
+    for key in ("installed_apps", "apps"):
+        values = report.get(key) or []
+        if isinstance(values, list):
+            provided.extend(values)
     apps: dict[str, dict] = {}
-    if isinstance(provided, list):
-        for raw in provided:
-            if isinstance(raw, dict):
-                app = _normalize_installed_app(raw, report)
-                apps[app["app_id"]] = app
+    for raw in provided:
+        if isinstance(raw, dict):
+            app = _normalize_installed_app(raw, report)
+            apps[app["app_id"]] = app
     for req in REQUIRED_VPS_APPS:
         app_id = req["app_id"]
         if app_id in apps:
             continue
         status, source = _infer_app_status_from_services(report, app_id)
+        verdict = _app_verdict_from_status(status)
         apps[app_id] = {
             "app_id": app_id,
             "name": req["name"],
-            "installed": status not in {"missing", "blocked"},
+            "installed": verdict == "PASS",
             "version_installed": "unknown",
             "version_expected": "policy-current",
             "status": status,
+            "verdict": verdict,
+            "raw_status": status,
             "source": source,
             "evidence": "inferred from oa.vps-report/v1 (redacted)",
             "last_checked_at": str(report.get("generated_at") or "unknown"),
@@ -1161,20 +1218,46 @@ def _apps_for_report(report: dict) -> list[dict]:
     return [apps[k] for k in sorted(apps)]
 
 
+def _normalize_standard(raw: dict, report: dict) -> dict:
+    verdict = str(raw.get("verdict") or raw.get("status") or "UNKNOWN").strip().upper()
+    if verdict not in {"PASS", "FAIL", "UNKNOWN"}:
+        verdict = "UNKNOWN"
+    return {
+        "item_id": str(raw.get("item_id") or raw.get("id") or raw.get("control_id") or "unknown"),
+        "label": str(raw.get("label") or raw.get("name") or raw.get("item_id") or raw.get("id") or "Standard OA"),
+        "verdict": verdict,
+        "evidence": str(raw.get("evidence") or raw.get("proof_redacted") or "redacted report"),
+        "last_checked_at": str(raw.get("last_checked_at") or report.get("generated_at") or "unknown"),
+    }
+
+
+def _standards_for_report(report: dict) -> list[dict]:
+    standards = report.get("standards") or []
+    if not isinstance(standards, list):
+        return []
+    normalized = [_normalize_standard(raw, report) for raw in standards if isinstance(raw, dict)]
+    return sorted(normalized, key=lambda x: x["item_id"])
+
+
 def collect_vps_app_inventory(built_at: str) -> dict:
     nodes = []
     for report in _read_inter_vps_reports():
         apps = _apps_for_report(report)
+        standards = _standards_for_report(report)
         statuses = [a["status"] for a in apps]
+        app_verdicts = [a["verdict"] for a in apps]
+        standard_verdicts = [s["verdict"] for s in standards]
         nodes.append({
             "node": str(report.get("node") or "unknown").lower(),
+            "vps_id": str(report.get("vps_id") or report.get("node") or "unknown"),
             "tenant": str(report.get("tenant") or report.get("scope") or "unknown"),
             "agent": str(report.get("agent") or "unknown"),
             "support": str(report.get("support") or ""),
-            "health_status": str((report.get("health") or {}).get("status") or report.get("status") or "unknown"),
+            "health_status": str((report.get("health") or {}).get("status") or report.get("status") or report.get("maturity") or "unknown").lower(),
             "generated_at": str(report.get("generated_at") or "unknown"),
             "source_path": str(report.get("_source_path") or ""),
             "apps": apps,
+            "standards": standards,
             "summary": {
                 "total": len(apps),
                 "ok": statuses.count("ok"),
@@ -1182,15 +1265,30 @@ def collect_vps_app_inventory(built_at: str) -> dict:
                 "missing": statuses.count("missing"),
                 "unknown": statuses.count("unknown"),
                 "blocked": statuses.count("blocked"),
+                "pass": app_verdicts.count("PASS"),
+                "fail": app_verdicts.count("FAIL"),
+                "verdict_unknown": app_verdicts.count("UNKNOWN"),
+            },
+            "standards_summary": {
+                "total": len(standards),
+                "pass": standard_verdicts.count("PASS"),
+                "fail": standard_verdicts.count("FAIL"),
+                "unknown": standard_verdicts.count("UNKNOWN"),
             },
         })
     totals = {"nodes": len(nodes), "apps": sum(n["summary"]["total"] for n in nodes)}
     for st in _VALID_APP_STATUSES:
         totals[st] = sum(n["summary"].get(st, 0) for n in nodes)
+    for verdict_key in ("pass", "fail", "verdict_unknown"):
+        totals[verdict_key] = sum(n["summary"].get(verdict_key, 0) for n in nodes)
+    totals["standards"] = sum(n["standards_summary"].get("total", 0) for n in nodes)
+    totals["standards_pass"] = sum(n["standards_summary"].get("pass", 0) for n in nodes)
+    totals["standards_fail"] = sum(n["standards_summary"].get("fail", 0) for n in nodes)
+    totals["standards_unknown"] = sum(n["standards_summary"].get("unknown", 0) for n in nodes)
     return {
         "schema": "oa.vps-app-inventory/1",
         "built_at": built_at,
-        "source": "oa.vps-report/v1 installed_apps + safe inference",
+        "source": "oa.vps-report/v1 installed_apps/apps + standards + safe inference",
         "required_apps": REQUIRED_VPS_APPS,
         "totals": totals,
         "nodes": nodes,
@@ -2133,37 +2231,54 @@ def page_clients(data: dict) -> str:
         html += '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 px-4 py-3 bg-gray-50">'
         html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("nodes", 0)))}</div><div class="text-xs text-gray-500">VPS rapportés</div></div>'
         html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("apps", 0)))}</div><div class="text-xs text-gray-500">apps suivies</div></div>'
-        for st, label in [("ok", "OK"), ("outdated", "Outdated"), ("missing", "Missing"), ("unknown", "Unknown")]:
+        for st, label in [("pass", "PASS app"), ("fail", "FAIL app"), ("verdict_unknown", "UNKNOWN app"), ("standards_fail", "FAIL standards")]:
             html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get(st, 0)))}</div><div class="text-xs text-gray-500">{label}</div></div>'
         html += '</div>'
         html += '<div class="divide-y divide-gray-100">'
         for node in inventory_nodes:
             summary = node.get("summary") or {}
+            standards_summary = node.get("standards_summary") or {}
             apps = node.get("apps") or []
+            standards_reported = node.get("standards") or []
             node_label = str(node.get("node") or "unknown")
+            tenant = str(node.get("tenant") or "unknown")
             agent = str(node.get("agent") or "unknown")
             generated = str(node.get("generated_at") or "unknown")
             health = str(node.get("health_status") or "unknown")
-            health_cls = "pill-ok" if health == "ok" else "pill-err" if health == "blocked" else "pill-warn" if health in {"degraded", "warning"} else "bg-gray-100 text-gray-600 border border-gray-200"
+            health_cls = "pill-ok" if health == "ok" else "pill-err" if health in {"blocked", "fail"} else "pill-warn" if health in {"degraded", "warning"} else "bg-gray-100 text-gray-600 border border-gray-200"
             html += '<div class="px-4 py-4">'
             html += '<div class="flex flex-wrap items-center justify-between gap-2 mb-3">'
-            html += f'<div><div class="text-sm font-bold text-gray-900 uppercase">{escape(node_label)}</div><div class="text-xs text-gray-400">agent {escape(agent)} · check {escape(generated)}</div></div>'
-            html += f'<div class="flex items-center gap-2"><span class="{health_cls} rounded-full px-2 py-0.5 text-xs font-medium">{escape(health)}</span><span class="text-xs text-gray-500">{escape(str(summary.get("ok", 0)))} ok · {escape(str(summary.get("unknown", 0)))} unknown</span></div>'
+            html += f'<div><div class="text-sm font-bold text-gray-900 uppercase">{escape(node_label)}</div><div class="text-xs text-gray-400">tenant {escape(tenant)} · agent {escape(agent)} · check {escape(generated)}</div></div>'
+            html += f'<div class="flex items-center gap-2"><span class="{health_cls} rounded-full px-2 py-0.5 text-xs font-medium">{escape(health)}</span><span class="text-xs text-gray-500">{escape(str(summary.get("pass", 0)))} PASS app · {escape(str(summary.get("fail", 0)))} FAIL app · {escape(str(standards_summary.get("fail", 0)))} FAIL standard</span></div>'
             html += '</div>'
-            html += '<div class="overflow-x-auto"><table class="min-w-full text-xs"><thead><tr class="text-left text-gray-400 uppercase"><th class="py-1 pr-3">App</th><th class="py-1 pr-3">Installée</th><th class="py-1 pr-3">Version</th><th class="py-1 pr-3">Attendue</th><th class="py-1 pr-3">Statut</th><th class="py-1 pr-3">Preuve</th></tr></thead><tbody>'
+            html += '<div class="overflow-x-auto"><table class="min-w-full text-xs"><thead><tr class="text-left text-gray-400 uppercase"><th class="py-1 pr-3">App</th><th class="py-1 pr-3">Installée</th><th class="py-1 pr-3">Version</th><th class="py-1 pr-3">Attendue</th><th class="py-1 pr-3">Verdict</th><th class="py-1 pr-3">Statut brut</th><th class="py-1 pr-3">Preuve</th></tr></thead><tbody>'
             for app in apps:
-                st = str(app.get("status") or "unknown")
-                st_cls = "pill-ok" if st == "ok" else "pill-err" if st in {"missing", "blocked"} else "pill-warn" if st == "outdated" else "bg-gray-100 text-gray-600 border border-gray-200"
+                verdict = str(app.get("verdict") or "UNKNOWN")
+                verdict_cls = "pill-ok" if verdict == "PASS" else "pill-err" if verdict == "FAIL" else "bg-gray-100 text-gray-600 border border-gray-200"
                 installed = "oui" if app.get("installed") else "non"
                 html += '<tr class="border-t border-gray-50">'
                 html += f'<td class="py-1.5 pr-3 font-semibold text-gray-800">{escape(str(app.get("name") or app.get("app_id") or ""))}</td>'
                 html += f'<td class="py-1.5 pr-3 text-gray-600">{installed}</td>'
                 html += f'<td class="py-1.5 pr-3 font-mono text-gray-600">{escape(str(app.get("version_installed") or "unknown"))}</td>'
                 html += f'<td class="py-1.5 pr-3 font-mono text-gray-500">{escape(str(app.get("version_expected") or "policy-current"))}</td>'
-                html += f'<td class="py-1.5 pr-3"><span class="{st_cls} rounded-full px-2 py-0.5 font-medium">{escape(st)}</span></td>'
+                html += f'<td class="py-1.5 pr-3"><span class="{verdict_cls} rounded-full px-2 py-0.5 font-medium">{escape(verdict)}</span></td>'
+                html += f'<td class="py-1.5 pr-3 text-gray-500">{escape(str(app.get("raw_status") or app.get("status") or "unknown"))}</td>'
                 html += f'<td class="py-1.5 pr-3 text-gray-400">{escape(str(app.get("source") or "report"))}</td>'
                 html += '</tr>'
-            html += '</tbody></table></div></div>'
+            html += '</tbody></table></div>'
+            if standards_reported:
+                html += '<div class="mt-4 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">'
+                html += f'<div class="text-xs font-bold text-gray-700 mb-2">Standards reportés · {escape(str(standards_summary.get("pass", 0)))} PASS · {escape(str(standards_summary.get("fail", 0)))} FAIL · {escape(str(standards_summary.get("unknown", 0)))} UNKNOWN</div>'
+                html += '<div class="grid md:grid-cols-2 gap-2 text-xs">'
+                for standard in standards_reported[:12]:
+                    verdict = str(standard.get("verdict") or "UNKNOWN")
+                    verdict_cls = "pill-ok" if verdict == "PASS" else "pill-err" if verdict == "FAIL" else "bg-gray-100 text-gray-600 border border-gray-200"
+                    html += '<div class="flex items-center justify-between gap-2 rounded border border-gray-100 bg-white px-2 py-1">'
+                    html += f'<span><span class="font-mono text-gray-500">{escape(str(standard.get("item_id") or ""))}</span> · {escape(str(standard.get("label") or ""))}</span>'
+                    html += f'<span class="{verdict_cls} rounded-full px-2 py-0.5 font-medium shrink-0">{escape(verdict)}</span>'
+                    html += '</div>'
+                html += '</div></div>'
+            html += '</div>'
         html += '</div></section>'
     else:
         html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800 mb-8">Inventaire apps/version absent — attendre un rapport <span class="font-mono">oa.vps-report/v1</span> avec <span class="font-mono">installed_apps</span>.</div>'

@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import os
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -7,8 +8,12 @@ PUBLIC = ROOT / "public"
 
 
 def test_qg_publishes_fleet_supervision_v0_api():
-    subprocess.run(["python3", "/home/omar/.hermes/scripts/oa_fleet_supervision_v0.py"], cwd=ROOT, check=True)
-    subprocess.run(["python3", "scripts/build.py"], cwd=ROOT, check=True)
+    subprocess.run(
+        ["python3", "scripts/build.py"],
+        cwd=ROOT,
+        check=True,
+        env={**os.environ, "QG_USE_TEST_FIXTURES": "1"},
+    )
     fleet_path = PUBLIC / "api" / "oa-fleet-supervision-v0.json"
     inventory_path = PUBLIC / "api" / "vps-app-inventory.json"
     assert fleet_path.exists()

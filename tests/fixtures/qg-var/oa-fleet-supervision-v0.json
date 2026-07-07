@@ -1,0 +1,18 @@
+{
+  "schema": "oa.fleet-supervision.v0",
+  "built_at": "2026-07-07T00:00:00Z",
+  "source": "tests/fixtures",
+  "totals": {
+    "nodes": 3,
+    "controls": 45,
+    "apps": 30,
+    "pass": 36,
+    "fail": 3,
+    "unknown": 6
+  },
+  "nodes": [
+    {"node": "oa-master", "status": "ok", "controls": {"total": 15, "pass": 13, "fail": 1, "unknown": 1}, "apps": {"total": 10}},
+    {"node": "jab", "status": "degraded", "controls": {"total": 15, "pass": 11, "fail": 1, "unknown": 3}, "apps": {"total": 10}},
+    {"node": "pantheos", "status": "degraded", "controls": {"total": 15, "pass": 12, "fail": 1, "unknown": 2}, "apps": {"total": 10}}
+  ]
+}

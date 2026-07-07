@@ -1,0 +1,29 @@
+{
+  "schema": "oa.resource-onboarding/internal.v0",
+  "generated_at": "2026-07-07T00:00:00Z",
+  "status": "ready",
+  "resource_scope_schema": "oa.resource-scope/v1",
+  "canonical_cloud_index": {
+    "total_unique_records": 222634,
+    "google_drive_api_full_records": 194326,
+    "onedrive_rclone_targeted_records": 20901,
+    "metadata_only": true,
+    "text_extraction_status": "planned_v3_controlled"
+  },
+  "onboarding_step": {
+    "steps": [
+      "choisir_sources",
+      "definir_perimetres",
+      "classer_sensibilite",
+      "regler_permissions_agents",
+      "valider_exclusions"
+    ]
+  },
+  "default_permissions": {
+    "agent_read": "allow_by_scope",
+    "agent_write": "deny_by_default",
+    "agent_organize": "deny_by_default"
+  },
+  "hard_exclusions": ["secret_refs", "raw_content", "file_names"],
+  "v3_text_extraction_priority": ["redacted_candidate_batch"]
+}

@@ -24,7 +24,7 @@ def build():
     # le test monkeypatch OA_AGENT_LOOP_REGISTRY_SEED force naturellement un 2e build.
     key = (os.environ.get("OA_AGENT_LOOP_REGISTRY_SEED"),)
     if _LAST_BUILD_KEY != key:
-        subprocess.run(["python3", "scripts/build.py"], cwd=ROOT, check=True)
+        subprocess.run(["python3", "scripts/build.py"], cwd=ROOT, check=True, env={**os.environ, "QG_USE_TEST_FIXTURES": "1"})
         _LAST_BUILD_KEY = key
 
 
@@ -297,23 +297,36 @@ def test_qg_vps_app_inventory_api_and_clients_surface():
     assert api.exists()
     payload = json.loads(api.read_text(encoding="utf-8"))
     assert payload["schema"] == "oa.vps-app-inventory/1"
-    assert payload["source"] == "oa.vps-report/v1 installed_apps + safe inference"
+    assert payload["source"] == "oa.vps-report/v1 installed_apps/apps + standards + safe inference"
     assert payload["totals"]["nodes"] >= 1
     assert payload["totals"]["apps"] >= 5
     assert {"hermes", "omarhub", "tailscale", "reverse-proxy", "inter-vps-reporter"} <= {
         app["app_id"] for node in payload["nodes"] for app in node["apps"]
     }
     for node in payload["nodes"]:
-        assert {"node", "agent", "health_status", "generated_at", "apps", "summary"} <= set(node)
+        assert {"node", "tenant", "agent", "health_status", "generated_at", "apps", "summary", "standards", "standards_summary"} <= set(node)
         for app in node["apps"]:
-            assert {"app_id", "name", "installed", "version_installed", "version_expected", "status", "source", "evidence", "last_checked_at"} <= set(app)
+            assert {"app_id", "name", "installed", "version_installed", "version_expected", "status", "verdict", "raw_status", "source", "evidence", "last_checked_at"} <= set(app)
             assert app["status"] in {"ok", "outdated", "missing", "unknown", "blocked"}
+            assert app["verdict"] in {"PASS", "FAIL", "UNKNOWN"}
             assert "REDACTED" not in app["evidence"] or isinstance(app["evidence"], str)
+    omar = next(node for node in payload["nodes"] if node["node"] == "omar")
+    assert omar["tenant"] == "oa-internal"
+    assert omar["summary"]["pass"] >= 1
+    assert omar["summary"]["fail"] >= 1
+    assert {"PASS", "FAIL", "UNKNOWN"} <= {standard["verdict"] for standard in omar["standards"]}
     clients = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
     assert "Inventaire apps/version par VPS" in clients
     assert "oa.vps-report/v1" in clients
     assert "/api/vps-app-inventory.json" in clients
     assert "Hermes local" in clients
+    assert "tenant oa-internal" in clients
+    assert "Standards reportés" in clients
+    assert "OBS-SERVICES-01" in clients
+    assert "MAINT-DOCTOR-01" in clients
+    assert "PASS" in clients
+    assert "FAIL" in clients
+    assert "UNKNOWN" in clients
 
 
 def test_qg_resource_onboarding_surface_and_appomar_spec():
