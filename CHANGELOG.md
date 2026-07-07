@@ -1,5 +1,11 @@
 # Changelog
 
+## V0.9.0 — 2026-07-07
+
+- Nouvelle page `/carte/` (2e position de nav, sous le manifeste) — la vision Alex : le puzzle OA entier, une ligne par strate (Produit/Funnel, Fonctionnel/Apps, Technique/Infra, Sécurité, Data, Agents/Boucles), une cellule colorée par module avec KPI et lien source.
+- Nouveau collecteur `scripts/collect_carte.py` (schéma `oa.carte/1`, `/api/carte.json`) : mappe standards OmarTop × verdicts vps-report, chantiers PRODUCT-TRUTH, inventaire apps, boucles et blocages sécurité. Règle des couleurs gravée : vert=mesuré conforme, jaune=partiel/UNKNOWN mesuré, rouge=FAIL/blocage, gris=jamais mesuré (dette de mesure, jamais un acquis).
+- KPI global à deux chiffres (« puzzle mesuré à X % · conforme à Y % du mesuré ») + KPI par strate ; `var/boucles.json` republié en `/api/boucles.json` ; tests purs du collecteur sur fixtures (zéro réseau, zéro ellipsis dans les tooltips).
+
 ## V0.8.5 — 2026-06-30
 
 - QG `/ops/` qualifie désormais le signal Docker : `theoretical_reclaimable_hint` reste visible mais ne devient une action que si des images dangling, containers arrêtés ou volumes orphelins sont prouvés.

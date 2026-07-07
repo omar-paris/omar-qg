@@ -9,6 +9,7 @@ _LAST_BUILD_KEY = object()
 
 ROUTES = {
     "/": PUBLIC / "index.html",
+    "/carte": PUBLIC / "carte" / "index.html",
     "/objectifs": PUBLIC / "objectifs" / "index.html",
     "/ops": PUBLIC / "ops" / "index.html",
     "/partenaires": PUBLIC / "partenaires" / "index.html",

@@ -89,6 +89,20 @@ def _load_blocages_collector():
     return mod
 
 
+def _load_carte_collector():
+    """Importe scripts/collect_carte.py — la Carte du puzzle (var/carte.json)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "collect_carte", Path(__file__).resolve().parent / "collect_carte.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("collect_carte.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 VERSION = "V" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 DOMAIN = "qg.omar.paris"
 STATE_DB = Path("/home/omar/.hermes/state.db")
@@ -1512,6 +1526,7 @@ FONTS    = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;
 
 NAV_ITEMS = [
     ("/manifeste/",   "manifeste",   "Manifeste",   'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25'),
+    ("/carte/",       "carte",       "Carte",       'M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z'),
     ("/",             "registry",    "Registry",    'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z'),
     ("/blocages/",    "blocages",    "Blocages",    'M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636'),
     ("/objectifs/",   "objectifs",   "Objectifs",   'M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418'),
@@ -2993,6 +3008,99 @@ def page_manifeste(manifeste: dict) -> str:
     return html
 
 
+_CARTE_CELL_CLS = {
+    "vert":  "bg-green-100 border border-green-300 text-green-900 hover:border-green-500",
+    "jaune": "bg-amber-100 border border-amber-300 text-amber-900 hover:border-amber-500",
+    "rouge": "bg-red-100 border border-red-300 text-red-900 hover:border-red-500",
+    "gris":  "bg-gray-100 border border-dashed border-gray-300 text-gray-500 hover:border-gray-400",
+}
+
+_CARTE_DOT_CLS = {
+    "vert": "bg-green-500", "jaune": "bg-amber-400", "rouge": "bg-red-500", "gris": "bg-gray-300",
+}
+
+
+def page_carte(carte: dict) -> str:
+    """La Carte — le puzzle OA, toutes les strates (vision Alex 07/07).
+
+    Source unique : var/carte.json (collect_carte.py, republié en /api/carte.json).
+    Une ligne par strate, une cellule par module, couleur TOUJOURS issue d'une
+    source mesurée — le gris est une dette de mesure, jamais un acquis.
+    """
+    html = (
+        '<div class="mb-6">'
+        '<h1 class="text-xl font-bold text-gray-900">Carte — le puzzle OA, strate par strate</h1>'
+        '<p class="text-sm text-gray-500 mt-0.5">Toutes les briques — produit, fonctionnel, technique, sécurité, data, agents — '
+        'où on en est, ce qui est problématique, où on doit aller. '
+        'Chaque couleur vient d\'une source mesurée — source <a href="/api/carte.json" class="text-blue-500 hover:underline">carte.json</a>.</p>'
+        '</div>'
+    )
+    strates = carte.get("strates", []) if isinstance(carte, dict) else []
+    if not strates:
+        return html + '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-700">Carte indisponible — var/carte.json absent ou vide (run scripts/collect_carte.py).</div>'
+
+    g = carte.get("kpi_global", {}) or {}
+    compteurs = g.get("compteurs", {}) or {}
+    html += (
+        '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-4">'
+        '<div class="text-xs font-semibold uppercase tracking-wide text-blue-600">KPI global — deux chiffres, l\'honnêteté du gris</div>'
+        f'<div class="mt-1 text-lg font-bold text-gray-900">{escape(str(g.get("libelle") or ""))}</div>'
+        f'<div class="mt-1 text-xs text-gray-500">{g.get("cellules", 0)} cellules · '
+        f'{compteurs.get("vert", 0)} vert · {compteurs.get("jaune", 0)} jaune · {compteurs.get("rouge", 0)} rouge · '
+        f'{compteurs.get("gris", 0)} gris (dette de mesure) · généré {escape(str(carte.get("generated_at") or ""))}</div>'
+        '</div>'
+    )
+
+    regles = carte.get("regle_couleurs", {}) or {}
+    html += '<div class="bg-white rounded-xl border border-gray-200 px-5 py-3 mb-6"><div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Légende — la règle des couleurs</div><div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">'
+    for couleur in ("vert", "jaune", "rouge", "gris"):
+        html += (
+            f'<div class="flex items-start gap-2 text-xs text-gray-600">'
+            f'<span class="mt-1 w-2.5 h-2.5 rounded-sm shrink-0 {_CARTE_DOT_CLS[couleur]}"></span>'
+            f'<span><span class="font-semibold">{couleur}</span> = {escape(str(regles.get(couleur) or ""))}</span></div>'
+        )
+    html += '</div></div>'
+
+    for strate in strates:
+        kpi = strate.get("kpi", {}) or {}
+        cpt = kpi.get("compteurs", {}) or {}
+        html += (
+            '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-4">'
+            '<div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">'
+            f'<div class="flex items-baseline gap-3"><h2 class="text-sm font-bold text-gray-900">{escape(str(strate.get("nom") or ""))}</h2>'
+            f'<span class="text-sm font-semibold text-blue-700">{escape(str(kpi.get("valeur") or ""))}</span></div>'
+            f'<div class="text-xs text-gray-400">{escape(str(kpi.get("label") or ""))} · cible : {escape(str(kpi.get("cible") or ""))} · source : {escape(str(kpi.get("source") or ""))}</div>'
+            '</div>'
+            '<div class="flex flex-wrap gap-1">'
+        )
+        for cell in strate.get("modules", []) or []:
+            couleur = cell.get("couleur") if cell.get("couleur") in _CARTE_CELL_CLS else "gris"
+            ckpi = cell.get("kpi", {}) or {}
+            tooltip = (
+                f'{cell.get("nom") or ""} — {ckpi.get("label") or ""} : {ckpi.get("valeur") or ""} '
+                f'(cible : {ckpi.get("cible") or ""}) · source : {ckpi.get("source") or ""}'
+            )
+            if cell.get("preuve"):
+                tooltip += f' · preuve : {cell["preuve"]}'
+            lien = str(cell.get("lien") or "#")
+            ext = ' target="_blank" rel="noopener"' if lien.startswith("http") else ""
+            html += (
+                f'<a href="{escape(lien)}"{ext} title="{escape(tooltip)}" '
+                f'class="px-1.5 py-0.5 rounded text-[10px] font-medium leading-4 {_CARTE_CELL_CLS[couleur]} transition-colors">'
+                f'{escape(str(cell.get("nom") or ""))}</a>'
+            )
+        html += '</div>'
+        html += (
+            f'<div class="mt-2 text-xs text-gray-400">{cpt.get("vert", 0)} vert · {cpt.get("jaune", 0)} jaune · '
+            f'{cpt.get("rouge", 0)} rouge · {cpt.get("gris", 0)} gris — {cpt.get("total", 0)} modules</div>'
+        )
+        html += '</div>'
+
+    for err in carte.get("errors", []) or []:
+        html += f'<div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 mb-2 text-xs text-amber-700">Source dégradée : {escape(str(err))}</div>'
+    return html
+
+
 def page_chantiers(chantiers: list) -> str:
     """Tableau Now/Next/Later des 8 briques (PRODUCT-TRUTH, Fable 4D System Rescue).
 
@@ -3631,8 +3739,26 @@ def main(argv: list[str] | None = None) -> None:
                 "errors": [f"blocages_unavailable: {exc.__class__.__name__}"],
             }
 
-
     data = payload(built_at)
+
+    # Carte du puzzle (vision Alex 07/07) : collectée juste après payload() pour
+    # recevoir l'inventaire apps FRAIS (le snapshot public/ date du build
+    # précédent) — best-effort comme collect_blocages, ne casse jamais le build.
+    try:
+        carte_payload = _load_carte_collector().collect(
+            write=True, app_inventory=data.get("vps_app_inventory")
+        )
+    except Exception as exc:  # ne casse jamais le build QG
+        carte_payload = _read_var_json("carte.json")
+        if not isinstance(carte_payload, dict) or not carte_payload:
+            carte_payload = {
+                "schema": "oa.carte/1",
+                "generated_at": built_at,
+                "regle_couleurs": {},
+                "kpi_global": {},
+                "strates": [],
+                "errors": [f"carte_unavailable: {exc.__class__.__name__}"],
+            }
     ledger = daily_ledger(data, built_at)
     ledger_history = _merge_daily_ledgers(ledger, previous_ledgers)
 
@@ -3650,7 +3776,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
-    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "manifeste.json", "builder-pr-autogate.json", "oa-fleet-supervision-v0.json", "vps-resource-onboarding-v0.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "boucles.json", "manifeste.json", "builder-pr-autogate.json", "oa-fleet-supervision-v0.json", "vps-resource-onboarding-v0.json"):
         var_payload = _read_var_json(var_name)
         if var_payload:
             if var_name == "vps-resource-onboarding-v0.json":
@@ -3659,6 +3785,10 @@ def main(argv: list[str] | None = None) -> None:
     # Blocages : snapshot collecté en tête de build → /api/blocages.json.
     (tmp / "api" / "blocages.json").write_text(
         json.dumps(blocages_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    # Carte du puzzle : snapshot collecté en tête de build → /api/carte.json.
+    (tmp / "api" / "carte.json").write_text(
+        json.dumps(carte_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     ledger_dir = tmp / "api" / "daily-ledger"
     ledger_dir.mkdir(parents=True, exist_ok=True)
@@ -3818,6 +3948,7 @@ def main(argv: list[str] | None = None) -> None:
 
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
+        ("/carte/",       "carte",       "Carte du puzzle",         page_carte(carte_payload)),
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet)),
         ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
