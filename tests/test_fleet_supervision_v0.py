@@ -33,11 +33,15 @@ def test_qg_publishes_fleet_supervision_v0_api():
 
     clients_html = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
     assert "/api/oa-fleet-supervision-v0.json" in clients_html
-    assert "API standards OA" in clients_html
-    assert "Standards OA · 3 VPS" in clients_html
-    assert "Matrice V0 OmarTop/QG/Hub" in clients_html
-    assert "oa-master" in clients_html.lower()
+    assert "API compat V0" in clients_html
+    assert "Compat matrice V0 · non supervision" in clients_html
+    assert "Cockpit supervision /ops" in clients_html
+    assert "Standards OA · 3 VPS" not in clients_html
+    assert "Standards OA — supervision 3 VPS" not in clients_html
+    assert clients_html.count("oa.fleet-supervision.v0") == 1
+    assert "oa-master (alias omar)" in clients_html.lower()
+    assert "ne crée pas un 4e VPS de supervision" in clients_html
     assert "pantheos" in clients_html.lower()
     assert "jab" in clients_html.lower()
-    standards_section = clients_html.split("Standards OA · 3 VPS", 1)[1].split("Inventaire apps/version", 1)[0]
+    standards_section = clients_html.split("Compat matrice V0 · non supervision", 1)[1].split("Inventaire apps/version", 1)[0]
     assert "IP publique" not in standards_section

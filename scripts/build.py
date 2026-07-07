@@ -1242,6 +1242,20 @@ def _standards_for_report(report: dict) -> list[dict]:
     return sorted(normalized, key=lambda x: x["item_id"])
 
 
+APP_INVENTORY_ALIAS_NODES = {"oa-master": "omar"}
+
+
+def _inventory_node_alias(node: str) -> dict:
+    canonical = APP_INVENTORY_ALIAS_NODES.get(node, node)
+    if canonical != node:
+        return {
+            "canonical_node": canonical,
+            "alias_of": canonical,
+            "alias_note": f"{node} est un flux santé local du même VPS que {canonical}; non compté comme VPS de supervision séparé.",
+        }
+    return {"canonical_node": canonical}
+
+
 def collect_vps_app_inventory(built_at: str) -> dict:
     nodes = []
     for report in _read_inter_vps_reports():
@@ -1250,8 +1264,10 @@ def collect_vps_app_inventory(built_at: str) -> dict:
         statuses = [a["status"] for a in apps]
         app_verdicts = [a["verdict"] for a in apps]
         standard_verdicts = [s["verdict"] for s in standards]
+        node_name = str(report.get("node") or "unknown").lower()
         nodes.append({
-            "node": str(report.get("node") or "unknown").lower(),
+            "node": node_name,
+            **_inventory_node_alias(node_name),
             "vps_id": str(report.get("vps_id") or report.get("node") or "unknown"),
             "tenant": str(report.get("tenant") or report.get("scope") or "unknown"),
             "agent": str(report.get("agent") or "unknown"),
@@ -1279,7 +1295,20 @@ def collect_vps_app_inventory(built_at: str) -> dict:
                 "unknown": standard_verdicts.count("UNKNOWN"),
             },
         })
-    totals = {"nodes": len(nodes), "apps": sum(n["summary"]["total"] for n in nodes)}
+    aliases = {
+        alias: {
+            "alias_of": canonical,
+            "note": f"{alias} est affiché comme compatibilité inventaire; /ops/ traite {canonical} comme le VPS canonique.",
+        }
+        for alias, canonical in sorted(APP_INVENTORY_ALIAS_NODES.items())
+        if any(n.get("node") == alias for n in nodes)
+    }
+    totals = {
+        "nodes": len(nodes),
+        "canonical_nodes": len({n.get("canonical_node") or n.get("node") for n in nodes}),
+        "alias_nodes": len([n for n in nodes if n.get("alias_of")]),
+        "apps": sum(n["summary"]["total"] for n in nodes),
+    }
     for st in _VALID_APP_STATUSES:
         totals[st] = sum(n["summary"].get(st, 0) for n in nodes)
     for verdict_key in ("pass", "fail", "verdict_unknown"):
@@ -1292,6 +1321,9 @@ def collect_vps_app_inventory(built_at: str) -> dict:
         "schema": "oa.vps-app-inventory/1",
         "built_at": built_at,
         "source": "oa.vps-report/v1 installed_apps/apps + standards + safe inference",
+        "supervision_source": "/ops/ · /api/ops/vps-fleet.json",
+        "alias_policy": "Les alias d'inventaire restent visibles pour compatibilité, mais ne créent pas de VPS de supervision supplémentaire.",
+        "aliases": aliases,
         "required_apps": REQUIRED_VPS_APPS,
         "totals": totals,
         "nodes": nodes,
@@ -2284,62 +2316,14 @@ def page_clients(data: dict) -> str:
                 )
         html += '</div>'
 
-    standards = data.get("fleet_supervision_v0") or {}
-    standards_nodes = standards.get("nodes") or []
-    if standards_nodes:
-        totals = standards.get("totals") or {}
-        html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
-        html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
-        html += '<div><h2 class="text-sm font-bold text-gray-900">Standards OA — supervision 3 VPS</h2><p class="text-xs text-gray-500">Score pass/fail/unknown issu de <span class="font-mono">oa.fleet-supervision.v0</span> · vue QG interne, sans IP ni identifiants sensibles.</p></div>'
-        html += '<a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API standards OA</a>'
-        html += '</div>'
-        html += '<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 px-4 py-3 bg-gray-50">'
-        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("nodes", len(standards_nodes))))}</div><div class="text-xs text-gray-500">VPS suivis</div></div>'
-        html += f'<div><div class="text-lg font-bold text-green-700">{escape(str(totals.get("pass", 0)))}</div><div class="text-xs text-gray-500">pass</div></div>'
-        html += f'<div><div class="text-lg font-bold text-red-700">{escape(str(totals.get("fail", 0)))}</div><div class="text-xs text-gray-500">fail</div></div>'
-        html += f'<div><div class="text-lg font-bold text-gray-700">{escape(str(totals.get("unknown", 0)))}</div><div class="text-xs text-gray-500">unknown</div></div>'
-        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("controls", 0)))}</div><div class="text-xs text-gray-500">contrôles</div></div>'
-        html += '</div>'
-        html += '<div class="grid lg:grid-cols-3 gap-4 p-4">'
-        for node in standards_nodes:
-            name = str(node.get("node") or "unknown")
-            compliance = node.get("compliance") or {}
-            passed = int(compliance.get("pass") or 0)
-            failed = int(compliance.get("fail") or 0)
-            unknown = int(compliance.get("unknown") or 0)
-            total = passed + failed + unknown
-            score = round((passed / total) * 100) if total else 0
-            score_cls = "text-green-700" if failed == 0 and unknown == 0 else "text-red-700" if failed else "text-amber-700"
-            gaps = [g for g in (node.get("top_gaps") or []) if isinstance(g, dict)][:3]
-            gap_rows = ""
-            if gaps:
-                for gap in gaps:
-                    st = str(gap.get("status") or "unknown")
-                    st_cls = "pill-err" if st == "fail" else "bg-gray-100 text-gray-600 border border-gray-200"
-                    gap_rows += (
-                        '<li class="flex items-start justify-between gap-2 py-1 border-t border-gray-50 first:border-0">'
-                        f'<span><span class="font-mono text-[10px] text-gray-400">{escape(str(gap.get("control_id") or ""))}</span> '
-                        f'{escape(str(gap.get("label") or "Gap non nommé"))}</span>'
-                        f'<span class="{st_cls} rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0">{escape(st)}</span>'
-                        '</li>'
-                    )
-            else:
-                gap_rows = '<li class="py-1 text-green-700">Aucun gap prioritaire remonté.</li>'
-            html += '<article class="rounded-xl border border-gray-200 p-4 bg-white">'
-            html += f'<div class="flex items-center justify-between gap-3"><h3 class="text-sm font-bold text-gray-900 uppercase">{escape(name)}</h3><div class="text-2xl font-bold {score_cls}">{escape(str(score))}%</div></div>'
-            html += f'<div class="mt-1 text-xs text-gray-500">{escape(str(passed))} pass · {escape(str(failed))} fail · {escape(str(unknown))} unknown</div>'
-            html += f'<ul class="mt-3 text-xs text-gray-600">{gap_rows}</ul>'
-            html += '</article>'
-        html += '</div></section>'
-
     fleet_supervision = data.get("fleet_supervision_v0") or {}
     fleet_nodes = fleet_supervision.get("nodes") or []
     if fleet_nodes:
         totals = fleet_supervision.get("totals") or {}
         html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
         html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
-        html += '<div><h2 class="text-sm font-bold text-gray-900">Standards OA · 3 VPS</h2><p class="text-xs text-gray-500">Matrice V0 OmarTop/QG/Hub · contrôles redacted · fail = action à fermer, unknown = preuve insuffisante.</p></div>'
-        html += '<a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API standards OA</a>'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Compat matrice V0 · non supervision</h2><p class="text-xs text-gray-500">Matrice legacy <span class="font-mono">oa.fleet-supervision.v0</span> conservée pour transition. La source de supervision flotte est <a href="/ops/" class="text-blue-500 hover:underline">/ops/</a> · <span class="font-mono">/api/ops/vps-fleet.json</span>.</p></div>'
+        html += '<div class="flex gap-3"><a href="/ops/" class="text-xs text-blue-500 hover:underline">Cockpit supervision /ops</a><a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API compat V0</a></div>'
         html += '</div>'
         html += '<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 px-4 py-3 bg-gray-50">'
         for key, label in [("nodes", "VPS"), ("controls", "Contrôles"), ("pass", "Pass"), ("fail", "Fail"), ("unknown", "Unknown")]:
@@ -2368,11 +2352,11 @@ def page_clients(data: dict) -> str:
         totals = app_inventory.get("totals") or {}
         html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
         html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
-        html += '<div><h2 class="text-sm font-bold text-gray-900">Inventaire apps/version par VPS</h2><p class="text-xs text-gray-500">Source: rapports <span class="font-mono">oa.vps-report/v1</span> · redacted · aucun log brut.</p></div>'
-        html += '<div class="flex gap-3"><a href="/api/vps-app-inventory.json" class="text-xs text-blue-500 hover:underline">API inventory</a><a href="/api/oa-fleet-supervision-v0.json" class="text-xs text-blue-500 hover:underline">API standards OA</a></div>'
+        html += '<div><h2 class="text-sm font-bold text-gray-900">Inventaire apps/version par VPS</h2><p class="text-xs text-gray-500">Source: rapports <span class="font-mono">oa.vps-report/v1</span> · inventaire silencieux; supervision flotte uniquement sur <a href="/ops/" class="text-blue-500 hover:underline">/ops/</a>.</p></div>'
+        html += '<div class="flex gap-3"><a href="/api/vps-app-inventory.json" class="text-xs text-blue-500 hover:underline">API inventory</a><a href="/ops/" class="text-xs text-blue-500 hover:underline">Cockpit supervision /ops</a></div>'
         html += '</div>'
         html += '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 px-4 py-3 bg-gray-50">'
-        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("nodes", 0)))}</div><div class="text-xs text-gray-500">VPS rapportés</div></div>'
+        html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("canonical_nodes", totals.get("nodes", 0))))}</div><div class="text-xs text-gray-500">VPS canoniques</div></div>'
         html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get("apps", 0)))}</div><div class="text-xs text-gray-500">apps suivies</div></div>'
         for st, label in [("pass", "PASS app"), ("fail", "FAIL app"), ("verdict_unknown", "UNKNOWN app"), ("standards_fail", "FAIL standards")]:
             html += f'<div><div class="text-lg font-bold text-gray-900">{escape(str(totals.get(st, 0)))}</div><div class="text-xs text-gray-500">{label}</div></div>'
@@ -2383,7 +2367,10 @@ def page_clients(data: dict) -> str:
             standards_summary = node.get("standards_summary") or {}
             apps = node.get("apps") or []
             standards_reported = node.get("standards") or []
-            node_label = str(node.get("node") or "unknown")
+            raw_node_label = str(node.get("node") or "unknown")
+            alias_of = str(node.get("alias_of") or "")
+            canonical_node = str(node.get("canonical_node") or raw_node_label)
+            node_label = f"{raw_node_label} (alias {alias_of})" if alias_of else raw_node_label
             tenant = str(node.get("tenant") or "unknown")
             agent = str(node.get("agent") or "unknown")
             generated = str(node.get("generated_at") or "unknown")
@@ -2394,6 +2381,8 @@ def page_clients(data: dict) -> str:
             html += f'<div><div class="text-sm font-bold text-gray-900 uppercase">{escape(node_label)}</div><div class="text-xs text-gray-400">tenant {escape(tenant)} · agent {escape(agent)} · check {escape(generated)}</div></div>'
             html += f'<div class="flex items-center gap-2"><span class="{health_cls} rounded-full px-2 py-0.5 text-xs font-medium">{escape(health)}</span><span class="text-xs text-gray-500">{escape(str(summary.get("pass", 0)))} PASS app · {escape(str(summary.get("fail", 0)))} FAIL app · {escape(str(standards_summary.get("fail", 0)))} FAIL standard</span></div>'
             html += '</div>'
+            if alias_of:
+                html += f'<div class="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">Alias explicite: <span class="font-mono">{escape(raw_node_label)}</span> est rattaché à <span class="font-mono">{escape(canonical_node)}</span>. Il reste visible ici pour compatibilité inventaire, mais ne crée pas un 4e VPS de supervision; voir <a href="/ops/" class="underline">/ops/</a>.</div>'
             html += '<div class="overflow-x-auto"><table class="min-w-full text-xs"><thead><tr class="text-left text-gray-400 uppercase"><th class="py-1 pr-3">App</th><th class="py-1 pr-3">Installée</th><th class="py-1 pr-3">Version</th><th class="py-1 pr-3">Attendue</th><th class="py-1 pr-3">Verdict</th><th class="py-1 pr-3">Statut brut</th><th class="py-1 pr-3">Preuve</th></tr></thead><tbody>'
             for app in apps:
                 verdict = str(app.get("verdict") or "UNKNOWN")
