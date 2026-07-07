@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import ssl
 import sqlite3
 import subprocess
@@ -1255,6 +1256,14 @@ def payload(built_at: str) -> dict:
     if not isinstance(fleet_supervision_v0, dict):
         fleet_supervision_v0 = {}
     vps_app_inventory = collect_vps_app_inventory(built_at)
+    resource_onboarding_raw = _read_var_json("vps-resource-onboarding-v0.json")
+    if not isinstance(resource_onboarding_raw, dict):
+        resource_onboarding_raw = {}
+    # Public QG data object backs /api/core-repos.json as well as page render.
+    # Never carry the internal resource-onboarding payload into that object:
+    # it may include local paths/source names that are useful to builders but
+    # forbidden on public/API surfaces.
+    resource_onboarding = sanitize_resource_onboarding_public(resource_onboarding_raw)
     return {
         "version": VERSION, "domain": DOMAIN, "built_at": built_at,
         "items": items, "counts": counts,
@@ -1263,6 +1272,7 @@ def payload(built_at: str) -> dict:
         "fleet_supervision_v0": fleet_supervision_v0,
         "vps": vps,
         "vps_app_inventory": vps_app_inventory,
+        "resource_onboarding": resource_onboarding,
         "triage": {"built_at": triage.get("built_at"), "llm_used": triage.get("llm_used"),
                    "top3": triage.get("top3", [])},
     }
@@ -1636,6 +1646,9 @@ def page_app_detail(data: dict, app: dict, builds: dict, ledgers: list[dict]) ->
     html += f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-xs text-gray-500">Head local</div><div class="text-sm font-mono text-gray-700 break-words mt-1">{escape(git.get("head") or "—")}</div></div>'
     html += '</div>'
 
+    if app.get("id") == "app":
+        html += appomar_resource_onboarding_spec(data.get("resource_onboarding") or {})
+
     html += '<div class="grid lg:grid-cols-2 gap-6 mb-6">'
     html += '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden"><div class="px-4 py-3 border-b border-gray-100"><h2 class="text-sm font-bold text-gray-900">P0/P1 du jour</h2><p class="text-xs text-gray-500">Source: triage QG existant, trié P0 puis P1.</p></div>'
     if top:
@@ -1808,6 +1821,188 @@ def _link_status_dot(status: str) -> str:
     return colors.get(status, "#d1d5db")
 
 
+def _fmt_int(value) -> str:
+    try:
+        return f"{int(value):,}".replace(",", " ")
+    except Exception:
+        return "—"
+
+
+def _resource_onboarding_summary(payload: dict) -> dict:
+    canonical = payload.get("canonical_cloud_index") or {}
+    permissions = payload.get("default_permissions") or {}
+    onboarding = payload.get("onboarding_step") or {}
+    exclusions = payload.get("hard_exclusions") or []
+    return {
+        "schema": str(payload.get("resource_scope_schema") or "oa.resource-scope/v1"),
+        "generated_at": str(payload.get("generated_at") or "unknown"),
+        "status": str(payload.get("status") or "unknown"),
+        "total_records": canonical.get("total_unique_records"),
+        "google_records": canonical.get("google_drive_api_full_records"),
+        "onedrive_records": canonical.get("onedrive_rclone_targeted_records"),
+        "metadata_only": bool(canonical.get("metadata_only", True)),
+        "text_extraction_status": str(canonical.get("text_extraction_status") or "planned_v3_controlled"),
+        "permissions": permissions,
+        "onboarding_steps": onboarding.get("steps") or [],
+        "exclusions_count": len(exclusions) if isinstance(exclusions, list) else 0,
+        # Security gate: QG public surface must not expose source names/subsets.
+        # Keep only aggregate counts/status; full contract stays internal under var/.
+        "v3_priority_count": len(payload.get("v3_text_extraction_priority") or []) if isinstance(payload.get("v3_text_extraction_priority"), list) else 0,
+    }
+
+
+def sanitize_resource_onboarding_public(payload: dict) -> dict:
+    """Return the public/QG-safe resource onboarding snapshot.
+
+    The internal contract may contain absolute local paths and source labels. Athena
+    gate t_cb7a0754 requires public/api and /clients/ to expose counters/statuses
+    only: no local paths, no source names, no raw file/document labels.
+    """
+    if not isinstance(payload, dict) or not payload:
+        return {}
+    summary = _resource_onboarding_summary(payload)
+    permissions = summary.get("permissions") if isinstance(summary.get("permissions"), dict) else {}
+    steps = summary.get("onboarding_steps") if isinstance(summary.get("onboarding_steps"), list) else []
+    return {
+        "schema": "oa.resource-onboarding/public.v0",
+        "generated_at": summary.get("generated_at"),
+        "status": summary.get("status"),
+        "resource_scope_schema": summary.get("schema"),
+        "visibility": "public_qg_redacted_counters_only",
+        "canonical_cloud_index": {
+            "total_unique_records": summary.get("total_records"),
+            "google_drive_api_full_records": summary.get("google_records"),
+            "onedrive_rclone_targeted_records": summary.get("onedrive_records"),
+            "metadata_only": summary.get("metadata_only"),
+            "text_extraction_status": summary.get("text_extraction_status"),
+        },
+        "onboarding_step": {
+            "name": "Ressources & connaissances",
+            "position_after": "Connexions",
+            "steps": steps,
+        },
+        "default_permissions": permissions,
+        "redaction": {
+            "absolute_paths": "removed",
+            "source_names": "removed",
+            "file_names": "never_published",
+            "raw_content": "never_published",
+            "v3_priority_sources_count": summary.get("v3_priority_count"),
+            "hard_exclusions_count": summary.get("exclusions_count"),
+        },
+    }
+
+
+def redact_public_api_payload(value):
+    """Recursively redact local filesystem paths from public JSON payloads."""
+    if isinstance(value, dict):
+        return {k: redact_public_api_payload(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [redact_public_api_payload(v) for v in value]
+    if isinstance(value, str):
+        value = re.sub(r"/home/omar/[^\"'\\s<>]+", "[redacted-path]", value)
+        value = re.sub(r"/var/[^\"'\\s<>]+", "[redacted-path]", value)
+        return value
+    return value
+
+
+def _resource_metric_card(label: str, value: str, sub: str) -> str:
+    return (
+        '<div class="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">'
+        f'<div class="text-lg font-bold text-gray-900">{escape(value)}</div>'
+        f'<div class="text-xs font-semibold text-gray-600">{escape(label)}</div>'
+        f'<div class="text-xs text-gray-400 mt-1">{escape(sub)}</div>'
+        '</div>'
+    )
+
+
+def qg_resource_onboarding_section(payload: dict) -> str:
+    if not isinstance(payload, dict) or not payload:
+        return (
+            '<section class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 mb-8 text-sm text-amber-800">'
+            'Onboarding ressources documentaires absent — publier <span class="font-mono">vps-resource-onboarding-v0.json</span>.'
+            '</section>'
+        )
+    summary = _resource_onboarding_summary(payload)
+    permissions = summary["permissions"] if isinstance(summary["permissions"], dict) else {}
+    permission_rows = [
+        ("read_metadata", "lecture metadata"),
+        ("read_text", "lecture texte"),
+        ("write_new", "écriture nouvelle"),
+        ("update_existing", "modification"),
+        ("organize_suggest", "classement suggéré"),
+        ("organize_apply", "classement appliqué"),
+        ("delete", "suppression"),
+    ]
+    perms_html = "".join(
+        '<div class="flex items-center justify-between gap-2 py-1 border-t border-gray-50 first:border-0">'
+        f'<span>{escape(label)}</span><span class="font-mono text-gray-500 text-[11px]">{escape(str(permissions.get(key, "—")))}</span></div>'
+        for key, label in permission_rows
+    )
+    v3_count = int(summary.get("v3_priority_count") or 0)
+    v3_html = f'<span class="rounded bg-blue-50 text-blue-700 px-2 py-0.5 text-xs">{escape(str(v3_count))} lots candidats redacted</span>'
+    steps = [str(x).replace("_", " ") for x in (summary.get("onboarding_steps") or [])][:7]
+    steps_html = "".join(f'<li>{escape(step)}</li>' for step in steps)
+    return (
+        '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">'
+        '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        '<div><h2 class="text-sm font-bold text-gray-900">Ressources &amp; connaissances — onboarding VPS/client</h2>'
+        f'<p class="text-xs text-gray-500">Vue gouvernance metadata-only · modèle <span class="font-mono">{escape(summary["schema"])}</span> · aucun nom de fichier ni contenu brut.</p></div>'
+        '<a href="/api/vps-resource-onboarding-v0.json" class="text-xs text-blue-500 hover:underline">API onboarding</a>'
+        '</div>'
+        '<div class="grid md:grid-cols-4 gap-3 px-4 py-3 bg-gray-50">'
+        f'{_resource_metric_card("Cloud Index records", _fmt_int(summary.get("total_records")), "records uniques metadata")}'
+        f'{_resource_metric_card("Google Drive API full", _fmt_int(summary.get("google_records")), "crawl API complet, lecture seule")}'
+        f'{_resource_metric_card("OneDrive ciblé", _fmt_int(summary.get("onedrive_records")), "rclone ciblé V2 conservé")}'
+        f'{_resource_metric_card("V3 extraction contrôlée", "0 lancé", summary.get("text_extraction_status") or "planned")}'
+        '</div>'
+        '<div class="grid lg:grid-cols-3 gap-4 p-4">'
+        '<article class="rounded-xl border border-gray-100 px-4 py-3 bg-white"><h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Permissions agents</h3>'
+        f'<div class="text-xs text-gray-600">{perms_html}</div></article>'
+        '<article class="rounded-xl border border-gray-100 px-4 py-3 bg-white"><h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Étape AppOmar</h3>'
+        f'<ol class="list-decimal pl-4 text-xs text-gray-600 space-y-1">{steps_html}</ol></article>'
+        '<article class="rounded-xl border border-gray-100 px-4 py-3 bg-white"><h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Exclusions &amp; suivi</h3>'
+        f'<div class="text-sm font-semibold text-gray-900">{escape(str(summary.get("exclusions_count")))} familles exclues par défaut</div>'
+        '<div class="text-xs text-gray-500 mt-1">secrets, personnel, médical, corbeille, caches/builds/vendor restent hors surface.</div>'
+        f'<div class="flex flex-wrap gap-1.5 mt-3">{v3_html}</div></article>'
+        '</div></section>'
+    )
+
+
+def appomar_resource_onboarding_spec(payload: dict) -> str:
+    if not isinstance(payload, dict) or not payload:
+        return ""
+    summary = _resource_onboarding_summary(payload)
+    steps = [
+        ("1", "Sources", "Google Drive, OneDrive, PC local, GitHub, dossiers VPS — connexion explicite, pas tout par défaut."),
+        ("2", "Périmètres", "Choisir familles/dossiers autorisés; index_mode metadata_only ou text_extract_controlled."),
+        ("3", "Classification", "business_admin, clients, sales_marketing, operations, knowledge_base, finance_legal, team_hr, personal_excluded."),
+        ("4", "Permissions agents", "read_metadata, read_text contrôlé, write_new en zone autorisée, organize_suggest séparé de organize_apply."),
+        ("5", "Exclusions", "Secrets, personnel/famille, médical, banque/crypto, corbeille, caches/builds/vendor."),
+        ("6", "Boucle QG", "Résumé publié dans QG + prochaine action; extraction V3 uniquement par lot autorisé."),
+    ]
+    cards = "".join(
+        '<div class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">'
+        f'<div class="flex items-center gap-2 mb-1"><span class="w-5 h-5 rounded-full bg-gray-900 text-white text-[11px] font-bold flex items-center justify-center">{n}</span><span class="text-sm font-semibold text-gray-900">{escape(title)}</span></div>'
+        f'<div class="text-xs text-gray-600 leading-relaxed">{escape(text)}</div></div>'
+        for n, title, text in steps
+    )
+    return (
+        '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+        '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+        '<div><h2 class="text-sm font-bold text-gray-900">Spec onboarding AppOmar · Ressources &amp; connaissances</h2>'
+        f'<p class="text-xs text-gray-500">Première UI/spec statique après Connexions · objet cible <span class="font-mono">{escape(summary["schema"])}</span>.</p></div>'
+        '<a href="/api/vps-resource-onboarding-v0.json" class="text-xs text-blue-500 hover:underline">contrat JSON</a>'
+        '</div>'
+        '<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">'
+        f'{cards}'
+        '</div>'
+        '<div class="px-4 py-3 bg-blue-50 border-t border-blue-100 text-xs text-blue-800">'
+        'Garde-fou V0: UI de choix et gouvernance seulement — aucune extraction texte V3, aucun renommage/déplacement, aucun contenu brut exposé.'
+        '</div></section>'
+    )
+
+
 def page_clients(data: dict) -> str:
     fleet = data.get("fleet", [])
     html = (
@@ -1816,6 +2011,7 @@ def page_clients(data: dict) -> str:
         '<p class="text-sm text-gray-500 mt-0.5">Flotte live Hetzner. Données rafraîchies au rebuild (30 min).</p></div>'
         '</div>'
     )
+    html += qg_resource_onboarding_section(data.get("resource_onboarding") or {})
 
     # Alignement des 3 VPS sur le standard VPS Hermes OA (vps-doctor quotidien)
     vps_data = data.get("vps") or {}
@@ -3039,16 +3235,18 @@ def main(argv: list[str] | None = None) -> None:
     (tmp / "api").mkdir(parents=True)
 
     (tmp / "api" / "core-repos.json").write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(redact_public_api_payload(data), ensure_ascii=False, indent=2), encoding="utf-8"
     )
     (tmp / "api" / "vps-app-inventory.json").write_text(
         json.dumps(data.get("vps_app_inventory", {}), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
-    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "manifeste.json", "builder-pr-autogate.json", "oa-fleet-supervision-v0.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "manifeste.json", "builder-pr-autogate.json", "oa-fleet-supervision-v0.json", "vps-resource-onboarding-v0.json"):
         var_payload = _read_var_json(var_name)
         if var_payload:
+            if var_name == "vps-resource-onboarding-v0.json":
+                var_payload = sanitize_resource_onboarding_public(var_payload)
             (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     # Blocages : snapshot collecté en tête de build → /api/blocages.json.
     (tmp / "api" / "blocages.json").write_text(

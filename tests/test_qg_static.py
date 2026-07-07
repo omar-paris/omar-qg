@@ -315,3 +315,63 @@ def test_qg_vps_app_inventory_api_and_clients_surface():
     assert "/api/vps-app-inventory.json" in clients
     assert "Hermes local" in clients
 
+
+def test_qg_resource_onboarding_surface_and_appomar_spec():
+    build()
+    api = PUBLIC / "api" / "vps-resource-onboarding-v0.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.resource-onboarding/public.v0"
+    assert payload["visibility"] == "public_qg_redacted_counters_only"
+    assert payload["resource_scope_schema"] == "oa.resource-scope/v1"
+    assert payload["canonical_cloud_index"]["total_unique_records"] == 222634
+    assert payload["canonical_cloud_index"]["google_drive_api_full_records"] == 194326
+    assert payload["canonical_cloud_index"]["onedrive_rclone_targeted_records"] == 20901
+    forbidden_public_tokens = [
+        "/home/omar",
+        "cloud-index/db",
+        "Pantheos Drive",
+        "Drive Omar",
+        "Google AI Studio",
+        "LADB/Boulangerie",
+    ]
+    api_text = api.read_text(encoding="utf-8")
+    core_api = PUBLIC / "api" / "core-repos.json"
+    assert core_api.exists()
+    core_payload = json.loads(core_api.read_text(encoding="utf-8"))
+    assert core_payload["resource_onboarding"]["schema"] == "oa.resource-onboarding/public.v0"
+    assert core_payload["resource_onboarding"]["visibility"] == "public_qg_redacted_counters_only"
+    core_text = core_api.read_text(encoding="utf-8")
+    for token in forbidden_public_tokens:
+        assert token not in api_text
+        assert token not in core_text
+
+    clients = (PUBLIC / "clients" / "index.html").read_text(encoding="utf-8")
+    for expected in [
+        "Ressources &amp; connaissances",
+        "Cloud Index records",
+        "Google Drive API full",
+        "OneDrive ciblé",
+        "V3 extraction contrôlée",
+        "oa.resource-scope/v1",
+        "aucun nom de fichier ni contenu brut",
+    ]:
+        assert expected in clients
+    assert "/home/omar/32-Infra/cloud-index" not in clients
+    for token in forbidden_public_tokens:
+        assert token not in clients
+    assert "lots candidats redacted" in clients
+
+    app_page = (PUBLIC / "apps" / "app" / "index.html").read_text(encoding="utf-8")
+    for expected in [
+        "Spec onboarding AppOmar",
+        "Sources",
+        "Périmètres",
+        "Classification",
+        "Permissions agents",
+        "Exclusions",
+        "Garde-fou V0",
+    ]:
+        assert expected in app_page
+    assert "aucune extraction texte V3" in app_page
+
