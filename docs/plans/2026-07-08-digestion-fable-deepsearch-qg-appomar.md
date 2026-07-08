@@ -1,7 +1,7 @@
 # Digestion Fable / Deep Search — QG + AppOmar
 
-Date: 2026-07-08  
-Auteur: H-Omar/default  
+Date: 2026-07-08
+Auteur: H-Omar/default
 Statut: matrice d’intégration — pas un dépôt brut de MD
 
 ## 0. Décision de méthode
