@@ -9,6 +9,7 @@ _LAST_BUILD_KEY = object()
 
 ROUTES = {
     "/": PUBLIC / "index.html",
+    "/productivite": PUBLIC / "productivite" / "index.html",
     "/carte": PUBLIC / "carte" / "index.html",
     "/objectifs": PUBLIC / "objectifs" / "index.html",
     "/ops": PUBLIC / "ops" / "index.html",
@@ -58,6 +59,24 @@ def test_qg_lists_required_core_repos():
         assert required in ids
     qg = next(item for item in payload["items"] if item["id"] == "qg")
     assert qg["repo"].endswith("omar-qg")
+
+
+def test_qg_productivite_daily_objective_page_and_api():
+    build()
+    page = (PUBLIC / "productivite" / "index.html").read_text(encoding="utf-8")
+    assert "Objectif du jour" in page
+    assert "Objectif recommandé" in page
+    assert "score productivité" in page
+    assert "Calcul explicable" in page
+    assert "/api/productivite.json" in page
+    payload = json.loads((PUBLIC / "api" / "productivite.json").read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.qg.daily-objective/v1"
+    assert isinstance(payload["title"], str) and payload["title"]
+    assert 0 <= int(payload["score"]) <= 100
+    assert payload["tone"] in {"vert", "jaune", "rouge"}
+    for key in ["alex_blocks", "total_blocks", "open_decisions", "gate_gaps", "prs_created", "prs_merged", "build_success", "build_failed", "builds_today"]:
+        assert key in payload["signals"]
+    assert payload["actions"]
 
 
 def test_qg_pages_link_to_changelogs_and_no_secrets():

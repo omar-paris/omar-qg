@@ -1574,6 +1574,7 @@ NAV_SECTIONS = [
         "hint": "Décider maintenant",
         "children": [
             ("/", "registry", "Accueil"),
+            ("/productivite/", "productivite", "Objectif du jour"),
             ("/blocages/", "blocages", "Blocages"),
             ("/decisions/", "decisions", "Décisions"),
         ],
@@ -3484,6 +3485,145 @@ def page_blocages(payload: dict) -> str:
     return html
 
 
+def _daily_objective_model(objectifs: list, decisions: list, chantiers: list, blocages_payload: dict, builds: dict, agent_loop_audit: dict, ledger: dict) -> dict:
+    """Calcule l'objectif du jour QG avec une logique explicable, pas un score magique."""
+    open_decisions = [q for q in decisions if isinstance(q, dict) and q.get("statut") == "ouverte"]
+    blocages_compteurs = blocages_payload.get("compteurs", {}) if isinstance(blocages_payload, dict) else {}
+    alex_blocks = int(blocages_compteurs.get("pour_alex") or 0)
+    total_blocks = int(blocages_compteurs.get("total") or blocages_compteurs.get("ouverts") or 0)
+    agent_summary = agent_loop_audit.get("summary", {}) if isinstance(agent_loop_audit, dict) else {}
+    gate_gaps = int(agent_summary.get("prs_without_gate") or 0) + int(agent_summary.get("builder_cards_without_gate") or 0)
+    github_totals = ledger.get("github_totals", {}) if isinstance(ledger, dict) else {}
+    prs_created = int(github_totals.get("prs_created") or 0)
+    prs_merged = int(github_totals.get("prs_merged") or 0)
+    build_failed = int(github_totals.get("build_failed") or 0)
+    build_success = int(github_totals.get("build_success") or 0)
+    build_today = int((builds.get("totals", {}) or {}).get("today") or 0) if isinstance(builds, dict) else 0
+
+    risks = []
+    if alex_blocks:
+        risks.append(f"{alex_blocks} blocage(s) attendent Alex")
+    if open_decisions:
+        risks.append(f"{len(open_decisions)} décision(s) ouvertes")
+    if gate_gaps:
+        risks.append(f"{gate_gaps} gap(s) PR/gate")
+    if build_failed:
+        risks.append(f"{build_failed} build(s) en échec")
+
+    if alex_blocks or open_decisions:
+        title = "Débloquer le cockpit: décisions et blocages humains"
+        why = "Tant que les décisions/blocages humains restent opaques, les agents produisent du bruit ou attendent."
+        primary_link = "/decisions/" if open_decisions else "/blocages/"
+    elif gate_gaps or build_failed:
+        title = "Fermer les preuves: PR, gates Athena et builds"
+        why = "La production existe mais n'est pas encore assez validée pour guider une release ou une décision sereine."
+        primary_link = "/agent-loop/"
+    elif prs_created and not prs_merged:
+        title = "Transformer les PR du jour en livrables mergés ou explicitement bloqués"
+        why = "Des changements ont été produits; l'objectif est maintenant de les conclure avec gate, merge ou décision claire."
+        primary_link = "/builds/"
+    else:
+        title = "Produire un livrable prouvé qui rapproche le revenu OA"
+        why = "Aucun blocage dominant ne ressort; le meilleur objectif est un artefact testé, relié à AppOmar/QG/client."
+        primary_link = "/chantiers/"
+
+    penalty = min(55, alex_blocks * 12 + len(open_decisions) * 6 + gate_gaps * 8 + build_failed * 10 + max(0, total_blocks - alex_blocks) * 2)
+    bonus = min(25, prs_merged * 10 + build_success * 2 + build_today * 2)
+    score = max(0, min(100, 65 - penalty + bonus))
+    if score >= 75:
+        tone = "vert"
+    elif score >= 45:
+        tone = "jaune"
+    else:
+        tone = "rouge"
+
+    actions = []
+    if open_decisions:
+        first = open_decisions[0]
+        actions.append({"label": "Trancher la première décision ouverte", "detail": str(first.get("texte", "Décision ouverte"))[:180], "href": "/decisions/"})
+    if alex_blocks or total_blocks:
+        actions.append({"label": "Lire les vrais blocages", "detail": f"{total_blocks or alex_blocks} blocage(s) à qualifier avec cause, owner, preuve, next action.", "href": "/blocages/"})
+    if gate_gaps or build_failed:
+        actions.append({"label": "Fermer les gates/preuves", "detail": f"{gate_gaps} gap(s) gate, {build_failed} build(s) failed.", "href": "/agent-loop/"})
+    actions.append({"label": "Choisir le livrable prouvé du jour", "detail": "Un livrable = PR/test/rapport/gate, pas une intention de plus.", "href": "/chantiers/"})
+
+    return {
+        "schema": "oa.qg.daily-objective/v1",
+        "title": title,
+        "why": why,
+        "score": score,
+        "tone": tone,
+        "primary_link": primary_link,
+        "signals": {
+            "alex_blocks": alex_blocks,
+            "total_blocks": total_blocks,
+            "open_decisions": len(open_decisions),
+            "gate_gaps": gate_gaps,
+            "prs_created": prs_created,
+            "prs_merged": prs_merged,
+            "build_success": build_success,
+            "build_failed": build_failed,
+            "builds_today": build_today,
+        },
+        "risks": risks,
+        "actions": actions[:5],
+    }
+
+
+def page_productivite(model: dict, ledger: dict) -> str:
+    score = int(model.get("score") or 0)
+    tone = model.get("tone") or "jaune"
+    tone_cls = {"vert": "bg-green-50 border-green-200 text-green-800", "jaune": "bg-amber-50 border-amber-200 text-amber-800", "rouge": "bg-red-50 border-red-200 text-red-800"}.get(tone, "bg-slate-50 border-slate-200 text-slate-800")
+    signals = model.get("signals", {}) if isinstance(model.get("signals"), dict) else {}
+    risks = model.get("risks", []) or []
+    actions = model.get("actions", []) or []
+    cards = "".join(
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{escape(str(v))}</div><div class="text-xs text-gray-500 mt-1">{escape(str(k).replace("_", " "))}</div></div>'
+        for k, v in signals.items()
+    )
+    risk_html = "".join(f'<li>{escape(str(r))}</li>' for r in risks) or '<li>Aucun risque dominant détecté dans les signaux QG.</li>'
+    action_html = "".join(
+        f'<a href="{escape(str(a.get("href", "#")))}" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm"><div class="text-sm font-semibold text-gray-900">{escape(str(a.get("label", "Action")))}</div><div class="text-xs text-gray-500 mt-1">{escape(str(a.get("detail", "")))}</div></a>'
+        for a in actions
+    )
+    return f'''
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-xl font-bold text-gray-900">Objectif du jour</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Calcul explicable à partir des décisions, blocages, gates, PR et builds du QG.</p>
+  </div>
+  <a href="/api/productivite.json" class="text-xs font-medium text-blue-600 hover:underline">API JSON</a>
+</div>
+
+<div class="rounded-2xl border px-5 py-5 mb-5 {tone_cls}">
+  <div class="text-xs uppercase tracking-wide font-semibold opacity-70">Objectif recommandé</div>
+  <div class="text-2xl font-bold mt-1">{escape(str(model.get("title", "Objectif non calculé")))}</div>
+  <div class="text-sm mt-2 max-w-3xl">{escape(str(model.get("why", "")))}</div>
+  <div class="mt-4 flex items-center gap-3">
+    <div class="text-4xl font-black">{score}</div>
+    <div class="text-xs uppercase tracking-wide font-semibold">score productivité<br>du jour</div>
+    <a href="{escape(str(model.get("primary_link", "/")))}" class="ml-auto rounded-lg bg-white/70 border border-current/20 px-3 py-2 text-xs font-semibold hover:bg-white">Ouvrir la page utile →</a>
+  </div>
+</div>
+
+<div class="grid md:grid-cols-4 gap-3 mb-5">{cards}</div>
+
+<div class="grid lg:grid-cols-2 gap-4">
+  <section class="bg-white rounded-xl border border-gray-200 px-5 py-4">
+    <h2 class="text-sm font-bold text-gray-900 mb-2">Pourquoi ce score ?</h2>
+    <ul class="list-disc pl-5 text-sm text-gray-600 space-y-1">{risk_html}</ul>
+  </section>
+  <section class="bg-white rounded-xl border border-gray-200 px-5 py-4">
+    <h2 class="text-sm font-bold text-gray-900 mb-2">Règle CTO</h2>
+    <p class="text-sm text-gray-600">L'objectif du jour n'est pas “faire beaucoup”. C'est réduire l'incertitude la plus coûteuse avec un livrable vérifiable.</p>
+  </section>
+</div>
+
+<h2 class="text-sm font-semibold text-gray-700 mt-6 mb-2 uppercase tracking-wide">Plan immédiat</h2>
+<div class="grid md:grid-cols-2 gap-3">{action_html}</div>
+'''
+
+
 def page_decisions(decisions: list) -> str:
     """Boîte de décisions Alex (qg#27) — réponse = bouton → qg-api → déblocage kanban/issue."""
     # URL relative: passe par le vhost qg.omar.paris (proxy Caddy /api/decisions* -> 8097).
@@ -4049,11 +4189,17 @@ def main(argv: list[str] | None = None) -> None:
         pending_alex_actions = 0
     builds_today = (builds.get("totals", {}) or {}).get("today", 0)
 
+    productivite = _daily_objective_model(objectifs, decisions, chantiers, blocages_payload, builds, agent_loop_audit, ledger)
+    (tmp / "api" / "productivite.json").write_text(
+        json.dumps(productivite, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
         ("/docs/",        "docs",        "Docs",                    page_docs(docs_index)),
         ("/carte/",       "carte",       "Carte du puzzle",         page_carte(carte_payload)),
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet)),
+        ("/productivite/", "productivite", "Objectif du jour",       page_productivite(productivite, ledger)),
         ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
