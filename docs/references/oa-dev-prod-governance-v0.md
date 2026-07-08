@@ -1,8 +1,8 @@
 # OA Dev/Prod Governance v0 — QG comme boussole et garde-barrière
 
-Date: 2026-07-08  
-Owner: H-Omar / QG OA  
-Statut: v0 contractuel, à transformer en checks QG + gates Athena  
+Date: 2026-07-08
+Owner: H-Omar / QG OA
+Statut: v0 contractuel, à transformer en checks QG + gates Athena
 Portée: toutes les apps OA, AppOmar, QG, Hub, Catalogue, Landing, OmarTop, Lab, agents Hermes/Claude Code, et intégrations inter-VPS.
 
 ## 1. Décision CTO
