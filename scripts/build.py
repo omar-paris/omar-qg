@@ -3506,11 +3506,24 @@ def page_decisions(decisions: list) -> str:
         for q in qs:
             qid = escape(q["id"])
             html += '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-3" id="card-' + qid + '">'
-            html += f'<div class="text-sm font-medium text-gray-900 mb-1">{escape(q["texte"])}</div>'
+            html += '<div class="flex items-start justify-between gap-3 mb-2">'
+            html += f'<div class="text-sm font-semibold text-gray-900 leading-snug">{escape(q["texte"])}</div>'
+            html += f'<span class="shrink-0 rounded-full bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 text-[11px] font-semibold">{escape(str(q.get("type") or "decision"))}</span>'
+            html += '</div>'
+            if q.get("options"):
+                html += '<div class="flex flex-wrap gap-1.5 mb-2">'
+                for opt in q.get("options", [])[:4]:
+                    html += f'<span class="rounded-full bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 text-[11px] font-medium">{escape(str(opt))}</span>'
+                html += '</div>'
             if q.get("contexte"):
-                html += f'<div class="text-xs text-gray-500 mb-2">{escape(q["contexte"])}</div>'
+                ctx = escape(str(q["contexte"]))
+                html += ('<details class="mb-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">'
+                         '<summary class="cursor-pointer text-xs font-semibold text-slate-700">Pourquoi / impact / source</summary>'
+                         f'<div class="mt-2 whitespace-pre-wrap text-xs text-slate-600 leading-relaxed">{ctx}</div></details>')
             if q.get("blocked_ref"):
-                html += f'<div class="text-xs text-amber-600 mb-2">⏸ bloque : {escape(q["blocked_ref"])}</div>'
+                html += f'<div class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 mb-2">⏸ bloque : {escape(q["blocked_ref"])}</div>'
+            else:
+                html += '<div class="text-xs text-slate-400 mb-2">Pas de carte/issue liée — décision informative ou à recanoniser.</div>'
             if q.get("type") == "fermée":
                 # Feedback Alex 10 juin : possibilité d'ajouter un complément à une réponse fermée
                 html += '<div class="flex gap-2 flex-wrap mb-2">'
@@ -3533,14 +3546,35 @@ def page_decisions(decisions: list) -> str:
             html += (f'<div class="text-xs text-gray-500 mb-1">✓ <span class="text-gray-700">{escape(q["texte"])}</span>'
                      f' → <span class="font-medium text-gray-900">{escape(str(q.get("reponse")))}</span>'
                      f' <span class="text-gray-400">({escape(q.get("deblocage", ""))})</span></div>')
-    html += ('<script>function answerClosed(id, opt){ const c = document.getElementById("compl-"+id); '
-             'answer(id, opt + (c && c.value.trim() ? " — " + c.value.trim() : "")); } '
-             'async function answer(id, val){ if(!val||!val.trim()){return;} '
-             f'const r = await fetch("{api}", {{method:"POST", headers:{{"content-type":"application/json"}}, '
-             'body: JSON.stringify({id:id, answer:val})}); '
-             'const c = document.getElementById("card-"+id); '
-             'if(r.ok){ c.innerHTML = \'<div class="text-sm text-green-700">✓ Réponse envoyée — \' + val + \' (processus débloqué)</div>\'; }'
-             'else{ c.innerHTML += \'<div class="text-xs text-red-600 mt-2">Erreur — réessaie ou réponds en session.</div>\'; } }</script>')
+    html += f'''<script>
+function esc(s){{
+  const d = document.createElement("div");
+  d.textContent = String(s);
+  return d.innerHTML;
+}}
+function answerClosed(id, opt){{
+  const c = document.getElementById("compl-"+id);
+  answer(id, opt + (c && c.value.trim() ? " — " + c.value.trim() : ""));
+}}
+async function answer(id, val){{
+  if(!val || !val.trim()){{ return; }}
+  const c = document.getElementById("card-"+id);
+  let r, payload = {{}};
+  try{{
+    r = await fetch("{api}", {{method:"POST", headers:{{"content-type":"application/json"}}, body: JSON.stringify({{id:id, answer:val}})}});
+    try{{ payload = await r.json(); }}catch(e){{ payload = {{error:"réponse API illisible"}}; }}
+  }}catch(e){{
+    c.innerHTML += '<div class="text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-2">Erreur réseau/API — ' + esc(e.message || e) + '</div>';
+    return;
+  }}
+  if(r.ok){{
+    c.innerHTML = '<div class="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">✓ Réponse envoyée — ' + esc(val) + ' (processus débloqué)</div>';
+  }}else{{
+    const msg = payload.error || ("HTTP " + r.status);
+    c.innerHTML += '<div class="text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-2">Erreur API — ' + esc(msg) + '</div>';
+  }}
+}}
+</script>'''
     return html
 
 
