@@ -1,0 +1,127 @@
+{
+  "schema": "oa.dev-prod-governance/v0",
+  "generated_at": "2026-07-08",
+  "owner": "h-omar",
+  "decision": "QG is the cockpit and policy surface for OA dev/prod gates, app registry, canonical assets, design standards and inter-VPS conformity.",
+  "prod_rules": [
+    "prod_from_main_only",
+    "athena_gate_required_before_release",
+    "builder_smoke_before_review",
+    "h_omar_arbitrates_after_athena_verdict",
+    "no_branch_build_artifact_in_live_root",
+    "live_smoke_required_after_deploy",
+    "kanban_result_persistence_required"
+  ],
+  "app_manifest_required_fields": [
+    "schema",
+    "id",
+    "name",
+    "surface",
+    "repo",
+    "local_path",
+    "live_url",
+    "vps",
+    "owner_agent",
+    "builder",
+    "review_gate",
+    "asset_profile",
+    "design_profile",
+    "data_sensitivity",
+    "prod_policy",
+    "health_checks",
+    "known_gaps"
+  ],
+  "design_profiles": [
+    "oa-default",
+    "kids-academy",
+    "client-specific",
+    "internal-tool",
+    "none"
+  ],
+  "asset_registry_seed": [
+    {
+      "id": "appomar-omar-headshot-webp",
+      "label": "Omar headshot used by AppOmar",
+      "type": "brand.avatar",
+      "canonical_path": "/home/omar/23-Offre/actifs/omar-app/pages-app/assets/omar-headshot.webp",
+      "mirror_path": "/home/omar/23-Offre/actifs/omar-app/public/pages-app/assets/omar-headshot.webp",
+      "sha256": "ab5e3b76b529b849950fc920b9303e08313ee271def0b313153462ea7ed1a446",
+      "status": "candidate",
+      "allowed_for": ["appomar"],
+      "gap": "not yet declared in a canonical OA asset registry"
+    },
+    {
+      "id": "landing-omar-avatar-clean-png",
+      "label": "Omar clean avatar used by Landing",
+      "type": "brand.avatar",
+      "canonical_path": "/home/omar/23-Offre/actifs/omar-landing/public/assets/omar_avatar_clean.png",
+      "mirror_path": "/home/omar/23-Offre/actifs/omar-landing/public/versions/v2/assets/omar_avatar_clean.png",
+      "sha256": "031d3184ac485bdb438cf9b36750090b7dc865cff117a61b5a06bfd519a0a80b",
+      "status": "candidate",
+      "allowed_for": ["landing", "appomar", "qg", "hub"],
+      "gap": "not yet declared in a canonical OA asset registry"
+    },
+    {
+      "id": "marketing-lobsters-screenshot-png",
+      "label": "Existing lobster image found in marketing landing screenshots",
+      "type": "brand.mascot",
+      "canonical_path": "/home/omar/22-Marketing/landing/Landing-Claude/screenshots/lobsters.png",
+      "sha256": "cc8ed3aeded8a1d36287ddf4832bde66770e7a0688ff9ee84fa5e9bb5052529d",
+      "status": "candidate",
+      "allowed_for": [],
+      "gap": "image exists but is not approved as canonical homard icon"
+    },
+    {
+      "id": "oa-homard-icon-canonical",
+      "label": "Canonical OA homard icon",
+      "type": "brand.mascot",
+      "canonical_path": null,
+      "sha256": null,
+      "status": "missing_canonical_asset",
+      "allowed_for": ["landing", "appomar", "qg", "hub"],
+      "gap": "Alex requested homard icon; no canonical asset was found under current OA roots"
+    }
+  ],
+  "pilot_apps": [
+    {
+      "schema": "oa.app-manifest/v1",
+      "id": "appomar",
+      "name": "AppOmar",
+      "surface": "business",
+      "repo": "https://github.com/omar-paris/omar-app",
+      "local_path": "/home/omar/23-Offre/actifs/omar-app",
+      "live_url": "https://app.omar.paris",
+      "vps": "vps-omar",
+      "owner_agent": "h-omar",
+      "builder": "oa-builder",
+      "review_gate": "h-athena",
+      "asset_profile": "oa-brand",
+      "design_profile": "oa-default",
+      "data_sensitivity": "public_to_personal_on_onboarding",
+      "prod_policy": "main-only-athena-gated",
+      "health_checks": ["build", "tests", "smoke_live", "asset_registry_check"],
+      "known_gaps": ["canonical asset registry missing", "homard icon canonical status unresolved", "release should wait for QG conformity rail"]
+    },
+    {
+      "schema": "oa.app-manifest/v1",
+      "id": "kids-academy-edugame",
+      "name": "EduGame / Kids Academy",
+      "surface": "family",
+      "repo": "https://github.com/alexwill87/kids-academy",
+      "local_path": "/home/aurel/kids-academy",
+      "live_url": "https://kids.alexgo.eu",
+      "vps": "pantheos",
+      "owner_agent": "h-aurel",
+      "builder": "h-aurel-or-claude-code",
+      "review_gate": "h-athena-or-h-omar-transverse-review",
+      "asset_profile": "kids-academy",
+      "design_profile": "kids-academy",
+      "data_sensitivity": "child",
+      "prod_policy": "pantheos-separated-governance-with-public-safe-qg-contract",
+      "health_checks": ["kids-academy-api", "api_health", "nginx_test", "kids_smoke", "public_safe_changelog"],
+      "known_gaps": ["not yet represented in QG conformity page", "must consume transverse standards without leaking child data", "Claude Code work must be tied to manifest/gates"]
+    }
+  ],
+  "next_qg_pages": ["/conformite/", "/assets/", "/standards/", "/vps/"],
+  "athena_review_required": true
+}
