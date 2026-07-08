@@ -147,15 +147,54 @@ Le QG doit exposer les écarts:
 - absence de gate Athena;
 - données sensibles ou enfants sans politique explicite.
 
-## 8. Inter-VPS et agents
+## 8. Inter-VPS, Hubs et agents locaux
 
-Le QG doit distinguer les domaines:
+Le QG doit distinguer trois niveaux de responsabilité.
 
-- VPS Omar / OA business: H-Omar, AppOmar, QG, Hub, Catalogue, Landing, OmarTop.
-- Pantheos / famille: H-Aurel, Kids Academy, EduGame, `alexgo.eu`.
-- JAB / client: Edilia et apps client.
+### 8.1 QG central — gouvernance du système OA
 
-Règle: les standards peuvent être transverses, mais les risques et gouvernances restent séparés.
+Le QG est responsable du cadre commun, des standards et de la supervision de haut niveau pour les applications centrales OA:
+
+- AppOmar / app.omar.paris;
+- Catalogue;
+- OmarTop;
+- Landing;
+- Lab;
+- QG lui-même;
+- composants transverses d'orchestration agents/Kanban/Athena.
+
+Le QG ne doit pas devenir le panneau d'administration détaillé de chaque VPS. Il définit les contrats, reçoit les rapports redacted, agrège la conformité, et arbitre les gates.
+
+### 8.2 Hub local — cockpit du VPS / tenant / famille / client
+
+Chaque Hub est responsable de la supervision locale de son environnement:
+
+- apps installées sur ce VPS;
+- apps personnalisées client/famille;
+- agents Hermes locaux;
+- appareils ou ordinateurs connectés au Hub quand le contrat existe;
+- connexions locales, activité, maturité, logs redacted, santé, capacités.
+
+Exemples pilotes:
+
+- JAB: CRM client et apps client;
+- Pantheos/H-Aurel: EduGame et Kids Academy;
+- PC local Alex: agent Hermes local et appareils/ordinateurs raccordables au Hub.
+
+Le Hub peut fonctionner de manière indépendante, mais il doit publier vers le QG un rapport public-safe (`oa.hub-status/v1` ou `oa.vps-report/v1`) au lieu d'exposer ses secrets, logs bruts ou données sensibles.
+
+### 8.3 Fédération QG ↔ Hubs
+
+Règle: QG définit le cadre; chaque Hub applique localement et remonte un état synthétique.
+
+- QG: standards, conformité, décisions, gates, assets, manifestes, inter-VPS.
+- Hub: inventaire local, gestion locale, appareils, apps personnalisées, activité du VPS.
+- OmarTop: source des standards/maturité.
+- Athena: revue froide.
+- H-Omar: arbitrage central.
+- H-Aurel / autres agents locaux: exécution locale dans leur périmètre, avec rapports redacted.
+
+Les standards peuvent être transverses, mais les risques et gouvernances restent séparés.
 
 H-Aurel ne doit pas être déconnecté des standards: il doit consommer un contrat QG public-safe, sans secrets ni données enfant brutes.
 
@@ -193,6 +232,7 @@ Invariants:
 3. `/apps/` enrichi — manifestes, owners, VPS, live, gates, gaps.
 4. `/standards/` — règles dev/prod, design profiles, data policies.
 5. `/vps/` — fleet par domaine, rapports `oa.vps-report/v1`, statut inter-VPS.
+6. `/hubs/` — état fédéré des Hubs locaux: OA-master, JAB, Pantheos, PC local, autres VPS/tenants.
 
 ## 12. Definition of Done du chantier QG gouvernance
 
@@ -214,3 +254,4 @@ Ordre recommandé:
 3. Ajouter une page QG conformité/applications/assets.
 4. Brancher Athena sur ces contrats.
 5. Reprendre AppOmar avec ces règles, pas avant.
+6. Ensuite seulement, reprendre OmarHub pour devenir le cockpit local/fédéré des apps personnalisées, agents locaux et appareils par VPS.
