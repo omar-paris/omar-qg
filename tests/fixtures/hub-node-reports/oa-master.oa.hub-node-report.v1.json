@@ -1,0 +1,149 @@
+{
+  "schema": "oa.hub-node-report/v1",
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-09T00:30:00Z",
+  "source": {
+    "kind": "example_fixture",
+    "collector": "hubfleet-contract-v1",
+    "mode": "static_example",
+    "reference": "redacted-example:oa-master",
+    "notes": "example values; unknown kept when not measured"
+  },
+  "redaction_level": "internal_redacted",
+  "freshness": {
+    "status": "fresh",
+    "max_age_seconds": 21600,
+    "age_seconds": 0,
+    "checked_at": "2026-07-09T00:30:00Z"
+  },
+  "node": {
+    "id": "oa-master",
+    "label": "OA Master",
+    "kind": "vps",
+    "environment": "production",
+    "canonical": true,
+    "hub_url": "https://hub.omar.paris",
+    "qg_link": "https://qg.omar.paris/nodes/oa-master"
+  },
+  "status": "degraded",
+  "maturity": {
+    "score": 72,
+    "level": "L1",
+    "domains": [
+      {
+        "id": "runtime_hermes",
+        "status": "unknown",
+        "summary": "Hermes runtime version exposed"
+      },
+      {
+        "id": "gateway",
+        "status": "pass",
+        "summary": "Gateway or local access smoke summary"
+      },
+      {
+        "id": "hub_reporting",
+        "status": "pass",
+        "summary": "Node can emit redacted HubFleet contracts"
+      }
+    ]
+  },
+  "hermes_version": {
+    "schema": "oa.hermes-version/v1",
+    "schema_version": "1.0.0",
+    "generated_at": "2026-07-09T00:30:00Z",
+    "source": {
+      "kind": "example_fixture",
+      "collector": "hubfleet-contract-v1",
+      "mode": "static_example",
+      "reference": "redacted-example:oa-master",
+      "notes": "example values; unknown kept when not measured"
+    },
+    "redaction_level": "internal_redacted",
+    "freshness": {
+      "status": "fresh",
+      "max_age_seconds": 43200,
+      "age_seconds": 0,
+      "checked_at": "2026-07-09T00:30:00Z"
+    },
+    "node_id": "oa-master",
+    "current_version": "unknown",
+    "upstream_status": "unknown",
+    "commits_behind": null,
+    "install_mode": "unknown",
+    "gateway_status": {
+      "status": "ok",
+      "mode": "service",
+      "public_url": "https://hub.omar.paris",
+      "tailnet_url": null,
+      "last_smoke_at": "2026-07-09T00:30:00Z",
+      "notes": "Public Hub reachable; runtime version must be measured by local collector"
+    },
+    "update_check": {
+      "checked": false,
+      "reason": "example fixture; real collector must run hermes update --check locally"
+    }
+  },
+  "action_catalog": {
+    "schema": "oa.hub-action-catalog/v1",
+    "schema_version": "1.0.0",
+    "actions_count": 3,
+    "actions": [
+      {
+        "id": "hermes.check_update",
+        "phase": "check",
+        "status": "available",
+        "gate_required": "none"
+      },
+      {
+        "id": "hermes.plan_update",
+        "phase": "plan",
+        "status": "available",
+        "gate_required": "h_omar"
+      },
+      {
+        "id": "hermes.apply_update",
+        "phase": "apply",
+        "status": "blocked",
+        "gate_required": "h_omar_and_athena"
+      }
+    ]
+  },
+  "capabilities_summary": {
+    "apps_total": 9,
+    "agents_total": null,
+    "connections_total": null,
+    "notes": "counts come from QG snapshot or local collector"
+  },
+  "gaps": [
+    {
+      "priority": "P1",
+      "domain": "backup_restore",
+      "summary": "Backup/restore proof incomplete"
+    },
+    {
+      "priority": "P1",
+      "domain": "skills_registry",
+      "summary": "Skills registry maturity gap"
+    }
+  ],
+  "next_actions": [
+    {
+      "id": "collect-hermes-version",
+      "label": "Run local Hermes version collector",
+      "owner": "h-omar",
+      "action_ref": "hermes.check_update"
+    }
+  ],
+  "privacy": {
+    "redaction_level": "internal_redacted",
+    "forbidden": [
+      "credentials",
+      "raw_conversation_logs",
+      "personal_browser_history",
+      "full_private_pc_paths",
+      "raw_env",
+      "ssh_private_material"
+    ],
+    "qg_ingestible": true
+  }
+}

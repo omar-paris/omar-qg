@@ -1,0 +1,154 @@
+{
+  "schema": "oa.hub-node-report/v1",
+  "schema_version": "1.0.0",
+  "generated_at": "2026-07-09T00:30:00Z",
+  "source": {
+    "kind": "example_fixture",
+    "collector": "hubfleet-contract-v1",
+    "mode": "static_example",
+    "reference": "redacted-example:pantheos",
+    "notes": "example values; unknown kept when not measured"
+  },
+  "redaction_level": "internal_redacted",
+  "freshness": {
+    "status": "fresh",
+    "max_age_seconds": 21600,
+    "age_seconds": 0,
+    "checked_at": "2026-07-09T00:30:00Z"
+  },
+  "node": {
+    "id": "pantheos",
+    "label": "Pantheos / famille",
+    "kind": "family_host",
+    "environment": "family",
+    "canonical": true,
+    "hub_url": null,
+    "qg_link": "https://qg.omar.paris/nodes/pantheos"
+  },
+  "status": "degraded",
+  "maturity": {
+    "score": 48,
+    "level": "L0",
+    "domains": [
+      {
+        "id": "runtime_hermes",
+        "status": "unknown",
+        "summary": "Hermes runtime version exposed"
+      },
+      {
+        "id": "gateway",
+        "status": "degraded",
+        "summary": "Gateway or local access smoke summary"
+      },
+      {
+        "id": "hub_reporting",
+        "status": "pass",
+        "summary": "Node can emit redacted HubFleet contracts"
+      }
+    ]
+  },
+  "hermes_version": {
+    "schema": "oa.hermes-version/v1",
+    "schema_version": "1.0.0",
+    "generated_at": "2026-07-09T00:30:00Z",
+    "source": {
+      "kind": "example_fixture",
+      "collector": "hubfleet-contract-v1",
+      "mode": "static_example",
+      "reference": "redacted-example:pantheos",
+      "notes": "example values; unknown kept when not measured"
+    },
+    "redaction_level": "internal_redacted",
+    "freshness": {
+      "status": "fresh",
+      "max_age_seconds": 43200,
+      "age_seconds": 0,
+      "checked_at": "2026-07-09T00:30:00Z"
+    },
+    "node_id": "pantheos",
+    "current_version": "unknown",
+    "upstream_status": "unknown",
+    "commits_behind": null,
+    "install_mode": "unknown",
+    "gateway_status": {
+      "status": "degraded",
+      "mode": "service",
+      "public_url": "https://hermes.willemetz.xyz",
+      "tailnet_url": null,
+      "last_smoke_at": "2026-07-09T00:30:00Z",
+      "notes": "Family/Pantheos host; Hub local maturity not yet proven"
+    },
+    "update_check": {
+      "checked": false,
+      "reason": "example fixture; real collector must run hermes update --check locally"
+    }
+  },
+  "action_catalog": {
+    "schema": "oa.hub-action-catalog/v1",
+    "schema_version": "1.0.0",
+    "actions_count": 3,
+    "actions": [
+      {
+        "id": "hermes.check_update",
+        "phase": "check",
+        "status": "available",
+        "gate_required": "none"
+      },
+      {
+        "id": "hermes.plan_update",
+        "phase": "plan",
+        "status": "available",
+        "gate_required": "h_omar"
+      },
+      {
+        "id": "hermes.apply_update",
+        "phase": "apply",
+        "status": "blocked",
+        "gate_required": "h_omar_and_athena"
+      }
+    ]
+  },
+  "capabilities_summary": {
+    "apps_total": null,
+    "agents_total": 1,
+    "connections_total": null,
+    "notes": "family host; expose only family-safe summary"
+  },
+  "gaps": [
+    {
+      "priority": "P1",
+      "domain": "hub_local",
+      "summary": "Hub local/Pantheos OS status unknown"
+    },
+    {
+      "priority": "P1",
+      "domain": "observability",
+      "summary": "Disk/RAM reporting unknown"
+    },
+    {
+      "priority": "P1",
+      "domain": "secrets",
+      "summary": "Infisical local missing or unproven"
+    }
+  ],
+  "next_actions": [
+    {
+      "id": "install-hub-minimal",
+      "label": "Deploy/generate minimal local Hub report",
+      "owner": "h-aurel",
+      "action_ref": "hermes.plan_update"
+    }
+  ],
+  "privacy": {
+    "redaction_level": "internal_redacted",
+    "forbidden": [
+      "credentials",
+      "raw_conversation_logs",
+      "personal_browser_history",
+      "full_private_pc_paths",
+      "raw_env",
+      "ssh_private_material"
+    ],
+    "qg_ingestible": true
+  }
+}
