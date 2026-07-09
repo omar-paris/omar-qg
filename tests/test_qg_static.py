@@ -13,6 +13,7 @@ ROUTES = {
     "/carte": PUBLIC / "carte" / "index.html",
     "/objectifs": PUBLIC / "objectifs" / "index.html",
     "/ops": PUBLIC / "ops" / "index.html",
+    "/controle-oa": PUBLIC / "controle-oa" / "index.html",
     "/partenaires": PUBLIC / "partenaires" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
     "/apps/app": PUBLIC / "apps" / "app" / "index.html",
@@ -59,6 +60,40 @@ def test_qg_lists_required_core_repos():
         assert required in ids
     qg = next(item for item in payload["items"] if item["id"] == "qg")
     assert qg["repo"].endswith("omar-qg")
+
+
+def test_qg_exposes_oa_system_contracts_and_control_page():
+    build()
+    api = PUBLIC / "api" / "oa-system-contracts.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.system-contracts/v1"
+    assert set(payload["contracts"]) >= {
+        "oa.app-registry/v1",
+        "oa.page-contract/v1",
+        "oa.action-catalog/v1",
+        "oa.automation-registry/v1",
+        "oa.proof-ledger/v1",
+    }
+    page_ids = {item["id"] for item in payload["page_contracts"]["items"]}
+    for required in ["qg.control", "hub.home", "hub.actions", "appomar.lifecycle"]:
+        assert required in page_ids
+    for page in payload["page_contracts"]["items"]:
+        assert {"objective", "features", "characteristics", "source_of_truth", "proofs", "actions", "freshness"} <= set(page)
+        assert page["objective"]
+        assert page["features"]
+        assert page["actions"]
+    apply_actions = [a for a in payload["action_catalog"]["items"] if a["mode"] == "apply"]
+    assert apply_actions
+    assert all(a["status"] == "gated" for a in apply_actions)
+    serialized = api.read_text(encoding="utf-8")
+    for forbidden in ["BEGIN OPENSSH", "ghp_", "sk-proj-", "-----BEGIN", "Authorization:"]:
+        assert forbidden not in serialized
+    page = (PUBLIC / "controle-oa" / "index.html").read_text(encoding="utf-8")
+    assert "Contrôle global OA" in page
+    assert "QG / Hub / AppOmar" in page
+    assert "oa.system-contracts/v1" in page
+    assert "apply gated" in page
 
 
 def test_qg_productivite_daily_objective_page_and_api():
@@ -407,6 +442,41 @@ def test_qg_ops_vps_fleet_surface_and_api():
     # La tuile flotte de la home pointe vers /ops/.
     home = (PUBLIC / "index.html").read_text(encoding="utf-8")
     assert "VPS rapportent" in home
+
+
+def test_qg_ops_hub_node_maturity_from_hub_reports():
+    build()
+    api = PUBLIC / "api" / "ops" / "hub-node-maturity.json"
+    assert api.exists()
+    payload = json.loads(api.read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.qg.hub-node-maturity/1"
+    assert payload["source"] == "oa.hub-node-report/v1 redacted reports; no local logs duplicated"
+    assert payload["freshness_policy"] == "QG affiche source/fraîcheur et unknown si source absente"
+    assert payload["summary"]["expected"] == 4
+    assert payload["summary"]["reporting"] == 4
+    nodes = {node["node_id"]: node for node in payload["nodes"]}
+    assert {"oa-master", "pantheos", "jab", "h-local"} <= set(nodes)
+    assert nodes["oa-master"]["score"] == 72
+    assert nodes["pantheos"]["priority_gaps"]
+    assert nodes["jab"]["hermes_version"]["gateway_status"]["status"] == "unknown"
+    assert nodes["h-local"]["hermes_version"]["install_mode"] == "desktop"
+    for node in payload["nodes"]:
+        assert node["report_status"] in {"available", "missing"}
+        assert {"status", "score", "level", "freshness", "source", "source_path", "priority_gaps", "next_action"} <= set(node)
+        if node["report_status"] == "available":
+            assert node["source_path"].startswith(f"oa.hub-node-report/v1:{node['node_id']}:")
+            assert not node["source_path"].startswith("/")
+    serialized = api.read_text(encoding="utf-8")
+    for forbidden in ["credentials", "raw_env", "ssh_private_material", "BEGIN OPENSSH", "ghp_", "sk-"]:
+        assert forbidden not in serialized
+    assert "/home/omar/" not in serialized
+
+    ops = (PUBLIC / "ops" / "index.html").read_text(encoding="utf-8")
+    assert "Maturité HubFleet" in ops
+    assert "oa.hub-node-report/v1" in ops
+    assert "unknown si rapport absent" in ops
+    assert "/api/ops/hub-node-maturity.json" in ops
+    assert "QG ne duplique pas les logs locaux" in ops
 
 
 def test_qg_resource_onboarding_surface_and_appomar_spec():

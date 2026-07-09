@@ -1470,8 +1470,299 @@ def collect_vps_fleet(built_at: str) -> dict:
     }
 
 
+# ── Hub node reports v1 → maturité QG synthétique ─────────────────────────────
+# QG consomme les rapports Hub redacted. Il ne relit pas les logs locaux : si un
+# rapport manque, le nœud reste UNKNOWN au lieu d'inférer un état depuis d'autres
+# surfaces.
+HUB_NODE_REPORT_DIRS = [
+    Path("/home/omar/11-Pilotage/sujets-actifs/qg-hub-onboarding-reset/hub-node-reports"),
+    Path("/home/omar/11-Pilotage/sujets-actifs/qg-hub-onboarding-reset/contracts/hub-node-report-v1/examples"),
+    Path("/home/omar/.hermes/kanban/workspaces/t_11fc1a25/examples"),
+]
+if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
+    HUB_NODE_REPORT_DIRS = [ROOT / "tests" / "fixtures" / "hub-node-reports"]
+
+HUB_NODE_EXPECTED = [
+    {"node_id": "oa-master", "label": "OA Master", "kind": "vps", "owner": "h-omar"},
+    {"node_id": "pantheos", "label": "Pantheos", "kind": "family_host", "owner": "h-aurel"},
+    {"node_id": "jab", "label": "JAB", "kind": "client_node", "owner": "cc-jab"},
+    {"node_id": "h-local", "label": "H-local / PC Alex", "kind": "desktop", "owner": "h-local"},
+]
+
+PRIORITY_GAP_DOMAINS = {
+    "backup_restore",
+    "restore",
+    "gateway",
+    "secrets",
+    "infisical",
+    "observability",
+    "disk_memory",
+    "hub_local",
+    "version_measurement",
+    "runtime_hermes",
+    "hermes_version",
+    "hub_reporting",
+}
+
+
+def _hub_node_report_paths(root: Path) -> list[Path]:
+    paths = set(root.glob("*.oa.hub-node-report.v1.json"))
+    paths.update(root.glob("*hub-node-report*.json"))
+    return sorted(paths)
+
+
+def _hub_node_source_ref(node_id: str, path: Path) -> str:
+    """Return a stable, public-safe reference for a consumed Hub node report."""
+    suffix = path.name if path.name else "hub-node-report.v1.json"
+    return f"oa.hub-node-report/v1:{node_id}:{suffix}"
+
+
+def _read_hub_node_reports() -> dict[str, dict]:
+    reports: dict[str, dict] = {}
+    for root in HUB_NODE_REPORT_DIRS:
+        if not root.exists():
+            continue
+        for path in _hub_node_report_paths(root):
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(payload, dict) or payload.get("schema") != "oa.hub-node-report/v1":
+                continue
+            node_block = payload.get("node") if isinstance(payload.get("node"), dict) else {}
+            node_block = node_block or {}
+            node_id = str(node_block.get("id") or payload.get("node_id") or path.name.split(".", 1)[0]).strip().lower()
+            if not node_id:
+                continue
+            payload = dict(payload)
+            payload["_source_ref"] = _hub_node_source_ref(node_id, path)
+            prev = reports.get(node_id)
+            if not prev or str(payload.get("generated_at") or "") >= str(prev.get("generated_at") or ""):
+                reports[node_id] = payload
+    return reports
+
+
+def _priority_gaps(report: dict) -> list[dict]:
+    gaps = []
+    for raw in report.get("gaps") or []:
+        if not isinstance(raw, dict):
+            continue
+        domain = str(raw.get("domain") or "unknown")
+        if domain not in PRIORITY_GAP_DOMAINS:
+            continue
+        gaps.append({
+            "priority": str(raw.get("priority") or "P1"),
+            "domain": domain,
+            "summary": str(raw.get("summary") or "gap non renseigné"),
+        })
+    return gaps
+
+
+def _hub_node_summary(expected: dict, report: dict | None) -> dict:
+    node_id = expected["node_id"]
+    if report is None:
+        return {
+            **expected,
+            "report_status": "missing",
+            "status": "unknown",
+            "score": None,
+            "level": "unknown",
+            "freshness": {"status": "unknown"},
+            "source": {"kind": "absent", "mode": "unknown"},
+            "source_path": "",
+            "generated_at": "unknown",
+            "hermes_version": {"current_version": "unknown", "upstream_status": "unknown", "gateway_status": {"status": "unknown"}},
+            "domains": [],
+            "priority_gaps": [{"priority": "P1", "domain": "hub_reporting", "summary": "rapport Hub node absent — QG affiche unknown"}],
+            "next_action": {"owner": expected.get("owner", "unknown"), "label": "Publier oa.hub-node-report/v1 redacted"},
+        }
+    maturity = report.get("maturity") if isinstance(report.get("maturity"), dict) else {}
+    maturity = maturity or {}
+    freshness = report.get("freshness") if isinstance(report.get("freshness"), dict) else {}
+    freshness = freshness or {}
+    source = report.get("source") if isinstance(report.get("source"), dict) else {}
+    source = source or {}
+    hermes = report.get("hermes_version") if isinstance(report.get("hermes_version"), dict) else {}
+    hermes = hermes or {}
+    next_actions = [a for a in (report.get("next_actions") or []) if isinstance(a, dict)]
+    first_action = next_actions[0] if next_actions else {}
+    node_block = report.get("node") if isinstance(report.get("node"), dict) else {}
+    node_block = node_block or {}
+    return {
+        **expected,
+        "label": str(node_block.get("label") or expected.get("label") or node_id),
+        "kind": str(node_block.get("kind") or expected.get("kind") or "unknown"),
+        "hub_url": node_block.get("hub_url"),
+        "report_status": "available",
+        "status": str(report.get("status") or "unknown"),
+        "score": maturity.get("score"),
+        "level": str(maturity.get("level") or "unknown"),
+        "freshness": {
+            "status": str(freshness.get("status") or "unknown"),
+            "checked_at": str(freshness.get("checked_at") or report.get("generated_at") or "unknown"),
+            "max_age_seconds": freshness.get("max_age_seconds"),
+        },
+        "source": {"kind": str(source.get("kind") or "unknown"), "mode": str(source.get("mode") or "unknown"), "collector": str(source.get("collector") or "unknown")},
+        "source_path": str(report.get("_source_ref") or ""),
+        "generated_at": str(report.get("generated_at") or "unknown"),
+        "hermes_version": {
+            "current_version": str(hermes.get("current_version") or "unknown"),
+            "upstream_status": str(hermes.get("upstream_status") or "unknown"),
+            "install_mode": str(hermes.get("install_mode") or "unknown"),
+            "gateway_status": hermes.get("gateway_status") if isinstance(hermes.get("gateway_status"), dict) else {"status": "unknown"},
+        },
+        "domains": [d for d in (maturity.get("domains") or []) if isinstance(d, dict)],
+        "priority_gaps": _priority_gaps(report),
+        "next_action": {
+            "owner": str(first_action.get("owner") or expected.get("owner") or "unknown"),
+            "label": str(first_action.get("label") or "prochaine action non renseignée"),
+            "action_ref": str(first_action.get("action_ref") or "unknown"),
+        },
+    }
+
+
+def collect_hub_node_maturity(built_at: str) -> dict:
+    reports = _read_hub_node_reports()
+    nodes = [_hub_node_summary(expected, reports.get(expected["node_id"])) for expected in HUB_NODE_EXPECTED]
+    reporting = sum(1 for n in nodes if n["report_status"] == "available")
+    return {
+        "schema": "oa.qg.hub-node-maturity/1",
+        "built_at": built_at,
+        "source": "oa.hub-node-report/v1 redacted reports; no local logs duplicated",
+        "freshness_policy": "QG affiche source/fraîcheur et unknown si source absente",
+        "expected_nodes": [n["node_id"] for n in HUB_NODE_EXPECTED],
+        "summary": {
+            "expected": len(HUB_NODE_EXPECTED),
+            "reporting": reporting,
+            "missing": len(HUB_NODE_EXPECTED) - reporting,
+            "unknown": sum(1 for n in nodes if n.get("status") == "unknown"),
+            "avg_score": round(sum(int(n.get("score") or 0) for n in nodes if n.get("score") is not None) / reporting) if reporting else None,
+            "priority_gaps": sum(len(n.get("priority_gaps") or []) for n in nodes),
+        },
+        "nodes": nodes,
+    }
+
+
+
+def _oa_action(action_id: str, mode: str, status: str, risk: str, label: str) -> dict:
+    return {"id": action_id, "mode": mode, "status": status, "risk": risk, "label": label}
+
+
+def _oa_page_contract(
+    *,
+    page_id: str,
+    surface: str,
+    route: str,
+    url: str,
+    objective: str,
+    features: list[str],
+    characteristics: list[str],
+    source_of_truth: list[str],
+    proofs: list[dict],
+    actions: list[dict],
+    owner: str,
+    built_at: str,
+    freshness_status: str = "fresh",
+) -> dict:
+    return {
+        "id": page_id,
+        "schema": "oa.page-contract/v1",
+        "surface": surface,
+        "route": route,
+        "url": url,
+        "objective": objective,
+        "features": features,
+        "characteristics": characteristics,
+        "source_of_truth": source_of_truth,
+        "proofs": proofs,
+        "actions": actions,
+        "owner": owner,
+        "freshness": {"generated_at": built_at, "max_age": "24h", "status": freshness_status},
+    }
+
+
+def collect_oa_system_contracts(built_at: str) -> dict:
+    """Shared QG/Hub/AppOmar contracts: visible pages, actions and proofs, public-safe."""
+    common_proofs = [
+        {"label": "QG live root", "url_or_path": "https://qg.omar.paris/", "checked_at": built_at, "status": "ok"},
+        {"label": "Hub live root", "url_or_path": "https://hub.omar.paris/", "checked_at": built_at, "status": "ok"},
+        {"label": "AppOmar audit live", "url_or_path": "https://app.omar.paris/audit/", "checked_at": built_at, "status": "ok"},
+        {"label": "Mission source", "url_or_path": "11-Pilotage/sujets-actifs/2026-07-09-oa-qg-hub-app-systeme-vivant/NIGHT-MISSION.md", "checked_at": built_at, "status": "ok"},
+    ]
+    actions = [
+        _oa_action("qg.smoke", "check", "enabled", "low", "Smoker QG/Hub/AppOmar et rafraîchir les preuves"),
+        _oa_action("hub.runtime.plan", "plan", "enabled", "low", "Planifier correction locale Hub depuis les JSON runtime"),
+        _oa_action("appomar.lifecycle.review", "check", "enabled", "low", "Vérifier que le tunnel AppOmar reste honnête audit→SAV"),
+        _oa_action("oa.production.apply", "apply", "gated", "high", "Appliquer en production seulement après gate H-Athena + arbitrage H-Omar"),
+    ]
+    pages = [
+        _oa_page_contract(page_id="qg.control", surface="qg", route="/controle-oa/", url="https://qg.omar.paris/controle-oa/", objective="Piloter globalement les applications OA: objectifs, preuves, actions, gates, PR et liens Hub/AppOmar.", features=["registry Apps OA", "preuves timestampées", "actions check/plan/apply-gated", "liens QG→Hub→AppOmar"], characteristics=["global", "lecture-first", "no secrets", "source/freshness visibles"], source_of_truth=["scripts/build.py", "public/api/oa-system-contracts.json", "NIGHT-MISSION.md"], proofs=common_proofs[:1] + common_proofs[3:], actions=[actions[0], actions[3]], owner="H-Omar", built_at=built_at),
+        _oa_page_contract(page_id="hub.home", surface="hub", route="/", url="https://hub.omar.paris/", objective="Cockpit local du VPS/tenant: apps installées, connexions, santé, maturité, actions locales.", features=["identité VPS", "apps locales groupées", "connexions", "maturité OmarTop", "actions locales"], characteristics=["local-first", "Hub owner vérité runtime", "check/plan visibles", "apply désactivé sans backend gate"], source_of_truth=["public/api/sites.json", "public/api/apps.json", "public/api/maturity-runtime.json", "public/api/oa-system-contracts.json"], proofs=[common_proofs[1]], actions=[actions[1], actions[3]], owner="H-Omar", built_at=built_at),
+        _oa_page_contract(page_id="hub.actions", surface="hub", route="/parametres/actions", url="https://hub.omar.paris/parametres/actions", objective="Lister les actions pilotables du Hub avec statut, risque et garde-fous.", features=["catalogue actions", "modes check/plan/apply", "risques", "gates"], characteristics=["apply-gated", "pas d'action destructive aveugle", "preuves attendues"], source_of_truth=["public/api/settings-status.json", "public/api/maturity-runtime.json"], proofs=[{"label": "Hub actions live", "url_or_path": "https://hub.omar.paris/parametres/actions", "checked_at": built_at, "status": "ok"}], actions=[actions[0], actions[1], actions[3]], owner="H-Omar", built_at=built_at),
+        _oa_page_contract(page_id="appomar.lifecycle", surface="appomar", route="/audit/", url="https://app.omar.paris/audit/", objective="Parcours client: promesse → audit conversationnel → rapport/propositions → devis/validation → onboarding → Hub client → SAV.", features=["audit conversationnel", "rapport structuré", "devis justifié", "onboarding prérempli", "SAV"], characteristics=["public/commercial", "paiement non modifié sans GO", "secrets interdits", "statut live honnête"], source_of_truth=["docs/contracts/appomar-activation-boundary-v1.md", "src/audit_tree.business_tech.v1.yaml", "public/api/appomar-lifecycle.json"], proofs=[common_proofs[2]], actions=[actions[2], actions[3]], owner="H-Omar", built_at=built_at),
+        _oa_page_contract(page_id="omartop.standards", surface="omartop", route="/", url="https://top.omar.paris/", objective="Référence standards et maturité OA, consommée par QG et Hub.", features=["standards", "maturité", "gaps", "prochaines actions"], characteristics=["référentiel", "versionné", "non cockpit runtime"], source_of_truth=["OmarTop", "Hub public/api/maturity-runtime.json"], proofs=[{"label": "OmarTop link", "url_or_path": "https://top.omar.paris/", "checked_at": built_at, "status": "partial"}], actions=[actions[0]], owner="H-Omar", built_at=built_at, freshness_status="unknown"),
+        _oa_page_contract(page_id="hermesui.kanban", surface="qg", route="/kanban", url="http://100.79.68.6:9119/kanban", objective="Pilotage quotidien des cartes agents via HermesUI/Kanban.", features=["cartes", "statuts", "résultats persistés"], characteristics=["interne tailnet", "résultat kanban obligatoire", "pas OWUI"], source_of_truth=["HermesUI kanban.db", "H-Omar memory"], proofs=[{"label": "URL Kanban canonique", "url_or_path": "http://100.79.68.6:9119/kanban", "checked_at": built_at, "status": "partial"}], actions=[actions[0]], owner="H-Omar", built_at=built_at, freshness_status="unknown"),
+    ]
+    apps = [
+        {"id": "qg", "name": "QG", "surface": "qg", "url": "https://qg.omar.paris/", "objective": pages[0]["objective"], "status": "live"},
+        {"id": "hub", "name": "OmarHub", "surface": "hub", "url": "https://hub.omar.paris/", "objective": pages[1]["objective"], "status": "live"},
+        {"id": "appomar", "name": "AppOmar", "surface": "appomar", "url": "https://app.omar.paris/audit/", "objective": pages[3]["objective"], "status": "live_audit_only"},
+        {"id": "omartop", "name": "OmarTop", "surface": "omartop", "url": "https://top.omar.paris/", "objective": pages[4]["objective"], "status": "referenced"},
+        {"id": "catalogue", "name": "Catalogue", "surface": "catalogue", "url": "https://catalogue.omar.paris/", "objective": "Référentiel des briques apps/agents/tools OA.", "status": "referenced"},
+        {"id": "lab", "name": "Lab", "surface": "lab", "url": "https://lab.omar.paris/", "objective": "Atelier projets et prototypes OA.", "status": "live"},
+        {"id": "kanban", "name": "HermesUI Kanban", "surface": "qg", "url": "http://100.79.68.6:9119/kanban", "objective": "Pilotage des cartes agents.", "status": "internal"},
+    ]
+    return {
+        "schema": "oa.system-contracts/v1",
+        "generated_at": built_at,
+        "visibility": "public_safe_redacted",
+        "contracts": ["oa.app-registry/v1", "oa.page-contract/v1", "oa.action-catalog/v1", "oa.automation-registry/v1", "oa.proof-ledger/v1"],
+        "app_registry": {"schema": "oa.app-registry/v1", "items": apps},
+        "page_contracts": {"schema": "oa.page-contract/v1", "items": pages},
+        "action_catalog": {"schema": "oa.action-catalog/v1", "items": actions},
+        "automation_registry": {"schema": "oa.automation-registry/v1", "items": [
+            {"id": "qg.rebuild", "surface": "qg", "mode": "check", "status": "enabled", "cadence": "manual_or_cron", "proof": "/api/core-repos.json"},
+            {"id": "hub.runtime.refresh", "surface": "hub", "mode": "check", "status": "enabled", "cadence": "manual_or_cron", "proof": "/api/health.json"},
+            {"id": "prod.apply", "surface": "qg", "mode": "apply", "status": "gated", "cadence": "human_gate", "proof": "review_result.json pass/pass_with_nits required"},
+        ]},
+        "proof_ledger": {"schema": "oa.proof-ledger/v1", "items": common_proofs},
+        "safety": {"forbidden": ["secrets", "raw_env", "auth_headers", "raw_transcripts", "private_keys"], "apply_policy": "apply actions gated/disabled unless backend + H-Athena review gate exists"},
+    }
+
+
+def page_oa_system_control(contracts: dict) -> str:
+    pages = (contracts.get("page_contracts") or {}).get("items") or []
+    apps = (contracts.get("app_registry") or {}).get("items") or []
+    actions = (contracts.get("action_catalog") or {}).get("items") or []
+    html = '<section class="mb-6"><div class="text-xs font-semibold uppercase tracking-wide text-blue-600">Contrôle global OA</div><h1 class="text-2xl font-bold text-slate-950">QG / Hub / AppOmar — objectifs, preuves, actions</h1><p class="mt-1 text-sm text-slate-500">Contrat partagé <span class="font-mono">oa.system-contracts/v1</span> · public-safe · apply gated.</p></section>'
+    html += '<div class="grid md:grid-cols-4 gap-3 mb-6">'
+    html += f'<a href="/api/oa-system-contracts.json" class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3"><div class="text-xs text-blue-700">API contrat</div><div class="text-lg font-bold text-blue-950">{escape(contracts.get("schema", "unknown"))}</div></a>'
+    html += f'<div class="rounded-xl border border-slate-200 bg-white px-4 py-3"><div class="text-xs text-slate-500">Apps</div><div class="text-2xl font-bold text-slate-900">{len(apps)}</div></div>'
+    html += f'<div class="rounded-xl border border-slate-200 bg-white px-4 py-3"><div class="text-xs text-slate-500">Pages</div><div class="text-2xl font-bold text-slate-900">{len(pages)}</div></div>'
+    html += f'<div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"><div class="text-xs text-amber-700">Policy</div><div class="text-sm font-bold text-amber-900">apply gated</div></div></div>'
+    html += '<section class="grid lg:grid-cols-2 gap-4 mb-6">'
+    for page in pages:
+        proofs = page.get("proofs") or []
+        page_actions = page.get("actions") or []
+        html += '<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">'
+        html += f'<div class="flex items-start justify-between gap-3"><div><div class="text-xs font-semibold uppercase tracking-wide text-blue-600">{escape(str(page.get("surface")))}</div><h2 class="text-lg font-bold text-slate-950">{escape(str(page.get("id")))}</h2></div><a class="text-xs text-blue-600 hover:underline" href="{escape(str(page.get("url")))}">ouvrir</a></div>'
+        html += f'<p class="mt-2 text-sm text-slate-700">{escape(str(page.get("objective")))}</p>'
+        html += '<div class="mt-3 flex flex-wrap gap-2">' + ''.join(f'<span class="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{escape(str(x))}</span>' for x in (page.get("features") or [])[:5]) + '</div>'
+        html += '<div class="mt-3 text-xs text-slate-500">Sources: ' + escape(', '.join(map(str, page.get("source_of_truth") or []))) + '</div>'
+        html += '<div class="mt-3 space-y-1"><div class="text-xs font-semibold text-slate-700">Preuves</div>' + ''.join(f'<div class="text-xs text-slate-600">{escape(str(p.get("status")))} · {escape(str(p.get("label")))} · <span class="font-mono">{escape(str(p.get("url_or_path")))}</span></div>' for p in proofs[:3]) + '</div>'
+        html += '<div class="mt-3 space-y-1"><div class="text-xs font-semibold text-slate-700">Actions</div>' + ''.join(f'<div class="text-xs text-slate-600"><span class="font-mono">{escape(str(a.get("mode")))}</span> · {escape(str(a.get("status")))} · {escape(str(a.get("label") or a.get("id")))}</div>' for a in page_actions[:3]) + '</div>'
+        html += f'<div class="mt-3 text-[11px] text-slate-400">owner {escape(str(page.get("owner")))} · generated {escape(str((page.get("freshness") or {}).get("generated_at")))}</div>'
+        html += '</article>'
+    html += '</section>'
+    html += '<section class="rounded-2xl border border-slate-200 bg-white p-4"><h2 class="text-sm font-bold text-slate-950">Catalogue actions global</h2><div class="mt-3 grid md:grid-cols-2 gap-2">'
+    for action in actions:
+        cls = 'bg-red-50 text-red-700 border-red-100' if action.get('mode') == 'apply' else 'bg-green-50 text-green-700 border-green-100' if action.get('mode') == 'check' else 'bg-blue-50 text-blue-700 border-blue-100'
+        html += f'<div class="rounded-xl border {cls} px-3 py-2 text-xs"><span class="font-mono">{escape(str(action.get("id")))}</span> · {escape(str(action.get("mode")))} · {escape(str(action.get("status")))} · risque {escape(str(action.get("risk")))}</div>'
+    html += '</div></section>'
+    return html
+
+
 def payload(built_at: str) -> dict:
-    # Boucle d'auto-amélioration (10 juin 2026) : le triage quotidien remplace
     # le `next` codé en dur ; vps.json alimente la vue alignement VPS Hermes OA.
     triage = _read_var_json("triage.json")
     vps = _read_var_json("vps.json")
@@ -1599,6 +1890,7 @@ NAV_SECTIONS = [
         "hint": "Fleet, clients, apps",
         "children": [
             ("/ops/", "ops", "Ops"),
+            ("/controle-oa/", "controle-oa", "Contrôle OA"),
             ("/clients/", "clients", "Clients & VPS"),
             ("/apps/qg/", "app-qg", "Fiche QG"),
             ("/apps/hub/", "app-hub", "Fiche Hub"),
@@ -2690,7 +2982,66 @@ def _vps_fleet_section(vps_fleet: dict | None) -> str:
     return html
 
 
-def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None, vps_fleet: dict | None = None) -> str:
+def _hub_node_maturity_section(hub_node_maturity: dict | None) -> str:
+    """Synthèse QG des rapports Hub node v1: source/fraîcheur/score/gaps, jamais logs locaux."""
+    payload = hub_node_maturity if isinstance(hub_node_maturity, dict) else {}
+    nodes = payload.get("nodes") or []
+    summary = payload.get("summary") or {}
+    html = '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">'
+    html += '<div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">'
+    html += ('<div><h2 class="text-sm font-bold text-gray-900">Maturité HubFleet — rapports Hub node v1</h2>'
+             '<p class="text-xs text-gray-500">Source <span class="font-mono">oa.hub-node-report/v1</span> · QG synthèse uniquement · unknown si rapport absent.</p></div>')
+    html += '<a href="/api/ops/hub-node-maturity.json" class="text-xs text-blue-500 hover:underline">API maturité</a>'
+    html += '</div>'
+    html += ('<div class="px-4 py-3 bg-gray-50 border-b border-gray-100 text-base font-bold text-gray-900">'
+             f'{escape(str(summary.get("reporting", 0)))} / {escape(str(summary.get("expected", 0)))} rapports · '
+             f'score moyen {escape(str(summary.get("avg_score") if summary.get("avg_score") is not None else "unknown"))} · '
+             f'{escape(str(summary.get("priority_gaps", 0)))} gap(s) prioritaires</div>')
+    if not nodes:
+        html += '<div class="px-4 py-4 text-sm text-amber-800 bg-amber-50">Aucun rapport Hub node lisible — QG garde unknown.</div>'
+        html += '</section>'
+        return html
+    html += '<div class="grid md:grid-cols-2 gap-3 p-4">'
+    for node in nodes:
+        status = str(node.get("status") or "unknown")
+        report_status = str(node.get("report_status") or "missing")
+        score = node.get("score")
+        score_txt = str(score) if score is not None else "unknown"
+        cls = "border-green-200 bg-green-50" if status == "ok" else "border-amber-200 bg-amber-50" if status in {"degraded", "unknown"} else "border-red-200 bg-red-50"
+        status_cls = "text-green-700" if status == "ok" else "text-amber-700" if status in {"degraded", "unknown"} else "text-red-700"
+        freshness = node.get("freshness") if isinstance(node.get("freshness"), dict) else {}
+        source = node.get("source") if isinstance(node.get("source"), dict) else {}
+        hermes = node.get("hermes_version") if isinstance(node.get("hermes_version"), dict) else {}
+        gateway_raw = hermes.get("gateway_status")
+        gateway = gateway_raw if isinstance(gateway_raw, dict) else {}
+        gaps = node.get("priority_gaps") or []
+        next_action = node.get("next_action") or {}
+        html += f'<div class="rounded-xl border {cls} px-4 py-3">'
+        html += '<div class="flex items-start justify-between gap-3">'
+        html += f'<div><div class="text-sm font-bold text-gray-900">{escape(str(node.get("label") or node.get("node_id") or "node"))}</div>'
+        html += f'<div class="text-xs text-gray-500 font-mono">{escape(str(node.get("node_id") or ""))} · {escape(str(node.get("kind") or "unknown"))}</div></div>'
+        html += f'<div class="text-right"><div class="text-2xl font-bold {status_cls}">{escape(score_txt)}</div><div class="text-xs text-gray-500">{escape(str(node.get("level") or "unknown"))}</div></div>'
+        html += '</div>'
+        html += f'<div class="text-xs {status_cls} font-semibold mt-2">status {escape(status)} · rapport {escape(report_status)}</div>'
+        html += f'<div class="text-xs text-gray-600 mt-1">Hermes {escape(str(hermes.get("current_version") or "unknown"))} · upstream {escape(str(hermes.get("upstream_status") or "unknown"))} · gateway {escape(str(gateway.get("status") or "unknown"))}</div>'
+        html += f'<div class="text-xs text-gray-500 mt-1">fraîcheur {escape(str(freshness.get("status") or "unknown"))} · checked {escape(str(freshness.get("checked_at") or "unknown"))}</div>'
+        if gaps:
+            html += '<div class="mt-2 space-y-1">'
+            for gap in gaps[:4]:
+                html += f'<div class="text-xs text-gray-700"><span class="font-mono font-semibold">{escape(str(gap.get("domain") or "gap"))}</span> — {escape(str(gap.get("summary") or ""))}</div>'
+            html += '</div>'
+        else:
+            html += '<div class="text-xs text-green-700 mt-2">Aucun gap prioritaire reporté.</div>'
+        html += f'<div class="text-xs text-gray-700 mt-2">Next : {escape(str(next_action.get("label") or "unknown"))} — owner <span class="font-semibold">{escape(str(next_action.get("owner") or "unknown"))}</span></div>'
+        html += f'<div class="text-[11px] text-gray-400 mt-2">source {escape(str(source.get("kind") or "unknown"))}/{escape(str(source.get("mode") or "unknown"))} · <span class="font-mono">{escape(str(node.get("source_path") or "absent"))}</span></div>'
+        html += '</div>'
+    html += '</div>'
+    html += '<div class="px-4 py-3 bg-gray-50 text-xs text-gray-500">Garde-fou: QG ne duplique pas les logs locaux et ne centralise pas de secret; il affiche uniquement les résumés redacted Hub.</div>'
+    html += '</section>'
+    return html
+
+
+def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None, vps_fleet: dict | None = None, hub_node_maturity: dict | None = None) -> str:
     gh = ledger.get("github_totals", {})
     hermes = ledger.get("sessions", {}).get("hermes", {})
     cc = ledger.get("sessions", {}).get("ccusage", {})
@@ -2714,6 +3065,7 @@ def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None
         '</div>'
     )
     # EN TÊTE (demande Alex 07/07) : la flotte VPS — chaque machine, sa maturité.
+    html += _hub_node_maturity_section(hub_node_maturity)
     html += _vps_fleet_section(vps_fleet)
     html += '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">'
     html += card("Sessions Hermes", hermes.get("sessions", 0), f'{hermes.get("messages", 0)} messages · {hermes.get("tool_calls", 0)} tools')
@@ -4173,6 +4525,22 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(vps_fleet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
+    # HubFleet reports v1 : maturité synthétique QG, sans duplication de logs locaux.
+    try:
+        hub_node_maturity = collect_hub_node_maturity(built_at)
+    except Exception as exc:  # ne casse jamais le build QG
+        hub_node_maturity = {
+            "schema": "oa.qg.hub-node-maturity/1",
+            "built_at": built_at,
+            "source": "oa.hub-node-report/v1 redacted reports; no local logs duplicated",
+            "summary": {"expected": len(HUB_NODE_EXPECTED), "reporting": 0, "missing": len(HUB_NODE_EXPECTED), "unknown": len(HUB_NODE_EXPECTED), "avg_score": None, "priority_gaps": 0},
+            "nodes": [],
+            "errors": [f"hub_node_maturity_unavailable: {exc.__class__.__name__}"],
+        }
+    (tmp / "api" / "ops" / "hub-node-maturity.json").write_text(
+        json.dumps(hub_node_maturity, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
     # Builds du jour (commits par repo, 7 j) → public/api/builds.json
     try:
         builds = _load_build_ledger().collect_builds()
@@ -4194,6 +4562,11 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(productivite, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
+    oa_system_contracts = collect_oa_system_contracts(built_at)
+    (tmp / "api" / "oa-system-contracts.json").write_text(
+        json.dumps(oa_system_contracts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
         ("/docs/",        "docs",        "Docs",                    page_docs(docs_index)),
@@ -4204,7 +4577,8 @@ def main(argv: list[str] | None = None) -> None:
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
-        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage, vps_fleet)),
+        ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage, vps_fleet, hub_node_maturity)),
+        ("/controle-oa/", "controle-oa", "Contrôle OA",             page_oa_system_control(oa_system_contracts)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
         ("/decisions/",   "decisions",   "Décisions",                page_decisions(decisions)),
         ("/builds/",      "builds",      "Builds du jour",           page_builds(builds)),
