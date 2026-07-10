@@ -62,6 +62,20 @@ def _load_agent_loop_registry():
     return mod
 
 
+def _load_agent_activity():
+    """Importe scripts/agent_activity.py pour publier la vue dynamique agents."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "agent_activity", Path(__file__).resolve().parent / "agent_activity.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("agent_activity.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _load_storage_collector():
     """Importe scripts/collect_storage.py pour publier le snapshot stockage QG."""
     import importlib.util
@@ -1878,7 +1892,8 @@ NAV_SECTIONS = [
         "hint": "Missions et livraisons",
         "children": [
             ("/chantiers/", "chantiers", "Chantiers"),
-            ("/agent-loop/", "agent-loop", "Agents"),
+            ("/agent-activity/", "agent-activity", "Activité agents"),
+            ("/agent-loop/", "agent-loop", "Gates & orphelins"),
             ("/builds/", "builds", "Builds"),
         ],
     },
@@ -2219,7 +2234,7 @@ if (doc) {{
 }}
 </script>
 '''
-def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None, vps_fleet: dict | None = None) -> str:
+def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int = 0, objectifs: list | None = None, builds: dict | None = None, agent_loop_audit: dict | None = None, blocages: dict | None = None, vps_fleet: dict | None = None, agent_activity: dict | None = None) -> str:
     items = data["items"]
     counts = data["counts"]
     objectifs = objectifs or []
@@ -2240,11 +2255,25 @@ def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int =
         f'<span class="text-xs text-blue-500">Voir /ops/ →</span></div></a>'
     ) if fleet_expected else ""
 
+    # Tuile activité agents : cockpit dynamique filtrable depuis Kanban + registry.
+    activity_summary = (agent_activity or {}).get("summary", {}) or {}
+    active_agents = int(activity_summary.get("agents") or 0)
+    active_work = int(activity_summary.get("active") or 0)
+    blocked_work = int(activity_summary.get("blocked") or 0)
+    activity_accent = "text-red-600" if blocked_work else "text-gray-900"
+    activity_tile = (
+        f'<a href="/agent-activity/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
+        f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {activity_accent}">{active_work}<span class="text-gray-400 text-sm font-normal">/{active_agents}</span></div>'
+        f'<div class="text-xs text-gray-500 mt-0.5">Activité agents · {blocked_work} bloquée(s) · filtres VPS/type/date</div></div>'
+        f'<span class="text-xs text-blue-500">Voir agents →</span></div></a>'
+    )
+
     # Tuiles d'action : blocages à trancher + builds du jour (liens dédiés).
     # Source unique du compteur Alex: collect_blocages.py (plus de recomptage décisions ici).
+    tile_count = 4 + (1 if fleet_tile else 0)
     dec_accent = "text-amber-600" if pending_alex_actions else "text-gray-900"
     tiles = (
-        f'<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-{4 if fleet_tile else 3} gap-3 mb-3">'
+        f'<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-{tile_count} gap-3 mb-3">'
         f'<a href="/blocages/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {dec_accent}">{pending_alex_actions}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Actions Alex à débloquer</div></div>'
@@ -2253,6 +2282,7 @@ def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int =
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold text-gray-900">{builds_today}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Builds aujourd’hui</div></div>'
         f'<span class="text-xs text-blue-500">Voir →</span></div></a>'
+        + activity_tile +
         f'<a href="/agent-loop/" class="block bg-white rounded-xl border border-gray-200 px-4 py-3 hover:border-blue-300 hover:shadow-sm transition">'
         f'<div class="flex items-center justify-between"><div><div class="text-2xl font-bold {"text-red-600" if total_orphans else "text-gray-900"}">{total_orphans}</div>'
         f'<div class="text-xs text-gray-500 mt-0.5">Orphelins Issue↔Kanban↔PR↔Gate · figé depuis 15/06 si non recronifié</div></div>'
@@ -4157,7 +4187,7 @@ def page_agent_loop_audit(report: dict, registry: dict | None = None) -> str:
         '<div class="flex items-center justify-between mb-6"><div>'
         '<h1 class="text-xl font-bold text-gray-900">Audit anti-orphelins</h1>'
         f'<p class="text-sm text-gray-500 mt-0.5">Issue ↔ Kanban ↔ PR ↔ Gate — dernier scan {escape(str(checked_at))} · figé depuis le 15/06 si non recronifié.</p></div>'
-        '<div class="flex gap-3"><a href="/api/agent-loop-registry.json" class="text-xs text-blue-500 hover:underline">API registry</a><a href="/api/agent-loop-audit.json" class="text-xs text-blue-500 hover:underline">API audit</a></div></div>'
+        '<div class="flex gap-3"><a href="/agent-activity/" class="text-xs text-blue-600 hover:underline font-semibold">Activité agents dynamique</a><a href="/api/agent-loop-registry.json" class="text-xs text-blue-500 hover:underline">API registry</a><a href="/api/agent-loop-audit.json" class="text-xs text-blue-500 hover:underline">API audit</a></div></div>'
         '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">'
         f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold {"text-red-600" if total else "text-gray-900"}">{total}</div><div class="text-xs text-gray-500 mt-0.5">Total orphelins</div></div>'
         + card("Issues agent-ok sans carte", "issues_without_card", "text-red-600")
@@ -4171,6 +4201,174 @@ def page_agent_loop_audit(report: dict, registry: dict | None = None) -> str:
         + registry_rows + '</div><div class="bg-white rounded-xl border border-gray-200 overflow-hidden">'
         '<div class="px-4 py-3 border-b border-gray-100"><div class="text-sm font-bold text-gray-900">Orphelins et actions à prendre</div></div>'
         + rows + '</div>' + errors_html
+    )
+
+
+def page_agent_activity(activity: dict) -> str:
+    """Vue QG dynamique: qui fait quoi, par agent/VPS/type/date/priorité."""
+    activity = activity if isinstance(activity, dict) else {}
+    summary = activity.get("summary") or {}
+    agents = activity.get("agents") or []
+    active_items = activity.get("active_items") or []
+    decisions = activity.get("decision_required") or []
+    items = activity.get("items") or []
+    generated_at = activity.get("generated_at") or "non généré"
+    filters = activity.get("filters") or {}
+
+    def filter_select(label: str, field: str, values: list) -> str:
+        options = ''.join(f'<option value="{escape(str(v))}">{escape(str(v))}</option>' for v in values if str(v))
+        return (
+            f'<label class="text-xs font-semibold text-gray-600">{escape(label)}'
+            f'<select data-agent-activity-filter="{escape(field)}" class="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700">'
+            '<option value="">Tous</option>' + options + '</select></label>'
+        )
+
+    def kpi(label: str, value: object, sub: str = "") -> str:
+        sub_html = f'<div class="text-xs text-gray-400 mt-1">{escape(sub)}</div>' if sub else ""
+        return f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{escape(str(value))}</div><div class="text-xs text-gray-500 mt-0.5">{escape(label)}</div>{sub_html}</div>'
+
+    def pill(text: object, tone: str = "gray") -> str:
+        classes = {
+            "green": "bg-green-50 text-green-700 border-green-200",
+            "amber": "bg-amber-50 text-amber-700 border-amber-200",
+            "red": "bg-red-50 text-red-700 border-red-200",
+            "blue": "bg-blue-50 text-blue-700 border-blue-200",
+            "gray": "bg-gray-50 text-gray-600 border-gray-200",
+        }.get(tone, "bg-gray-50 text-gray-600 border-gray-200")
+        return f'<span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold {classes}">{escape(str(text))}</span>'
+
+    def item_row(item: dict) -> str:
+        status = str(item.get("status") or "unknown")
+        tone = "green" if status == "done" else "red" if status == "blocked" else "blue" if status == "running" else "amber" if status in {"ready", "scheduled", "todo"} else "gray"
+        artifacts = item.get("artifacts") or []
+        artifact_txt = f'{len(artifacts)} artefact(s)' if artifacts else "aucun artefact"
+        result = str(item.get("result_excerpt") or "")
+        result_html = f'<div class="text-xs text-gray-500 mt-1">{escape(result)}</div>' if result else ""
+        return (
+            '<div class="agent-activity-item px-4 py-3 border-b border-gray-100 last:border-0" '
+            f'data-agent="{escape(str(item.get("assignee") or "unassigned"))}" '
+            f'data-vps="{escape(str(item.get("vps") or "unknown"))}" '
+            f'data-application="{escape(str(item.get("application") or "unknown"))}" '
+            f'data-activity-type="{escape(str(item.get("activity_type") or "work"))}" '
+            f'data-status="{escape(status)}" '
+            f'data-priority="{escape(str(item.get("priority_bucket") or "P?"))}" '
+            f'data-latest="{escape(str(item.get("latest_at") or ""))}">'
+            '<div class="flex flex-wrap items-start justify-between gap-2">'
+            f'<div><div class="text-sm font-semibold text-gray-900">{escape(str(item.get("title") or ""))}</div>'
+            f'<div class="text-xs text-gray-400 font-mono mt-0.5">{escape(str(item.get("task_id") or ""))} · {escape(str(item.get("latest_at") or "?"))}</div></div>'
+            f'<div class="flex flex-wrap gap-1.5 justify-end">{pill(status, tone)}{pill(item.get("priority_bucket") or "P?", "amber")}{pill(item.get("vps") or "unknown", "blue")}{pill(item.get("activity_type") or "work", "gray")}</div>'
+            '</div>'
+            f'<div class="mt-2 text-xs text-gray-600">agent <span class="font-semibold">{escape(str(item.get("assignee") or "unassigned"))}</span> · app <span class="font-semibold">{escape(str(item.get("application") or "unknown"))}</span> · {escape(artifact_txt)}</div>'
+            + result_html + '</div>'
+        )
+
+    agent_rows = ""
+    for agent in agents[:30] if isinstance(agents, list) else []:
+        priorities = agent.get("priorities") or {}
+        apps = agent.get("applications") or {}
+        app_txt = ", ".join(f"{k}:{v}" for k, v in sorted(apps.items(), key=lambda kv: str(kv[0]))[:4]) or "unknown"
+        role = str(agent.get("role") or "rôle non déclaré")
+        agent_rows += (
+            '<div class="px-4 py-3 border-b border-gray-100 last:border-0">'
+            '<div class="flex flex-wrap items-center justify-between gap-2">'
+            f'<div><div class="text-sm font-bold text-gray-900">{escape(str(agent.get("agent") or "agent"))}</div><div class="text-xs text-gray-500">{escape(role)}</div></div>'
+            f'<div class="flex flex-wrap gap-1.5">{pill("actif " + str(agent.get("active", 0)), "blue")}{pill("done " + str(agent.get("done", 0)), "green")}{pill("bloqué " + str(agent.get("blocked", 0)), "red" if agent.get("blocked") else "gray")}{pill(agent.get("dominant_vps") or "unknown", "blue")}</div>'
+            '</div>'
+            f'<div class="text-xs text-gray-500 mt-2">types: {escape(str(agent.get("types") or {}))} · priorités: {escape(str(priorities))} · apps: {escape(app_txt)} · dernier: {escape(str(agent.get("latest_at") or "?"))}</div>'
+            '</div>'
+        )
+    if not agent_rows:
+        agent_rows = '<div class="px-4 py-4 text-sm text-amber-700 bg-amber-50">Aucune activité agent lisible.</div>'
+
+    active_rows = "".join(item_row(i) for i in active_items[:30] if isinstance(i, dict)) or '<div class="px-4 py-4 text-sm text-green-700 bg-green-50">Aucune carte active/bloquée dans la fenêtre.</div>'
+    decision_rows = "".join(item_row(i) for i in decisions[:20] if isinstance(i, dict)) or '<div class="px-4 py-4 text-sm text-green-700 bg-green-50">Aucune décision bloquante détectée.</div>'
+    recent_rows = "".join(item_row(i) for i in items[:40] if isinstance(i, dict)) or '<div class="px-4 py-4 text-sm text-gray-500">Aucun item récent.</div>'
+
+    errors = activity.get("errors") or []
+    errors_html = ""
+    if errors:
+        errors_html = '<div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5"><div class="text-sm font-bold text-amber-800">Collecte dégradée</div>'
+        errors_html += "".join(f'<div class="text-xs font-mono text-amber-700 mt-1">{escape(str(e))}</div>' for e in errors[:6])
+        errors_html += '</div>'
+
+    by_vps = summary.get("by_vps") or {}
+    by_type = summary.get("by_type") or {}
+    by_vps_txt = " · ".join(f"{k}: {v}" for k, v in by_vps.items()) or "unknown"
+    by_type_txt = " · ".join(f"{k}: {v}" for k, v in by_type.items()) or "unknown"
+    filter_controls = (
+        '<div class="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-5">'
+        '<div class="flex flex-wrap items-center justify-between gap-2 mb-3"><div><div class="text-sm font-bold text-gray-900">Filtres dynamiques</div><div class="text-xs text-gray-400">Filtre les listes visibles sans exposer plus de données.</div></div>'
+        '<button type="button" data-agent-activity-reset class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-700">Réinitialiser</button></div>'
+        '<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">'
+        + filter_select("Agent", "agent", filters.get("agents") or [])
+        + filter_select("VPS", "vps", filters.get("vps") or [])
+        + filter_select("Application", "application", filters.get("applications") or [])
+        + filter_select("Type", "activityType", filters.get("activity_types") or [])
+        + filter_select("Statut", "status", filters.get("statuses") or [])
+        + filter_select("Priorité", "priority", filters.get("priority_buckets") or [])
+        + '<label class="text-xs font-semibold text-gray-600">Date<select data-agent-activity-filter="date" class="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"><option value="">Toutes</option><option value="24h">24h</option><option value="open">Actives/ouvertes</option></select></label>'
+        + '</div><div class="mt-3 text-xs text-gray-500"><span data-agent-activity-count></span></div></div>'
+    )
+    filter_script = """
+<script>
+(() => {
+  const selects = [...document.querySelectorAll('[data-agent-activity-filter]')];
+  const rows = [...document.querySelectorAll('.agent-activity-item')];
+  const count = document.querySelector('[data-agent-activity-count]');
+  const reset = document.querySelector('[data-agent-activity-reset]');
+  function isRecent24(value) {
+    if (!value) return false;
+    const t = Date.parse(value);
+    if (Number.isNaN(t)) return false;
+    return Date.now() - t <= 24 * 60 * 60 * 1000;
+  }
+  function matches(row, field, value) {
+    if (!value) return true;
+    if (field === 'date') {
+      if (value === '24h') return isRecent24(row.dataset.latest || '');
+      if (value === 'open') return ['running','ready','todo','scheduled','blocked'].includes(row.dataset.status || '');
+      return true;
+    }
+    return (row.dataset[field] || '') === value;
+  }
+  function applyFilters() {
+    const active = Object.fromEntries(selects.map(s => [s.dataset.agentActivityFilter, s.value]));
+    let visible = 0;
+    rows.forEach(row => {
+      const ok = Object.entries(active).every(([field, value]) => matches(row, field, value));
+      row.hidden = !ok;
+      if (ok) visible += 1;
+    });
+    if (count) count.textContent = `${visible}/${rows.length} lignes visibles`;
+  }
+  selects.forEach(s => s.addEventListener('change', applyFilters));
+  if (reset) reset.addEventListener('click', () => { selects.forEach(s => { s.value = ''; }); applyFilters(); });
+  applyFilters();
+})();
+</script>
+"""
+
+    return (
+        '<div class="flex items-center justify-between mb-6"><div>'
+        '<h1 class="text-xl font-bold text-gray-900">Activité agents — cockpit dynamique</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">Qui fait quoi, où, avec quelle priorité — snapshot {escape(str(generated_at))}.</p></div>'
+        '<div class="flex gap-3"><a href="/api/agent-activity.json" class="text-xs text-blue-600 hover:underline font-semibold">API agent-activity</a><a href="/agent-loop/" class="text-xs text-blue-500 hover:underline">Audit anti-orphelins</a></div></div>'
+        + errors_html +
+        '<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-5">'
+        + kpi("Tâches fenêtre", summary.get("tasks", 0), "Kanban 7 jours + actifs")
+        + kpi("Actives", summary.get("active", 0), "running/ready/todo/scheduled/blocked")
+        + kpi("Bloquées", summary.get("blocked", 0), "owner/next_action à vérifier")
+        + kpi("Décisions", summary.get("decision_required", 0), "GO ou blocage")
+        + kpi("Agents", summary.get("agents", 0), "assignees actifs")
+        + kpi("Done", summary.get("done", 0), "livrés dans fenêtre")
+        + '</div>'
+        + f'<div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-5 text-xs text-slate-600"><span class="font-semibold">Dimensions de pilotage :</span> agent, VPS, application, type, statut, priorité, date. <span class="font-semibold">VPS :</span> {escape(by_vps_txt)}. <span class="font-semibold">Types :</span> {escape(by_type_txt)}.</div>'
+        + filter_controls
+        + '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6"><div class="px-4 py-3 border-b border-gray-100"><div class="text-sm font-bold text-gray-900">Par agent — responsabilité et charge</div><div class="text-xs text-gray-400">Synthèse depuis Kanban + registry agents.</div></div>' + agent_rows + '</section>'
+        + '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6"><div class="px-4 py-3 border-b border-gray-100"><div class="text-sm font-bold text-gray-900">À regarder maintenant</div><div class="text-xs text-gray-400">Cartes actives, prêtes, planifiées ou bloquées.</div></div>' + active_rows + '</section>'
+        + '<section class="bg-white rounded-xl border border-red-200 overflow-hidden mb-6"><div class="px-4 py-3 border-b border-red-100 bg-red-50"><div class="text-sm font-bold text-red-900">Décisions / blocages</div><div class="text-xs text-red-700">Ce qui peut nécessiter Alex ou H-Omar.</div></div>' + decision_rows + '</section>'
+        + '<section class="bg-white rounded-xl border border-gray-200 overflow-hidden"><div class="px-4 py-3 border-b border-gray-100"><div class="text-sm font-bold text-gray-900">Journal récent</div><div class="text-xs text-gray-400">Derniers items redacted, avec livrables et artefacts quand présents.</div></div>' + recent_rows + '</section>'
+        + filter_script
     )
 
 
@@ -4475,6 +4673,28 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(agent_loop_registry, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
+    try:
+        agent_activity = _load_agent_activity().collect(window_days=7, limit=240)
+    except Exception as exc:  # ne casse jamais le build QG
+        agent_activity = {
+            "schema": "oa.agent-activity/v1",
+            "status": "degraded",
+            "generated_at": built_at,
+            "source": {"collector": "scripts/agent_activity.py"},
+            "mode": "dynamic-readonly-redacted",
+            "window_days": 7,
+            "summary": {"tasks": 0, "active": 0, "blocked": 0, "done": 0, "agents": 0, "decision_required": 0, "by_status": {}, "by_priority": {}, "by_vps": {}, "by_type": {}},
+            "filters": {"agents": [], "vps": [], "applications": [], "activity_types": [], "statuses": [], "priority_buckets": []},
+            "agents": [],
+            "active_items": [],
+            "decision_required": [],
+            "items": [],
+            "errors": [f"agent-activity unavailable: {exc.__class__.__name__}: {exc}"],
+        }
+    (tmp / "api" / "agent-activity.json").write_text(
+        json.dumps(agent_activity, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
     # Repo Health v0 — snapshot canonique pour éviter la redécouverte manuelle.
     try:
         repo_health = _load_repo_health().collect()
@@ -4571,12 +4791,13 @@ def main(argv: list[str] | None = None) -> None:
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
         ("/docs/",        "docs",        "Docs",                    page_docs(docs_index)),
         ("/carte/",       "carte",       "Carte du puzzle",         page_carte(carte_payload)),
-        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet)),
+        ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet, agent_activity)),
         ("/productivite/", "productivite", "Objectif du jour",       page_productivite(productivite, ledger)),
         ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
+        ("/agent-activity/", "agent-activity", "Activité agents",     page_agent_activity(agent_activity)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage, vps_fleet, hub_node_maturity)),
         ("/controle-oa/", "controle-oa", "Contrôle OA",             page_oa_system_control(oa_system_contracts)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
