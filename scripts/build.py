@@ -128,6 +128,44 @@ except Exception:  # pragma: no cover
 
 # ── GitHub token ──────────────────────────────────────────────────────────────
 
+def _inject_graded_conformity(fleet_supervision_v0: dict) -> None:
+    """Injecte la conformité graduée (oa-compliance-run) dans le node Omar de la
+    supervision flotte : la matrice PASS/FAIL gagne la lecture 4 couleurs + tendance.
+    Omar seul est mesuré ici ; jab/pantheos garderont leur artefact ship-own."""
+    comp = Path("/home/omar/23-Offre/actifs/omar-top/state/compliance/omar")
+    runs = comp / "runs.jsonl"
+    if not runs.exists():
+        return
+    try:
+        run_lines = [l for l in runs.read_text().splitlines() if l.strip()]
+        if not run_lines:
+            return
+        last = json.loads(run_lines[-1])
+        laws: dict = {}
+        vpath = comp / "verdicts.jsonl"
+        if vpath.exists():
+            for line in vpath.read_text().splitlines():
+                if not line.strip():
+                    continue
+                v = json.loads(line)
+                if v.get("run_id") == last.get("run_id"):
+                    laws[v["law_id"]] = v.get("couleur")
+        graded = {
+            "schema": "oa.graded-conformity/v1",
+            "grade": last.get("vps_grade"),
+            "tally": last.get("tally"),
+            "run_id": last.get("run_id"),
+            "laws": laws,
+            "source": "oa-compliance-run (omar-top ledger, 4 couleurs)",
+        }
+        for node in fleet_supervision_v0.get("nodes", []):
+            nid = node.get("node") or node.get("id")
+            if nid in ("oa-master", "omar", "vps-omar"):
+                node["conformite_graduee"] = graded
+    except Exception:
+        return
+
+
 def _gh_token() -> str:
     t = os.environ.get("GITHUB_TOKEN", "")
     if t:
@@ -1833,6 +1871,8 @@ def payload(built_at: str) -> dict:
     fleet_supervision_v0 = _read_var_json("oa-fleet-supervision-v0.json")
     if not isinstance(fleet_supervision_v0, dict):
         fleet_supervision_v0 = {}
+    # Enrichit la supervision flotte avec la conformité graduée 4 couleurs (Omar).
+    _inject_graded_conformity(fleet_supervision_v0)
     vps_app_inventory = collect_vps_app_inventory(built_at)
     resource_onboarding_raw = _read_var_json("vps-resource-onboarding-v0.json")
     if not isinstance(resource_onboarding_raw, dict):
@@ -4574,6 +4614,8 @@ def main(argv: list[str] | None = None) -> None:
         if var_payload:
             if var_name == "vps-resource-onboarding-v0.json":
                 var_payload = sanitize_resource_onboarding_public(var_payload)
+            if var_name == "oa-fleet-supervision-v0.json":
+                _inject_graded_conformity(var_payload)  # conformité 4 couleurs (Omar)
             (tmp / "api" / var_name).write_text(json.dumps(var_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     # Blocages : snapshot collecté en tête de build → /api/blocages.json.
     (tmp / "api" / "blocages.json").write_text(
