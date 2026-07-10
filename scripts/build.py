@@ -128,18 +128,19 @@ except Exception:  # pragma: no cover
 
 # ── GitHub token ──────────────────────────────────────────────────────────────
 
-def _inject_graded_conformity(fleet_supervision_v0: dict) -> None:
-    """Injecte la conformité graduée (oa-compliance-run) dans le node Omar de la
-    supervision flotte : la matrice PASS/FAIL gagne la lecture 4 couleurs + tendance.
-    Omar seul est mesuré ici ; jab/pantheos garderont leur artefact ship-own."""
-    comp = Path("/home/omar/23-Offre/actifs/omar-top/state/compliance/omar")
-    runs = comp / "runs.jsonl"
-    if not runs.exists():
-        return
-    try:
+def _load_graded_for_node(node_id: str, qg_root: Path):
+    """Conformité graduée 4 couleurs d'un node.
+    - Omar : depuis son ledger local oa-compliance-run (omar-top).
+    - VPS distant (jab/pantheos) : depuis l'artefact EXPÉDIÉ (ship-own) déposé en
+      var/graded-conformity-<id>.json — le QG ne lit JAMAIS le VPS en direct."""
+    if node_id in ("oa-master", "omar", "vps-omar"):
+        comp = Path("/home/omar/23-Offre/actifs/omar-top/state/compliance/omar")
+        runs = comp / "runs.jsonl"
+        if not runs.exists():
+            return None
         run_lines = [l for l in runs.read_text().splitlines() if l.strip()]
         if not run_lines:
-            return
+            return None
         last = json.loads(run_lines[-1])
         laws: dict = {}
         vpath = comp / "verdicts.jsonl"
@@ -150,20 +151,39 @@ def _inject_graded_conformity(fleet_supervision_v0: dict) -> None:
                 v = json.loads(line)
                 if v.get("run_id") == last.get("run_id"):
                     laws[v["law_id"]] = v.get("couleur")
-        graded = {
-            "schema": "oa.graded-conformity/v1",
-            "grade": last.get("vps_grade"),
-            "tally": last.get("tally"),
-            "run_id": last.get("run_id"),
-            "laws": laws,
-            "source": "oa-compliance-run (omar-top ledger, 4 couleurs)",
+        return {
+            "schema": "oa.graded-conformity/v1", "grade": last.get("vps_grade"),
+            "tally": last.get("tally"), "run_id": last.get("run_id"), "laws": laws,
+            "source": "oa-compliance-run (omar-top ledger, local)",
         }
-        for node in fleet_supervision_v0.get("nodes", []):
-            nid = node.get("node") or node.get("id")
-            if nid in ("oa-master", "omar", "vps-omar"):
-                node["conformite_graduee"] = graded
-    except Exception:
-        return
+    # Cherché là où atterrissent les artefacts expédiés (var QG + inbox du pull inter-VPS).
+    candidates = [
+        qg_root / "var" / f"graded-conformity-{node_id}.json",
+        Path(f"/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/{node_id}-pull/graded-conformity.json"),
+    ]
+    for shipped in candidates:
+        if shipped.exists():
+            try:
+                g = json.loads(shipped.read_text())
+                g.setdefault("source", "ship-own (expédié par le VPS)")
+                return g
+            except Exception:
+                continue
+    return None
+
+
+def _inject_graded_conformity(fleet_supervision_v0: dict) -> None:
+    """Fleet-ready : injecte la conformité graduée dans CHAQUE node qui en a une.
+    Omar depuis son ledger ; jab/pantheos dès qu'ils poussent leur artefact gradué."""
+    qg_root = Path(__file__).resolve().parents[1]
+    for node in fleet_supervision_v0.get("nodes", []):
+        nid = node.get("node") or node.get("id")
+        try:
+            g = _load_graded_for_node(nid, qg_root)
+        except Exception:
+            g = None
+        if g:
+            node["conformite_graduee"] = g
 
 
 def _gh_token() -> str:
