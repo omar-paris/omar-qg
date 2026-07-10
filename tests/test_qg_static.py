@@ -1,6 +1,8 @@
 from pathlib import Path
+import importlib.util
 import json
 import os
+import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +15,7 @@ ROUTES = {
     "/carte": PUBLIC / "carte" / "index.html",
     "/objectifs": PUBLIC / "objectifs" / "index.html",
     "/ops": PUBLIC / "ops" / "index.html",
+    "/agent-activity": PUBLIC / "agent-activity" / "index.html",
     "/controle-oa": PUBLIC / "controle-oa" / "index.html",
     "/partenaires": PUBLIC / "partenaires" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
@@ -94,6 +97,64 @@ def test_qg_exposes_oa_system_contracts_and_control_page():
     assert "QG / Hub / AppOmar" in page
     assert "oa.system-contracts/v1" in page
     assert "apply gated" in page
+
+
+def test_qg_agent_activity_page_and_api():
+    build()
+    home = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    assert "/agent-activity/" in home
+    assert "Activité agents" in home
+    page = (PUBLIC / "agent-activity" / "index.html").read_text(encoding="utf-8")
+    assert "Activité agents" in page
+    assert "Par agent" in page
+    assert "Sous-pages · Production" in page
+    assert "Filtres dynamiques" in page
+    assert "data-agent-activity-filter=\"agent\"" in page
+    assert "data-agent-activity-filter=\"vps\"" in page
+    assert "data-agent-activity-filter=\"application\"" in page
+    assert "data-agent-activity-filter=\"activityType\"" in page
+    assert "data-agent-activity-filter=\"date\"" in page
+    assert "agent-activity-item" in page
+    assert "applyFilters" in page
+    assert "/api/agent-activity.json" in page
+    payload = json.loads((PUBLIC / "api" / "agent-activity.json").read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.agent-activity/v1"
+    assert payload["mode"] == "dynamic-readonly-redacted"
+    assert {"agents", "vps", "applications", "activity_types", "statuses", "priority_buckets"} <= set(payload["filters"])
+    assert {"tasks", "active", "blocked", "done", "agents", "decision_required", "by_status", "by_priority", "by_vps", "by_type"} <= set(payload["summary"])
+    assert isinstance(payload["items"], list)
+    serialized = json.dumps(payload)
+    for forbidden in ["ghp_", "sk-proj-", "BEGIN OPENSSH PRIVATE KEY", "Authorization:", "/home/omar/", "~/.hermes"]:
+        assert forbidden not in serialized
+    assert re.search(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", serialized) is None
+    for item in payload["items"][:20]:
+        for artifact in item.get("artifacts", []):
+            assert "path" not in artifact
+            assert artifact.get("ref", "").startswith("kanban-artifact:")
+
+
+def test_qg_agent_activity_degraded_errors_are_redacted():
+    spec = importlib.util.spec_from_file_location("agent_activity_under_test", ROOT / "scripts" / "agent_activity.py")
+    mod = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(mod)
+    mod.KANBAN_DB = Path("/home/omar/THIS_SHOULD_NOT_LEAK/kanban.db")
+    payload = mod.collect(window_days=1, limit=2)
+    serialized = json.dumps(payload, ensure_ascii=False)
+    assert payload["errors"]
+    assert "/home/omar/" not in serialized
+    assert "~/.hermes" not in serialized
+    assert "THIS_SHOULD_NOT_LEAK" not in serialized
+    assert "[INTERNAL_PATH]" in serialized
+
+
+def test_qg_agent_activity_redacts_bare_hermes_mentions():
+    spec = importlib.util.spec_from_file_location("agent_activity_redact_under_test", ROOT / "scripts" / "agent_activity.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert ".hermes" not in mod._redact("plain .hermes mention")
+    assert mod._redact("plain .hermes mention") == "plain [INTERNAL_PATH] mention"
 
 
 def test_qg_productivite_daily_objective_page_and_api():
