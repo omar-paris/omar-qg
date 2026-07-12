@@ -1,0 +1,35 @@
+## 1. STRATÉGIE ET ARCHITECTURE : EXTEND VS REDO
+
+* **MODIFIER** : La stratégie d'extension organique de l'ancien QG pour porter les fonctions de sécurité critiques (Safety-Critical).
+* **Pourquoi** : Un QG historique conçu comme un simple agrégateur de rapports ou de monitoring asynchrone possède des patterns de base de données, des files d'attente et un thread-model incompatibles avec un système de contrôle à haute criticité (Dead-Man's-Switch, ingestion mTLS stricte, gestion de la pression arrière). Introduire des mécanismes bloquants et des files d'attente synchrones sur un code existant va générer des effets de bord majeurs (verrous de base de données, blocages de boucles d'événements) et empêcher une isolation stricte des contextes clients. Il faut sanctuariser l'ancien code pour le monitoring et bâtir un micro-noyau de contrôle (Control Plane) totalement étanche à côté.
+* **Cas concret** : Si l'ancienne interface du QG effectue un scan ou une requête lourde sur une base SQLite mutualisée pour afficher la vue flotte de l'opérateur, elle va bloquer le thread principal d'ingestion. Le traitement des paquets de heartbeat d'une centaine de VPS clients est alors suspendu, déclenchant de fausses alertes globales de panne (False Positive) et saturant les sockets de communication.
+
+## 2. PÉRIMÈTRE DU FILETS DE SÉCURITÉ (QG-MINIMUM-VIABLE)
+
+* **AJOUTER** : Un mécanisme de throttling dynamique et un circuit-breaker d'ingestion au niveau du récepteur du QG.
+* **Pourquoi** : Le triptyque "heartbeat + outside-in + log store" omet la gestion des tempêtes de logs (Log Storms) générées par une flotte hétérogène. Si un seul VPS client entre dans une boucle infinie d'erreurs (RCE, token expiré en boucle, ou crash d'un agent comme constaté sur les 558 crashs passés), il va envoyer des gigaoctets de logs par seconde vers le Log Store mutualisé du QG. Sans isolation ni bridage au point d'entrée, ce VPS unique va saturer le disque, la bande passante et le CPU du QG, aveuglant le monitoring de tous les autres clients.
+* **Cas concret** : Le VPS de JAB subit une corruption de sa base `kanban.db` ou une erreur de quota 429. L'agent Hermès local boucle toutes les millisecondes en écrivant une stack-trace complète dans stderr. Le collecteur local la transmet immédiatement au QG. L'espace disque de l'instance Loki centrale passe de 20% à 100% en deux heures, provoquant le crash du QG et masquant une déconnexion simultanée du VPS de Pantheos.
+
+## 3. LE CONTRAT MONTANT ET L'ÉVOLUTION DE SCHÉMA
+
+* **MODIFIER** : Le modèle de reprise après coupure du flux montant (Ship-Own).
+* **Pourquoi** : Le modèle de reprise par séquence simple (`sequence/payload_hash`) est vulnérable au blocage de tête de ligne (Head-of-Line Blocking) si la flotte est hétérogène. Si un VPS client est mis à jour avec une nouvelle version du Hub ou d'un schéma d'événement (`oa.event/v2`), et que le QG central n'a pas encore été mis à jour pour valider ce schéma, le paquet sera rejeté par le QG. Le VPS va tenter de rejouer indéfiniment ce paquet défectueux selon sa séquence, bloquant l'envoi de tous les événements ultérieurs, y compris les rapports critiques de sécurité.
+* **Cas concret** : Un VPS déploie un patch local modifiant la structure du journal quotidien (`daybook`). Le QG, plus ancien, rejette le payload pour non-conformité structurelle. Le VPS stoppe son flux montant en attendant l'acquittement de ce numéro de séquence précis. Le QG ne reçoit plus d'alertes de ce VPS, tandis que le Dead-Man's-Switch s'active à tort car la machine émet toujours son heartbeat réseau bas niveau mais ne transmet plus ses données applicatives.
+
+## 4. GOUVERNANCE ET SÉCURITÉ : "QUI GARDE LE GARDIEN ?"
+
+* **RETIRE** : Le stockage des logs applicatifs bruts des agents dans le Log Store mutualisé du QG.
+* **Pourquoi** : C'est le plus grand vecteur de fuite de données inter-clients (Cross-Tenant Leak). Même avec une rédaction par allowlist au niveau du Ship du VPS client, les logs d'exécution des agents LLM contiennent par nature des extraits textuels imprévisibles (le corps d'un email client lu par `oa-secretaire`, une ligne de facturation PennyLane, des données nominatives). Centraliser ces logs bruts sur le QG recrée instantanément la vulnérabilité de concentration majeure que l'architecture Single-Tenant par VPS tentait de détruire.
+* **Cas concret** : Un attaquant parvient à compromettre le serveur central du QG (via une faille sur l'interface Tailnet ou une mauvaise configuration des rôles). En accédant à l'instance Loki ou VictoriaLogs centrale, il peut lire l'historique de tous les prompts et outputs de l'ensemble des clients du système, récupérant ainsi des données comptables de JAB et des échanges confidentiels de Pantheos, alors que leurs VPS respectifs n'ont jamais été directement attaqués.
+
+## 5. RECONCEPTION SÉCURITÉ : LE RÔLE DE LA 3ème POSITION
+
+* **MODIFIER** : Le rôle de la 3ème position d'observation (le témoin indépendant).
+* **Pourquoi** : Si la 3ème position se contente d'observer le QG, elle valide uniquement que le QG est en ligne, mais ne peut pas détecter si le QG "ment" ou est corrompu sémantiquement (par exemple, s'il affiche une flotte "100% verte" alors que ses bases de données internes d'ingestion sont figées ou asynchrones). La 3ème position doit exécuter des sondes croisées indépendantes (End-to-End Canary Probes) : elle doit simuler un VPS client fictif défaillant et vérifier si le QG lève l'alerte attendue dans le délai imparti.
+* **Cas concret** : Le service d'ingestion des heartbeats du QG freeze en mémoire suite à un thread mort, mais son endpoint HTTP `/health` continue de renvoyer `200 OK`. La 3ème position basique déclare le QG valide. Pendant ce temps, trois VPS clients tombent réellement en panne, mais le QG n'alerte plus personne car ses read-models ne bougent plus. Un test Canary envoyé par une vraie 3ème position active aurait détecté le freeze immédiatement.
+
+## 6. EXPANSION ET ÉCHELLE : EFFETS DE SEUIL
+
+* **AJOUTER** : Un partitionnement physique strict des read-models et des volumes de stockage (Chroot/Namespace) par `tenant_id` au sein du QG.
+* **Pourquoi** : À partir de quelques dizaines de clients, la centralisation dans une structure de données unique ou une base de données globale supprime l'étanchéité des performances. Les requêtes d'agrégation d'un client massif vont ralentir les écritures et les lectures de tous les autres. De plus, la conformité RGPD (droit à l'effacement) devient impossible si les données de preuve hash-chaînées de toute la flotte sont entremêlées dans un seul fichier ou une table unique.
+* **Cas concret** : Pour nettoyer l'historique d'un client qui résilie son contrat, l'opérateur doit purger ses logs et ses preuves. Si le ledger de preuve est un flux global hash-chaîné au niveau du QG, supprimer les lignes de ce client brise instantanément la chaîne de hash de tous les autres clients de la flotte, rendant la validation de l'immuabilité impossible pour le reste du système. Chaque client doit posséder son propre fichier de preuves chaînées distinct sur le stockage du QG.
