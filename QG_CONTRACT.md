@@ -44,6 +44,7 @@ Afficher en un cockpit :
 /
 /blocages/
 /chantiers/
+/cockpit/
 /ops/
 /manifeste/
 /docs/
@@ -57,6 +58,17 @@ Afficher en un cockpit :
 /apps/{landing,app,catalogue,lab,qg,hub,omartop}/
 /api/*.json
 ```
+
+### Cockpit décision/proof/agents
+
+`/cockpit/` publie `/api/qg-cockpit.json` (schéma `oa.qg-cockpit/v1`) :
+
+- décisions ouvertes et blocages Alex, avec liens vers les pages canoniques ;
+- proof ledger issu du contrat `oa.system-contracts/v1` ;
+- activité agents et gaps gate, issus des collecteurs Kanban read-only ;
+- matrice de fraîcheur des sources affichées.
+
+Boundary : QG compte/pointe ; Hub garde la vérité runtime locale par VPS/tenant ; OmarTop garde standards/maturité. Toute donnée absente reste `unknown`.
 
 ## Reporting inter-VPS
 

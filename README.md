@@ -14,6 +14,7 @@ Routes servies aujourd'hui par `scripts/build.py` :
 /
 /blocages/
 /chantiers/
+/cockpit/
 /ops/
 /manifeste/
 /objectifs/
@@ -26,6 +27,8 @@ Routes servies aujourd'hui par `scripts/build.py` :
 /apps/{landing,app,catalogue,lab,qg,hub,omartop}/
 /api/*.json
 ```
+
+`/cockpit/` est la tranche QG propre : décisions ouvertes, proof ledger, activité agents et fraîcheur des sources. Il pointe vers `/decisions/`, `/blocages/`, `/agent-activity/`, `/agent-loop/` et `/controle-oa/` sans dupliquer Hub/OmarTop.
 
 Note de convergence : la cible produit est 5 pages (`/`, `/blocages/`, `/chantiers/`, `/boucles/`, `/ops/`). Les routes legacy restent servies tant que les étapes de fusion/suppression n'ont pas reçu leur gate. `/boucles/` est cible mais non activé dans ce commit car le travail boucles local est explicitement hors périmètre/NO-GO.
 
