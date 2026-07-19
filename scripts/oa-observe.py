@@ -34,6 +34,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field, asdict
+from datetime import datetime
 from pathlib import Path
 
 # --------------------------------------------------------------------------- #
@@ -49,8 +50,17 @@ TARGETS = [
         "host": None,
         "homes": ["/home/omar"],
         "backup_logs": [
-            "/var/log/oadmin-backup.log",
-            "/home/omar/4-Infra/logs/pull-backup-jab.log",
+            {"path": "/var/log/oadmin-backup.log", "scope": "primary", "label": "legacy oadmin"},
+            {
+                "path": "/home/omar/23-Offre/actifs/omar-top/state/compliance/omar/backup.log",
+                "scope": "primary",
+                "label": "Omar T1 manifest",
+            },
+            {
+                "path": "/home/omar/4-Infra/logs/pull-backup-jab.log",
+                "scope": "client",
+                "label": "JAB pull",
+            },
         ],
     },
     {
@@ -565,44 +575,153 @@ def det_ram_swap(t: dict) -> list[Finding]:
     return out
 
 
+def _backup_log_spec(raw: str | dict) -> dict:
+    """Normalise une entrée backup_logs historique (str) ou typée (dict)."""
+    if isinstance(raw, dict):
+        spec = dict(raw)
+    else:
+        spec = {"path": str(raw)}
+    spec.setdefault("scope", "primary")
+    spec.setdefault("label", Path(str(spec["path"])).name)
+    return spec
+
+
+def _parse_backup_ts(value: str | None) -> float | None:
+    if not value:
+        return None
+    value = value.strip().strip("[]")
+    try:
+        iso = value.replace("Z", "+00:00")
+        return datetime.fromisoformat(iso).timestamp()
+    except ValueError:
+        pass
+    m = re.search(r"(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})", value)
+    if not m:
+        return None
+    try:
+        return time.mktime(time.strptime(f"{m.group(1)} {m.group(2)}", "%Y-%m-%d %H:%M:%S"))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _line_backup_ts(line: str) -> float | None:
+    m = re.search(r"\[?((?:\d{4}-\d{2}-\d{2})[T ][^\]\s]+)", line)
+    return _parse_backup_ts(m.group(1)) if m else None
+
+
+def _iter_json_objects(text: str):
+    decoder = json.JSONDecoder()
+    idx = 0
+    while idx < len(text):
+        while idx < len(text) and text[idx].isspace():
+            idx += 1
+        if idx >= len(text):
+            break
+        try:
+            obj, end = decoder.raw_decode(text, idx)
+        except json.JSONDecodeError:
+            idx += 1
+            continue
+        yield obj
+        idx = end
+
+
+def _backup_ok_timestamps(text: str) -> list[float]:
+    stamps: list[float] = []
+    for line in text.splitlines():
+        if "status=OK" in line or re.search(r"\bDB\b.*\bOK\b", line):
+            ts = _line_backup_ts(line)
+            if ts is not None:
+                stamps.append(ts)
+    for obj in _iter_json_objects(text):
+        if not isinstance(obj, dict) or obj.get("all_integrity_ok") is not True:
+            continue
+        ts = _parse_backup_ts(str(obj.get("ts") or ""))
+        if ts is not None:
+            stamps.append(ts)
+    return stamps
+
+
+def _backup_failure_timestamps(text: str) -> list[float]:
+    stamps: list[float] = []
+    for line in text.splitlines():
+        m = re.search(r"status=([^\s]+)", line)
+        if not m or m.group(1) == "OK":
+            continue
+        ts = _line_backup_ts(line)
+        if ts is not None:
+            stamps.append(ts)
+    return stamps
+
+
 def det_backup_stale(t: dict) -> list[Finding]:
-    """Dernière ligne status=OK dans les logs de backup. >36h = P1 ; absent = P0."""
+    """Backup OK frais: status=OK, legacy DB ... OK, ou manifest all_integrity_ok."""
     out: list[Finding] = []
-    logs = t.get("backup_logs", [])
+    logs = [_backup_log_spec(log) for log in t.get("backup_logs", [])]
     if not logs:
         return out
-    found_any = False
-    freshest_age = None
+
+    primary_paths = [str(log["path"]) for log in logs if log.get("scope") != "client"]
+    primary_found = False
+    primary_freshest_age = None
+    client_issues: list[tuple[dict, str]] = []
+
     for log in logs:
+        path = str(log["path"])
         rc, o = run_on(
-            t, f"[ -f {shlex.quote(log)} ] && grep -a 'status=OK' {shlex.quote(log)} "
-               f"| tail -1 || echo __ABSENT__", timeout=20)
+            t,
+            f"[ -f {shlex.quote(path)} ] && tail -c 65536 {shlex.quote(path)} || echo __ABSENT__",
+            timeout=20,
+        )
         if rc != 0 or o == "__ABSENT__" or not o:
+            if log.get("scope") == "client":
+                client_issues.append((log, "log absent ou illisible"))
             continue
-        found_any = True
-        # Cherche un timestamp ISO en tête de ligne : [2026-06-11T03:40:04+00:00]
-        m = re.search(r"(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})", o)
-        if m:
-            try:
-                ts = time.mktime(time.strptime(f"{m.group(1)} {m.group(2)}",
-                                               "%Y-%m-%d %H:%M:%S"))
-                age = (time.time() - ts) / 3600
-                freshest_age = age if freshest_age is None else min(freshest_age, age)
-            except Exception:  # noqa: BLE001
-                pass
-    if not found_any:
+
+        ok_stamps = _backup_ok_timestamps(o)
+        failure_stamps = _backup_failure_timestamps(o)
+        freshest_ok = max(ok_stamps) if ok_stamps else None
+        freshest_failure = max(failure_stamps) if failure_stamps else None
+        age = (time.time() - freshest_ok) / 3600 if freshest_ok is not None else None
+
+        if log.get("scope") == "client":
+            if freshest_ok is None:
+                client_issues.append((log, "aucun status=OK"))
+            elif age is not None and age > BACKUP_WARN_H:
+                client_issues.append((log, f"dernier OK il y a {age:.0f}h"))
+            elif freshest_failure is not None and freshest_failure > freshest_ok:
+                client_issues.append((log, "échec plus récent que le dernier OK"))
+            continue
+
+        if freshest_ok is None:
+            continue
+        primary_found = True
+        if age is not None:
+            primary_freshest_age = age if primary_freshest_age is None else min(primary_freshest_age, age)
+
+    for log, reason in client_issues:
+        out.append(Finding(
+            "P1", f"Backup client {log['label']} sans OK frais",
+            f"Le contrôle client {log['label']} ({log['path']}) signale: {reason}. "
+            "Le backup primaire peut être sain, mais la réplication/pull client doit rester visible.",
+            t["name"],
+            "Vérifier le job de pull client et relancer le transfert si nécessaire.",
+            "backup_stale"))
+
+    if not primary_found:
         out.append(Finding(
             "P0", "Aucun backup OK trouvé",
-            f"Aucune ligne status=OK dans les logs de backup déclarés "
-            f"({', '.join(logs)}). Soit le backup ne tourne pas, soit il échoue "
-            f"silencieusement — angle mort dangereux.",
+            f"Aucun backup primaire OK détecté dans les logs/manifestes déclarés "
+            f"({', '.join(primary_paths)}). Formats acceptés: status=OK, DB ... OK, "
+            "manifest JSON all_integrity_ok=true. Soit le backup ne tourne pas, "
+            "soit il échoue silencieusement — angle mort dangereux.",
             t["name"],
             "Vérifier le cron/timer de backup et lancer un backup manuel de contrôle.",
             "backup_stale"))
-    elif freshest_age is not None and freshest_age > BACKUP_WARN_H:
+    elif primary_freshest_age is not None and primary_freshest_age > BACKUP_WARN_H:
         out.append(Finding(
-            "P1", f"Backup ancien : dernier OK il y a {freshest_age:.0f}h",
-            f"Le backup OK le plus récent date de {freshest_age:.0f}h "
+            "P1", f"Backup ancien : dernier OK il y a {primary_freshest_age:.0f}h",
+            f"Le backup OK primaire le plus récent date de {primary_freshest_age:.0f}h "
             f"(seuil {BACKUP_WARN_H}h). Le job s'est peut-être arrêté.",
             t["name"],
             "Vérifier le timer de backup et relancer manuellement.",

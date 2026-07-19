@@ -100,6 +100,95 @@ def test_cli_json_outputs_structured_findings_for_fixture(tmp_path):
     assert payload["findings"][0]["idempotency_key"].startswith("oa-observe:VPS-Omar:kanban_loop:")
 
 
+def test_backup_stale_accepts_status_ok_log(monkeypatch):
+    mod = load_oa_observe()
+    now = 1_800_000_000
+
+    def fake_run_on(target, cmd, timeout=20):
+        del target, cmd, timeout
+        return 0, "[2027-01-15T07:55:00+00:00] status=OK file=/var/backups/oa-daily/jab.tar.gz.age"
+
+    monkeypatch.setattr(mod, "run_on", fake_run_on)
+    monkeypatch.setattr(mod.time, "time", lambda: now)
+
+    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/tmp/backup.log"]})
+
+    assert findings == []
+
+
+def test_backup_stale_accepts_legacy_db_ok_log(monkeypatch):
+    mod = load_oa_observe()
+    now = 1_800_000_000
+
+    def fake_run_on(target, cmd, timeout=20):
+        del target, cmd, timeout
+        return 0, "[2027-01-15T07:55:00+00:00] DB oadmin OK (183M)"
+
+    monkeypatch.setattr(mod, "run_on", fake_run_on)
+    monkeypatch.setattr(mod.time, "time", lambda: now)
+
+    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/tmp/legacy.log"]})
+
+    assert findings == []
+
+
+def test_backup_stale_accepts_fresh_integrity_ok_manifest(monkeypatch):
+    mod = load_oa_observe()
+    now = 1_800_000_000
+    manifest = json.dumps({
+        "schema": "oa.backup-manifest/v1",
+        "ts": "2027-01-15T07:55:00Z",
+        "all_integrity_ok": True,
+        "files": [{"name": "kanban.db", "integrity": "ok"}],
+    })
+
+    def fake_run_on(target, cmd, timeout=20):
+        del target, cmd, timeout
+        return 0, manifest
+
+    monkeypatch.setattr(mod, "run_on", fake_run_on)
+    monkeypatch.setattr(mod.time, "time", lambda: now)
+
+    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/tmp/backup.log"]})
+
+    assert findings == []
+
+
+def test_backup_stale_warns_when_client_pull_failed_even_if_primary_is_ok(monkeypatch):
+    mod = load_oa_observe()
+    now = 1_800_000_000
+    logs = {
+        "/tmp/primary.log": json.dumps({
+            "schema": "oa.backup-manifest/v1",
+            "ts": "2027-01-15T07:55:00Z",
+            "all_integrity_ok": True,
+        }),
+        "/tmp/jab.log": "[2027-01-15T07:56:00+00:00] status=NOFILE file=none",
+    }
+
+    def fake_run_on(target, cmd, timeout=20):
+        del target, timeout
+        for path, output in logs.items():
+            if path in cmd:
+                return 0, output
+        return 0, "__ABSENT__"
+
+    monkeypatch.setattr(mod, "run_on", fake_run_on)
+    monkeypatch.setattr(mod.time, "time", lambda: now)
+
+    findings = mod.det_backup_stale({
+        "name": "VPS-Omar",
+        "backup_logs": [
+            {"path": "/tmp/primary.log", "scope": "primary"},
+            {"path": "/tmp/jab.log", "scope": "client", "label": "JAB pull"},
+        ],
+    })
+
+    assert len(findings) == 1
+    assert findings[0].severite == "P1"
+    assert findings[0].titre == "Backup client JAB pull sans OK frais"
+
+
 def test_file_bloat_uses_specific_hermes_state_db_threshold(monkeypatch):
     mod = load_oa_observe()
 
