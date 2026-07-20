@@ -58,6 +58,17 @@ Afficher en un cockpit :
 /api/*.json
 ```
 
+### Push mTLS QG-100
+
+`POST /api/ingest/vps-report` reçoit les enveloppes montantes `oa.vps-report/v1` par stream (`heartbeat`, `verdicts`, `expected-work`, `error-fingerprint`, `oa-cost`). Le QG valide `producer_epoch` + `sequence`, vérifie `payload_hash`, exige une identité transport non spoofable par header HTTP direct, persiste dans une base SQLite dédiée/propre `var/qg-ingest/qg-ingest.sqlite3`, puis seulement après commit répond `oa.qg-ack/v1` avec `accepted_through`, `gaps`, `duplicates`, `quarantined`.
+
+Variables runtime :
+
+- `QG_INGEST_DB` : chemin de la base propre dédiée ;
+- `QG_INGEST_REQUIRE_MTLS` : `1` par défaut, `0` uniquement pour smoke local/tests ;
+- `QG_INGEST_TLS_CERT`, `QG_INGEST_TLS_KEY`, `QG_INGEST_TLS_CA` : activent un serveur direct HTTPS+mTLS ;
+- `QG_INGEST_TRUST_PROXY_HEADERS=1` + `QG_INGEST_PROXY_SHARED_SECRET` : autorisent un reverse-proxy contrôlé à injecter un header d'identité signé (`x-oa-proxy-signature`). Sans signature valide, `x-oa-client-cert-subject` est ignoré et l'appel est rejeté.
+
 ## Reporting inter-VPS
 
 ### Flotte VPS sur /ops/ (vue multi-VPS)
