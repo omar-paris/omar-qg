@@ -44,6 +44,7 @@ Afficher en un cockpit :
 /
 /blocages/
 /chantiers/
+/cockpit/
 /ops/
 /manifeste/
 /docs/
@@ -58,6 +59,17 @@ Afficher en un cockpit :
 /api/*.json
 ```
 
+### Cockpit décision/proof/agents
+
+`/cockpit/` publie `/api/qg-cockpit.json` (schéma `oa.qg-cockpit/v1`) :
+
+- décisions ouvertes et blocages Alex, avec liens vers les pages canoniques ;
+- proof ledger issu du contrat `oa.system-contracts/v1` ;
+- activité agents et gaps gate, issus des collecteurs Kanban read-only ;
+- matrice de fraîcheur des sources affichées.
+
+Boundary : QG compte/pointe ; Hub garde la vérité runtime locale par VPS/tenant ; OmarTop garde standards/maturité. Toute donnée absente reste `unknown`.
+
 ## Reporting inter-VPS
 
 ### Flotte VPS sur /ops/ (vue multi-VPS)
@@ -66,7 +78,8 @@ Afficher en un cockpit :
 
 - ligne globale « N VPS rapportent · M en dérive · K muet(s) » ;
 - un bloc par VPS attendu (`omar`, `jab`, `pantheos`) : maturité en grand (X PASS / Y FAIL + %), liste intégrale des standards FAIL (item_id + preuve redacted, zéro ellipsis), compteur apps par kind, next_action ownerisée, horodatage ;
-- rapport absent ou stale (> 36 h) = bloc ambre avec outbox attendue + owner transport (`jab` → cc-jab, `pantheos` → h-aurel) — un VPS muet est une alerte (doctrine H-Omar) ;
+- rapport absent ou stale (> 36 h) = bloc ambre avec outbox attendue + owner transport (`jab` → h-edilia, `pantheos` → h-aurel) — un VPS muet est une alerte (doctrine H-Omar) ;
+- dead-man's-switch permanent : `scripts/alerts.py` tourne toutes les 2 min avec un seuil aligné sur la cadence réelle de chaque producteur (`oa-master` 6 min pour un rapport toutes les 5 min, `jab` quotidien avec tolérance 26 h, `pantheos` 65 min) ; l'incident/Telegram n'est créé qu'après 2 cycles consécutifs (flap-damping) ; pour `oa-master`, cela garantit une alerte en 8 min maximum (strictement <10 min) sans course reporter/collecteur ; retour d'un heartbeat frais = résolution automatique ;
 - `oa-master` est un alias santé du même VPS que `omar` : jamais compté comme 4e nœud ;
 - pied de bloc : « SAV : non instrumenté — aucun flux SAV n'existe encore » (honnêteté, décision Alex).
 

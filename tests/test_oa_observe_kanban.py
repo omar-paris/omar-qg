@@ -2,6 +2,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -111,7 +112,7 @@ def test_backup_stale_accepts_status_ok_log(monkeypatch):
     monkeypatch.setattr(mod, "run_on", fake_run_on)
     monkeypatch.setattr(mod.time, "time", lambda: now)
 
-    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/tmp/backup.log"]})
+    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/home/omar/4-Infra/logs/pull-backup-jab.log"]})
 
     assert findings == []
 
@@ -127,7 +128,7 @@ def test_backup_stale_accepts_legacy_db_ok_log(monkeypatch):
     monkeypatch.setattr(mod, "run_on", fake_run_on)
     monkeypatch.setattr(mod.time, "time", lambda: now)
 
-    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/tmp/legacy.log"]})
+    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/var/log/oadmin-backup.log"]})
 
     assert findings == []
 
@@ -149,7 +150,7 @@ def test_backup_stale_accepts_fresh_integrity_ok_manifest(monkeypatch):
     monkeypatch.setattr(mod, "run_on", fake_run_on)
     monkeypatch.setattr(mod.time, "time", lambda: now)
 
-    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/tmp/backup.log"]})
+    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/home/omar/23-Offre/actifs/omar-top/state/compliance/omar/backup.log"]})
 
     assert findings == []
 
@@ -187,6 +188,48 @@ def test_backup_stale_warns_when_client_pull_failed_even_if_primary_is_ok(monkey
     assert len(findings) == 1
     assert findings[0].severite == "P1"
     assert findings[0].titre == "Backup client JAB pull sans OK frais"
+    assert findings[0].detail == (
+        "Le contrôle client JAB pull (/tmp/jab.log) signale: aucun status=OK. "
+        "Le backup primaire peut être sain, mais la réplication/pull client doit rester visible."
+    )
+
+
+def test_backup_stale_flags_stale_primary_ok_as_p1(monkeypatch):
+    mod = load_oa_observe()
+    now = datetime(2027, 1, 15, 7, 55, tzinfo=timezone.utc).timestamp()
+    stale_ts = datetime(2027, 1, 13, 15, 55, tzinfo=timezone.utc).isoformat()
+
+    def fake_run_on(target, cmd, timeout=20):
+        del target, cmd, timeout
+        return 0, f"[{stale_ts}] status=OK file=/var/backups/oa-daily/kanban.db"
+
+    monkeypatch.setattr(mod, "run_on", fake_run_on)
+    monkeypatch.setattr(mod.time, "time", lambda: now)
+
+    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/var/log/oadmin-backup.log"]})
+
+    assert len(findings) == 1
+    assert findings[0].severite == "P1"
+    assert findings[0].titre == "Backup ancien : dernier OK il y a 40h"
+    assert findings[0].detail == "Le backup OK primaire le plus récent date de 40h (seuil 36h). Le job s'est peut-être arrêté."
+
+
+def test_backup_stale_flags_absent_or_failed_primary_as_p0(monkeypatch):
+    mod = load_oa_observe()
+
+    def fake_run_on(target, cmd, timeout=20):
+        del target, cmd, timeout
+        return 0, "[2027-01-15T07:55:00+00:00] status=NOFILE file=none"
+
+    monkeypatch.setattr(mod, "run_on", fake_run_on)
+    monkeypatch.setattr(mod.time, "time", lambda: 1_800_000_000)
+
+    findings = mod.det_backup_stale({"name": "VPS-Test", "backup_logs": ["/var/log/oadmin-backup.log"]})
+
+    assert len(findings) == 1
+    assert findings[0].severite == "P0"
+    assert findings[0].titre == "Aucun backup OK trouvé"
+    assert findings[0].remediation == "Vérifier le cron/timer de backup et lancer un backup manuel de contrôle."
 
 
 def test_file_bloat_uses_specific_hermes_state_db_threshold(monkeypatch):
