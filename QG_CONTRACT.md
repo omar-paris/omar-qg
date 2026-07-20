@@ -90,6 +90,7 @@ Boundary : QG compte/pointe ; Hub garde la vérité runtime locale par VPS/tenan
 - ligne globale « N VPS rapportent · M en dérive · K muet(s) » ;
 - un bloc par VPS attendu (`omar`, `jab`, `pantheos`) : maturité en grand (X PASS / Y FAIL + %), liste intégrale des standards FAIL (item_id + preuve redacted, zéro ellipsis), compteur apps par kind, next_action ownerisée, horodatage ;
 - rapport absent ou stale (> 36 h) = bloc ambre avec outbox attendue + owner transport (`jab` → cc-jab, `pantheos` → h-aurel) — un VPS muet est une alerte (doctrine H-Omar) ;
+- dead-man's-switch permanent : `scripts/alerts.py` tourne toutes les 5 min, mesure uniquement le heartbeat source (`source_report_generated_at` ou `generated_at` natif) et ignore les refreshs synthétiques locaux (`observed_at` / `normalized_at`) ; seuils alignés sur la cadence réelle (`oa-master` 4 min natif */5 requis, `jab` 26 h, `pantheos` 65 min pour pull */30 + marge) ; incident/Telegram après 2 cycles consécutifs, retour d'un heartbeat source frais = résolution automatique ;
 - `oa-master` est un alias santé du même VPS que `omar` : jamais compté comme 4e nœud ;
 - pied de bloc : « SAV : non instrumenté — aucun flux SAV n'existe encore » (honnêteté, décision Alex).
 

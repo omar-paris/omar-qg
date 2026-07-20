@@ -1186,6 +1186,29 @@ def _inter_vps_report_paths(root: Path) -> list[Path]:
     return sorted(paths)
 
 
+def _normalize_inter_vps_report_timestamps(payload: dict, path: Path) -> dict:
+    """Conserve séparément heartbeat source et refresh local QG.
+
+    Certains normaliseurs locaux réécrivent `generated_at` avec NOW tout en
+    gardant le heartbeat natif dans `source_report_generated_at`. Le QG doit
+    publier/mesurer la fraîcheur sur le timestamp source, et garder l'horloge
+    locale uniquement dans `observed_at` / `normalized_at`.
+    """
+    normalized = dict(payload)
+    local_generated_at = str(normalized.get("generated_at") or "unknown")
+    source_generated_at = str(normalized.get("source_report_generated_at") or local_generated_at)
+    normalized["source_report_generated_at"] = source_generated_at
+    if normalized.get("source_report_generated_at") and source_generated_at != local_generated_at:
+        normalized.setdefault("observed_at", local_generated_at)
+        normalized.setdefault("normalized_at", local_generated_at)
+        normalized["generated_at"] = source_generated_at
+    else:
+        normalized.setdefault("observed_at", str(normalized.get("observed_at") or "unknown"))
+        normalized.setdefault("normalized_at", str(normalized.get("normalized_at") or "unknown"))
+    normalized["_source_path"] = str(path)
+    return normalized
+
+
 def _read_inter_vps_reports() -> list[dict]:
     reports: dict[str, dict] = {}
     for root in INTER_VPS_REPORT_DIRS:
@@ -1203,9 +1226,8 @@ def _read_inter_vps_reports() -> list[dict]:
             node = _node_from_report(payload, path)
             if not node:
                 continue
-            payload = dict(payload)
+            payload = _normalize_inter_vps_report_timestamps(payload, path)
             payload["node"] = node
-            payload["_source_path"] = str(path)
             prev = reports.get(node)
             if not prev or str(payload.get("generated_at") or "") >= str(prev.get("generated_at") or ""):
                 reports[node] = payload
