@@ -28,6 +28,21 @@ Routes servies aujourd'hui par `scripts/build.py` :
 /api/*.json
 ```
 
+## Ingest QG-100
+
+L'API runtime `scripts/qg_api.py` expose aussi `POST /api/ingest/vps-report` pour les pushs inter-VPS `oa.vps-report/v1`:
+
+- validation stricte de l'enveloppe `schema_name=oa.vps-report`, `schema_version=1`, `producer_epoch`, `sequence`, `payload_hash` ;
+- preuve transport obligatoire par défaut (`QG_INGEST_REQUIRE_MTLS=1`) ;
+- le mode direct accepte uniquement un certificat client réel présenté sur la socket TLS Python (`QG_INGEST_TLS_CERT`, `QG_INGEST_TLS_KEY`, `QG_INGEST_TLS_CA`) ;
+- le mode reverse-proxy n'accepte un header d'identité (`x-oa-client-cert-subject`) que si `QG_INGEST_TRUST_PROXY_HEADERS=1` et si le proxy ajoute `x-oa-proxy-signature=sha256:<hmac>` avec `QG_INGEST_PROXY_SHARED_SECRET` ; un header HTTP direct non signé reste rejeté ;
+- persistance durable dans une base SQLite propre dédiée (`QG_INGEST_DB`, défaut `var/qg-ingest/qg-ingest.sqlite3`) ;
+- réponse après commit au contrat `oa.qg-ack/v1` avec `accepted_through`, `gaps`, `duplicates`, `quarantined`.
+
+Smoke local sans cert réel (tests uniquement) : `QG_INGEST_REQUIRE_MTLS=0 QG_INGEST_DB=/tmp/qg-ingest.sqlite3 python3 scripts/qg_api.py`.
+
+## Cockpit décision/proof/agents
+
 `/cockpit/` est la tranche QG propre : décisions ouvertes, proof ledger, activité agents et fraîcheur des sources. Il pointe vers `/decisions/`, `/blocages/`, `/agent-activity/`, `/agent-loop/` et `/controle-oa/` sans dupliquer Hub/OmarTop.
 
 Note de convergence : la cible produit est 5 pages (`/`, `/blocages/`, `/chantiers/`, `/boucles/`, `/ops/`). Les routes legacy restent servies tant que les étapes de fusion/suppression n'ont pas reçu leur gate. `/boucles/` est cible mais non activé dans ce commit car le travail boucles local est explicitement hors périmètre/NO-GO.

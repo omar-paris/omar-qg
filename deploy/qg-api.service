@@ -5,6 +5,10 @@ After=network.target
 [Service]
 WorkingDirectory=/home/omar/23-Offre/actifs/omar-qg
 Environment="PATH=/home/omar/.local/bin:/home/omar/.npm-global/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="QG_INGEST_DB=/home/omar/23-Offre/actifs/omar-qg/var/qg-ingest/qg-ingest.sqlite3"
+Environment="QG_INGEST_REQUIRE_MTLS=1"
+# Fail-closed: sans QG_INGEST_TLS_CERT/KEY/CA ou proxy signé explicite,
+# /api/ingest/vps-report refuse les headers client-cert forgés (401).
 ExecStart=/usr/bin/python3 /home/omar/23-Offre/actifs/omar-qg/scripts/qg_api.py
 Restart=on-failure
 RestartSec=3
