@@ -44,6 +44,7 @@ Afficher en un cockpit :
 /
 /blocages/
 /chantiers/
+/cockpit/
 /ops/
 /manifeste/
 /docs/
@@ -68,6 +69,17 @@ Variables runtime :
 - `QG_INGEST_REQUIRE_MTLS` : `1` par défaut, `0` uniquement pour smoke local/tests ;
 - `QG_INGEST_TLS_CERT`, `QG_INGEST_TLS_KEY`, `QG_INGEST_TLS_CA` : activent un serveur direct HTTPS+mTLS ;
 - `QG_INGEST_TRUST_PROXY_HEADERS=1` + `QG_INGEST_PROXY_SHARED_SECRET` : autorisent un reverse-proxy contrôlé à injecter un header d'identité signé (`x-oa-proxy-signature`). Sans signature valide, `x-oa-client-cert-subject` est ignoré et l'appel est rejeté.
+
+### Cockpit décision/proof/agents
+
+`/cockpit/` publie `/api/qg-cockpit.json` (schéma `oa.qg-cockpit/v1`) :
+
+- décisions ouvertes et blocages Alex, avec liens vers les pages canoniques ;
+- proof ledger issu du contrat `oa.system-contracts/v1` ;
+- activité agents et gaps gate, issus des collecteurs Kanban read-only ;
+- matrice de fraîcheur des sources affichées.
+
+Boundary : QG compte/pointe ; Hub garde la vérité runtime locale par VPS/tenant ; OmarTop garde standards/maturité. Toute donnée absente reste `unknown`.
 
 ## Reporting inter-VPS
 

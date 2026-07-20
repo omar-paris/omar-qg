@@ -14,6 +14,7 @@ Routes servies aujourd'hui par `scripts/build.py` :
 /
 /blocages/
 /chantiers/
+/cockpit/
 /ops/
 /manifeste/
 /objectifs/
@@ -39,6 +40,10 @@ L'API runtime `scripts/qg_api.py` expose aussi `POST /api/ingest/vps-report` pou
 - réponse après commit au contrat `oa.qg-ack/v1` avec `accepted_through`, `gaps`, `duplicates`, `quarantined`.
 
 Smoke local sans cert réel (tests uniquement) : `QG_INGEST_REQUIRE_MTLS=0 QG_INGEST_DB=/tmp/qg-ingest.sqlite3 python3 scripts/qg_api.py`.
+
+## Cockpit décision/proof/agents
+
+`/cockpit/` est la tranche QG propre : décisions ouvertes, proof ledger, activité agents et fraîcheur des sources. Il pointe vers `/decisions/`, `/blocages/`, `/agent-activity/`, `/agent-loop/` et `/controle-oa/` sans dupliquer Hub/OmarTop.
 
 Note de convergence : la cible produit est 5 pages (`/`, `/blocages/`, `/chantiers/`, `/boucles/`, `/ops/`). Les routes legacy restent servies tant que les étapes de fusion/suppression n'ont pas reçu leur gate. `/boucles/` est cible mais non activé dans ce commit car le travail boucles local est explicitement hors périmètre/NO-GO.
 
