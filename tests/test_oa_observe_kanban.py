@@ -41,6 +41,98 @@ def test_finding_json_exposes_stable_fingerprint_and_idempotency_key():
     assert payload["severite"] == "P1"
 
 
+def test_ram_swap_fingerprint_ignores_dynamic_percentage_within_same_severity():
+    mod = load_oa_observe()
+    at_83_percent = mod.Finding(
+        "P1", "Swap sous pression : 83% (5100/6144 Mo)",
+        "Swap élevé avec pression mémoire active.", "VPS-Omar",
+        "Diagnostiquer la pression mémoire.", "ram_swap")
+    at_86_percent = mod.Finding(
+        "P1", "Swap sous pression : 86% (5280/6144 Mo)",
+        "Swap élevé avec pression mémoire active.", "VPS-Omar",
+        "Diagnostiquer la pression mémoire.", "ram_swap")
+
+    key = mod.finding_idempotency_key(at_83_percent)
+    assert key == mod.finding_idempotency_key(at_86_percent)
+
+    create_plan, state = mod.plan_kanban_sync([at_83_percent], previous={})
+    update_plan, _ = mod.plan_kanban_sync([at_86_percent], previous=state)
+
+    assert create_plan[0]["action"] == "create"
+    assert len(update_plan) == 1
+    assert update_plan[0]["action"] == "update"
+    assert update_plan[0]["idempotency_key"] == key
+    assert update_plan[0]["task_id"] is None
+
+
+def test_non_ram_swap_findings_with_distinct_details_get_distinct_keys():
+    mod = load_oa_observe()
+    first = mod.Finding(
+        "P1", "Fichier volumineux : alpha.log (12 Go)",
+        "Le fichier /var/log/alpha.log dépasse le seuil.", "VPS-Omar",
+        "Analyser /var/log/alpha.log.", "file_bloat")
+    second = mod.Finding(
+        "P1", "Fichier volumineux : beta.log (12 Go)",
+        "Le fichier /var/log/beta.log dépasse le seuil.", "VPS-Omar",
+        "Analyser /var/log/beta.log.", "file_bloat")
+
+    first_key = mod.finding_idempotency_key(first)
+    second_key = mod.finding_idempotency_key(second)
+
+    assert first_key != second_key
+    plan, state = mod.plan_kanban_sync([first, second], previous={})
+    assert [op["action"] for op in plan] == ["create", "create"]
+    assert {op["idempotency_key"] for op in plan} == {first_key, second_key}
+    assert set(state) == {first_key, second_key}
+
+
+def test_ram_swap_high_occupancy_without_pressure_or_activity_is_not_p1(monkeypatch):
+    mod = load_oa_observe()
+    outputs = iter([
+        "Mem: 16000 8000 1000 100 7000 8000\nSwap: 6144 5300 844\n",
+        "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        "procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----\n"
+        " r  b     swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st\n"
+        " 0  0  5300000 8000000 100000 100000    0    0     1     1    1    1  1  1 98  0  0\n"
+        " 0  0  5300000 8000000 100000 100000    0    0     1     1    1    1  1  1 98  0  0\n"
+        " 0  0  5300000 8000000 100000 100000    0    0     1     1    1    1  1  1 98  0  0\n",
+    ])
+    monkeypatch.setattr(mod, "run_on", lambda *args, **kwargs: (0, next(outputs)))
+
+    assert mod.det_ram_swap({"name": "VPS-Test"}) == []
+
+
+def test_ram_swap_high_occupancy_with_memory_pressure_is_p1(monkeypatch):
+    mod = load_oa_observe()
+    outputs = iter([
+        "Mem: 16000 8000 1000 100 7000 8000\nSwap: 6144 5300 844\n",
+        "some avg10=0.25 avg60=0.10 avg300=0.05 total=0\n"
+        "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+    ])
+    monkeypatch.setattr(mod, "run_on", lambda *args, **kwargs: (0, next(outputs)))
+
+    findings = mod.det_ram_swap({"name": "VPS-Test"})
+
+    assert len(findings) == 1
+    assert findings[0].severite == "P1"
+    assert "pression" in findings[0].titre.lower()
+
+
+def test_ram_swap_p0_available_threshold_is_unchanged(monkeypatch):
+    mod = load_oa_observe()
+    monkeypatch.setattr(
+        mod, "run_on",
+        lambda *args, **kwargs: (0, "Mem: 16000 15000 1000 100 700 399\nSwap: 6144 0 6144\n"),
+    )
+
+    findings = mod.det_ram_swap({"name": "VPS-Test"})
+
+    assert len(findings) == 1
+    assert findings[0].severite == "P0"
+    assert "399 Mo disponibles" in findings[0].titre
+
+
 def test_kanban_dry_run_plans_create_then_update_without_duplicate():
     mod = load_oa_observe()
     finding = sample_finding()
