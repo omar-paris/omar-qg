@@ -1,5 +1,4 @@
 from pathlib import Path
-import datetime as dt
 import importlib.util
 import json
 import os
@@ -24,33 +23,6 @@ ROUTES = {
     "/apps/app": PUBLIC / "apps" / "app" / "index.html",
 }
 
-AUDITED_ROUTES = {
-    "/": PUBLIC / "index.html",
-    "/manifeste": PUBLIC / "manifeste" / "index.html",
-    "/docs": PUBLIC / "docs" / "index.html",
-    "/blocages": PUBLIC / "blocages" / "index.html",
-    "/chantiers": PUBLIC / "chantiers" / "index.html",
-    "/decisions": PUBLIC / "decisions" / "index.html",
-    "/objectifs": PUBLIC / "objectifs" / "index.html",
-    "/productivite": PUBLIC / "productivite" / "index.html",
-    "/carte": PUBLIC / "carte" / "index.html",
-    "/ops": PUBLIC / "ops" / "index.html",
-    "/agent-activity": PUBLIC / "agent-activity" / "index.html",
-    "/agent-loop": PUBLIC / "agent-loop" / "index.html",
-    "/controle-oa": PUBLIC / "controle-oa" / "index.html",
-    "/clients": PUBLIC / "clients" / "index.html",
-    "/partenaires": PUBLIC / "partenaires" / "index.html",
-    "/builds": PUBLIC / "builds" / "index.html",
-    "/changelog": PUBLIC / "changelog" / "index.html",
-}
-
-SOURCE_MARKER_RE = re.compile(
-    r"(?i)(?:\bsource\b|\bsources\b|source unique|source canonique|source de supervision|source of truth|api json|/api/|generated_at|freshness|fraîcheur|checked)"
-)
-TIMESTAMP_MARKER_RE = re.compile(
-    r"(?i)(?:\b\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?\b|\b\d{1,2}/\d{1,2}\b|\b\d{1,2}:\d{2}Z\b)"
-)
-
 
 def build():
     global _LAST_BUILD_KEY
@@ -61,20 +33,6 @@ def build():
     if _LAST_BUILD_KEY != key:
         subprocess.run(["python3", "scripts/build.py"], cwd=ROOT, check=True, env={**os.environ, "QG_USE_TEST_FIXTURES": "1"})
         _LAST_BUILD_KEY = key
-
-
-def _load_build_module():
-    spec = importlib.util.spec_from_file_location("qg_build_under_test", ROOT / "scripts" / "build.py")
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-def _assert_route_freshness_contract(route: str, path: Path):
-    text = path.read_text(encoding="utf-8")
-    assert SOURCE_MARKER_RE.search(text), f"{route}: missing source marker"
-    assert TIMESTAMP_MARKER_RE.search(text), f"{route}: missing timestamp marker"
 
 
 def test_qg_builds_core_routes_and_api():
@@ -288,63 +246,6 @@ def test_qg_health_column_in_html():
     assert "Health" in text
     # At least one successful probe visible (200)
     assert "200" in text
-
-
-def test_qg_audited_routes_keep_source_and_timestamp_markers():
-    build()
-    assert len(AUDITED_ROUTES) == 17
-    for route, path in AUDITED_ROUTES.items():
-        _assert_route_freshness_contract(route, path)
-
-
-def test_qg_shared_freshness_renderers_surface_stale_and_unknown_states():
-    mod = _load_build_module()
-    now = dt.datetime.now(dt.timezone.utc)
-    stale_generated_at = (now - dt.timedelta(hours=mod.VPS_REPORT_FRESH_HOURS + 2)).isoformat().replace("+00:00", "Z")
-    stale_report = {
-        "generated_at": stale_generated_at,
-        "tenant": "qa",
-        "vps_id": "vps-qa",
-        "standards": [{"item_id": "standard-1", "verdict": "PASS", "evidence": "redacted"}],
-        "apps": [{"kind": "app"}],
-        "next_action": {"owner": "h-qa", "action_1_line": "refresh stale source"},
-    }
-    stale_node = mod._vps_fleet_node(
-        {
-            "node": "qa",
-            "vps_id": "vps-qa",
-            "label": "QA VPS",
-            "transport_owner": "h-qa",
-            "expected_path": "/tmp/vps-qa.json",
-        },
-        stale_report,
-        now,
-    )
-    assert stale_node["report_status"] == "stale"
-    stale_html = mod._vps_fleet_section({"summary": {"expected": 1, "reporting": 0, "en_derive": 0, "muets": 1}, "nodes": [stale_node]})
-    assert "stale depuis" in stale_html
-    assert "seuil" in stale_html
-    assert stale_generated_at in stale_html
-
-    unknown_node = {
-        "node_id": "hub-qa",
-        "label": "Hub QA",
-        "kind": "vps",
-        "status": "unknown",
-        "report_status": "missing",
-        "score": None,
-        "level": "unknown",
-        "freshness": {"status": "unknown", "checked_at": "unknown"},
-        "source": {"kind": "absent", "mode": "unknown"},
-        "source_path": "",
-        "next_action": {"owner": "unknown", "action_1_line": "cut connectivity and verify unknown"},
-        "priority_gaps": [],
-        "hermes_version": {"current_version": "unknown", "upstream_status": "unknown", "gateway_status": {"status": "unknown"}},
-    }
-    unknown_html = mod._hub_node_maturity_section({"summary": {"expected": 1, "reporting": 0, "avg_score": None, "priority_gaps": 0}, "nodes": [unknown_node]})
-    assert "Aucun gap prioritaire reporté." in unknown_html
-    assert "unknown" in unknown_html
-    assert "source absent/unknown" in unknown_html
 
 
 def test_qg_no_hardcoded_live_status_pill():

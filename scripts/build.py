@@ -1457,7 +1457,7 @@ VPS_FLEET_EXPECTED = [
         "node": "jab",
         "vps_id": "vps-jab",
         "label": "VPS-JAB — client JAB",
-        "transport_owner": "h-edilia",
+        "transport_owner": "cc-jab",
         "expected_path": "/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/jab/vps-report-latest.json",
     },
     {
@@ -1579,7 +1579,7 @@ if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
 HUB_NODE_EXPECTED = [
     {"node_id": "oa-master", "label": "OA Master", "kind": "vps", "owner": "h-omar"},
     {"node_id": "pantheos", "label": "Pantheos", "kind": "family_host", "owner": "h-aurel"},
-    {"node_id": "jab", "label": "JAB", "kind": "client_node", "owner": "h-edilia"},
+    {"node_id": "jab", "label": "JAB", "kind": "client_node", "owner": "cc-jab"},
     {"node_id": "h-local", "label": "H-local / PC Alex", "kind": "desktop", "owner": "h-local"},
 ]
 
