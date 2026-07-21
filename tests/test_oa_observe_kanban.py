@@ -65,6 +65,27 @@ def test_ram_swap_fingerprint_ignores_dynamic_percentage_within_same_severity():
     assert update_plan[0]["task_id"] is None
 
 
+def test_non_ram_swap_findings_with_distinct_details_get_distinct_keys():
+    mod = load_oa_observe()
+    first = mod.Finding(
+        "P1", "Fichier volumineux : alpha.log (12 Go)",
+        "Le fichier /var/log/alpha.log dépasse le seuil.", "VPS-Omar",
+        "Analyser /var/log/alpha.log.", "file_bloat")
+    second = mod.Finding(
+        "P1", "Fichier volumineux : beta.log (12 Go)",
+        "Le fichier /var/log/beta.log dépasse le seuil.", "VPS-Omar",
+        "Analyser /var/log/beta.log.", "file_bloat")
+
+    first_key = mod.finding_idempotency_key(first)
+    second_key = mod.finding_idempotency_key(second)
+
+    assert first_key != second_key
+    plan, state = mod.plan_kanban_sync([first, second], previous={})
+    assert [op["action"] for op in plan] == ["create", "create"]
+    assert {op["idempotency_key"] for op in plan} == {first_key, second_key}
+    assert set(state) == {first_key, second_key}
+
+
 def test_ram_swap_high_occupancy_without_pressure_or_activity_is_not_p1(monkeypatch):
     mod = load_oa_observe()
     outputs = iter([

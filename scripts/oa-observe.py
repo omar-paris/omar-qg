@@ -141,16 +141,20 @@ def _slug_part(value: str) -> str:
 
 
 def finding_fingerprint(f: Finding) -> str:
-    """Empreinte stable par cible, détecteur et classe de seuil.
+    """Empreinte stable du finding, avec normalisation limitée au swap.
 
-    Les compteurs et pourcentages rendent le titre/détail dynamiques : les y
-    inclure créait une nouvelle carte à chaque variation d'un même incident.
+    Les mesures de ``ram_swap`` varient pendant un même incident. Les autres
+    détecteurs peuvent signaler plusieurs incidents simultanés, donc leur titre
+    et détail restent dans l'empreinte pour préserver une carte par incident.
     """
     payload = {
         "severite": f.severite,
         "vps": f.vps,
         "detecteur": f.detecteur or "unknown",
     }
+    if f.detecteur != "ram_swap":
+        payload["titre"] = f.titre
+        payload["detail"] = f.detail
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
