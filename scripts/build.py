@@ -12,6 +12,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from html import escape
 from pathlib import Path
 
@@ -233,8 +234,10 @@ def _is_internal_health_probe_domain(domain: str) -> bool:
 
 # ── Providers ─────────────────────────────────────────────────────────────────
 
+HETZNER_VAULT_PATH = "secret/integrations/hetzner/test"
+
 PROVIDERS = {
-    "hetzner":     {"name": "Hetzner",     "logo": "H", "color": "#d50c2d", "url": "https://www.hetzner.com",       "vault_key": "secret/integrations/hetzner/prod"},
+    "hetzner":     {"name": "Hetzner",     "logo": "H", "color": "#d50c2d", "url": "https://www.hetzner.com",       "vault_key": HETZNER_VAULT_PATH},
     "ovh":         {"name": "OVH",         "logo": "O", "color": "#0050d7", "url": "https://www.ovh.com/fr/",       "vault_key": "secret/integrations/ovh"},
     "infomaniak":  {"name": "Infomaniak",  "logo": "I", "color": "#00b04f", "url": "https://www.infomaniak.com/fr", "vault_key": "secret/integrations/infomaniak"},
     "telnyx":      {"name": "Telnyx",      "logo": "T", "color": "#00c89c", "url": "https://telnyx.com",            "vault_key": "secret/integrations/telnyx"},
@@ -892,16 +895,43 @@ def _vault_env() -> dict:
     return env
 
 
-def _vault_read(path: str) -> dict:
+@dataclass(frozen=True)
+class VaultReadResult:
+    """Secret read outcome without including Vault output or secret values."""
+
+    status: str
+    data: dict
+
+
+def _vault_read(path: str) -> VaultReadResult:
+    """Read a Vault KV secret while preserving safe operational failure classes."""
     try:
-        raw = subprocess.check_output(
+        completed = subprocess.run(
             ["/usr/bin/vault", "kv", "get", "-format=json", path],
-            text=True, stderr=subprocess.DEVNULL,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             env=_vault_env(),
+            check=False,
         )
-        return json.loads(raw).get("data", {}).get("data", {})
-    except Exception:
-        return {}
+    except OSError:
+        return VaultReadResult(status="vault_unavailable", data={})
+
+    if completed.returncode:
+        error_text = (completed.stderr or "").lower()
+        if "no value found" in error_text or "not found" in error_text:
+            return VaultReadResult(status="secret_missing", data={})
+        if "no space left on device" in error_text or "audit" in error_text:
+            return VaultReadResult(status="vault_unavailable", data={})
+        return VaultReadResult(status="api_error", data={})
+
+    try:
+        data = json.loads(completed.stdout).get("data", {}).get("data", {})
+    except (TypeError, ValueError, AttributeError):
+        return VaultReadResult(status="api_error", data={})
+    if not isinstance(data, dict):
+        return VaultReadResult(status="api_error", data={})
+    return VaultReadResult(status="ok", data=data)
 
 
 def _ovh_get(path: str, creds: dict) -> object:
@@ -961,14 +991,20 @@ def _http_status(url: str, headers: dict, timeout: int = 6) -> int | None:
 
 
 def probe_ovh() -> str:
-    creds = _vault_read("secret/integrations/ovh")
+    vault = _vault_read("secret/integrations/ovh")
+    if vault.status != "ok":
+        return "key_missing" if vault.status == "secret_missing" else vault.status
+    creds = vault.data
     if not creds.get("OVH_CONSUMER_KEY"):
         return "key_missing"
     return "ok" if _ovh_get("/me", creds) else "error"
 
 
 def probe_telnyx() -> str:
-    creds = _vault_read("secret/integrations/telnyx")
+    vault = _vault_read("secret/integrations/telnyx")
+    if vault.status != "ok":
+        return "key_missing" if vault.status == "secret_missing" else vault.status
+    creds = vault.data
     key = creds.get("TELNYX_API_KEY", "")
     if not key:
         return "key_missing"
@@ -977,7 +1013,10 @@ def probe_telnyx() -> str:
 
 
 def probe_hetzner() -> str:
-    creds = _vault_read("secret/integrations/hetzner/test")
+    vault = _vault_read(HETZNER_VAULT_PATH)
+    if vault.status != "ok":
+        return "key_missing" if vault.status == "secret_missing" else vault.status
+    creds = vault.data
     key = creds.get("HETZNER_API_TOKEN") or creds.get("HETZNER_TOKEN") or creds.get("HCLOUD_TOKEN", "")
     if not key:
         return "key_missing"
@@ -986,7 +1025,10 @@ def probe_hetzner() -> str:
 
 
 def probe_infomaniak() -> str:
-    creds = _vault_read("secret/integrations/infomaniak")
+    vault = _vault_read("secret/integrations/infomaniak")
+    if vault.status != "ok":
+        return "key_missing" if vault.status == "secret_missing" else vault.status
+    creds = vault.data
     key = creds.get("INFOMANIAK_API_TOKEN") or creds.get("INFOMANIAK_TOKEN") or creds.get("IK_TOKEN", "")
     if not key:
         return "key_missing"
@@ -1012,12 +1054,15 @@ def probe_all_providers() -> dict:
     return out
 
 
-def hetzner_fleet() -> list:
-    """Live VPS fleet from Hetzner API, merged with VPS_META. No tokens, build-time."""
-    creds = _vault_read("secret/integrations/hetzner/test")
+def hetzner_fleet_result() -> dict:
+    """Return fleet items plus a safe status instead of silently masking Vault/API errors."""
+    vault = _vault_read(HETZNER_VAULT_PATH)
+    if vault.status != "ok":
+        return {"items": [], "status": vault.status}
+    creds = vault.data
     key = creds.get("HCLOUD_TOKEN") or creds.get("HETZNER_API_TOKEN") or creds.get("HETZNER_TOKEN", "")
     if not key:
-        return []
+        return {"items": [], "status": "secret_missing"}
     req = urllib.request.Request(
         "https://api.hetzner.cloud/v1/servers",
         headers={"Authorization": f"Bearer {key}"},
@@ -1026,7 +1071,7 @@ def hetzner_fleet() -> list:
         with urllib.request.urlopen(req, timeout=8) as r:
             data = json.loads(r.read())
     except Exception:
-        return []
+        return {"items": [], "status": "api_error"}
 
     fleet = []
     for s in data.get("servers", []):
@@ -1081,7 +1126,12 @@ def hetzner_fleet() -> list:
     # order: CORE, STUDIO, CLIENT, then others
     order = {"CORE OA": 0, "STUDIO": 1, "CLIENT": 2}
     fleet.sort(key=lambda v: order.get(v["role"], 9))
-    return fleet
+    return {"items": fleet, "status": "ok"}
+
+
+def hetzner_fleet() -> list:
+    """Compatibility wrapper for callers that only need the live fleet entries."""
+    return hetzner_fleet_result()["items"]
 
 
 def _read_var_json(name: str) -> dict:
@@ -2060,11 +2110,12 @@ def payload(built_at: str) -> dict:
     # OVH live data only if its API is reachable
     live = {}
     if statuses.get("ovh") == "ok":
-        live["ovh"] = ovh_live(_vault_read("secret/integrations/ovh"))
+        live["ovh"] = ovh_live(_vault_read("secret/integrations/ovh").data)
     else:
         live["ovh"] = {"domains": [], "email_domains_with_accounts": []}
 
-    fleet = hetzner_fleet()
+    fleet_result = hetzner_fleet_result()
+    fleet = fleet_result["items"]
     fleet_supervision_v0 = _read_var_json("oa-fleet-supervision-v0.json")
     if not isinstance(fleet_supervision_v0, dict):
         fleet_supervision_v0 = {}
@@ -2084,6 +2135,7 @@ def payload(built_at: str) -> dict:
         "items": items, "counts": counts,
         "catalog": CATALOG, "providers": providers, "live": live,
         "fleet": fleet,
+        "fleet_status": fleet_result["status"],
         "fleet_supervision_v0": fleet_supervision_v0,
         "vps": vps,
         "vps_app_inventory": vps_app_inventory,
@@ -2766,6 +2818,8 @@ def _api_badge(status: str) -> str:
     labels = {
         "ok":          ("bg-green-50 text-green-700 border border-green-200",   "API OK"),
         "key_missing": ("bg-gray-100 text-gray-500 border border-gray-200",     "Clef à ajouter"),
+        "vault_unavailable": ("bg-amber-50 text-amber-700 border border-amber-200", "Vault indisponible"),
+        "api_error":   ("bg-red-50 text-red-700 border border-red-200",         "Erreur Vault/API"),
         "error":       ("bg-red-50 text-red-700 border border-red-200",         "Erreur API"),
     }
     cls, label = labels.get(status, ("bg-gray-100 text-gray-500","?"))

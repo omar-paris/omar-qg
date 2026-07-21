@@ -239,8 +239,11 @@ def collect(*, damped: bool = True, now: dt.datetime | None = None) -> dict[str,
         for it in core.get("items", []):
             if it.get("health", {}).get("status") != "ok":
                 a[f"health-{it['id']}"] = f"{it['domain']} ne répond pas (health {it['health'].get('http_code')})"
-        if not core.get("fleet"):
-            a["fleet-vide"] = "Flotte Hetzner illisible (vault ou API) — /clients/ affiche 'clef absente'"
+        fleet_status = core.get("fleet_status", "unknown")
+        if fleet_status in {"vault_unavailable", "api_error"}:
+            a["fleet-vault-unavailable"] = f"Flotte Hetzner non rafraîchie ({fleet_status})"
+        elif not core.get("fleet"):
+            a["fleet-vide"] = "Flotte Hetzner vide ou secret absent"
     except Exception:
         a["core-repos-illisible"] = "core-repos.json illisible — le build QG est cassé"
     try:
