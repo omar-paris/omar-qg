@@ -1,5 +1,10 @@
 # Changelog
 
+## V0.9.4 — 2026-07-19
+
+- Ajout de `/cockpit/` : tranche QG propre pour décisions ouvertes, proof ledger, activité agents et fraîcheur des sources, sans dupliquer Hub/OmarTop.
+- Nouvel endpoint `/api/qg-cockpit.json` (`oa.qg-cockpit/v1`) public-safe, pointer-ledger vers `/decisions/`, `/blocages/`, `/agent-activity/`, `/agent-loop/` et `/controle-oa/`.
+
 ## V0.9.3 — 2026-07-07
 
 - Intégration du rapport final Fable dans `docs/reviews/` et exposition via la visionneuse `/docs/?doc=reviews__...`.

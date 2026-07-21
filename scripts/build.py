@@ -1186,6 +1186,29 @@ def _inter_vps_report_paths(root: Path) -> list[Path]:
     return sorted(paths)
 
 
+def _normalize_inter_vps_report_timestamps(payload: dict, path: Path) -> dict:
+    """Conserve séparément heartbeat source et refresh local QG.
+
+    Certains normaliseurs locaux réécrivent `generated_at` avec NOW tout en
+    gardant le heartbeat natif dans `source_report_generated_at`. Le QG doit
+    publier/mesurer la fraîcheur sur le timestamp source, et garder l'horloge
+    locale uniquement dans `observed_at` / `normalized_at`.
+    """
+    normalized = dict(payload)
+    local_generated_at = str(normalized.get("generated_at") or "unknown")
+    source_generated_at = str(normalized.get("source_report_generated_at") or local_generated_at)
+    normalized["source_report_generated_at"] = source_generated_at
+    if normalized.get("source_report_generated_at") and source_generated_at != local_generated_at:
+        normalized.setdefault("observed_at", local_generated_at)
+        normalized.setdefault("normalized_at", local_generated_at)
+        normalized["generated_at"] = source_generated_at
+    else:
+        normalized.setdefault("observed_at", str(normalized.get("observed_at") or "unknown"))
+        normalized.setdefault("normalized_at", str(normalized.get("normalized_at") or "unknown"))
+    normalized["_source_path"] = str(path)
+    return normalized
+
+
 def _read_inter_vps_reports() -> list[dict]:
     reports: dict[str, dict] = {}
     for root in INTER_VPS_REPORT_DIRS:
@@ -1203,9 +1226,8 @@ def _read_inter_vps_reports() -> list[dict]:
             node = _node_from_report(payload, path)
             if not node:
                 continue
-            payload = dict(payload)
+            payload = _normalize_inter_vps_report_timestamps(payload, path)
             payload["node"] = node
-            payload["_source_path"] = str(path)
             prev = reports.get(node)
             if not prev or str(payload.get("generated_at") or "") >= str(prev.get("generated_at") or ""):
                 reports[node] = payload
@@ -1834,6 +1856,161 @@ def page_oa_system_control(contracts: dict) -> str:
     return html
 
 
+def collect_qg_cockpit(*, built_at: str, decisions: list, blocages: dict, agent_activity: dict, agent_loop_audit: dict, contracts: dict, core_data: dict) -> dict:
+    """Cockpit QG public-safe: décisions, preuves, agents et fraîcheur.
+
+    Le QG ne réplique pas Hub/OmarTop : il publie seulement des compteurs, liens
+    vers les sources de vérité et fraîcheur des snapshots qu'il affiche.
+    """
+    open_decisions = [d for d in decisions if isinstance(d, dict) and d.get("statut") == "ouverte"]
+    blocages_compteurs = blocages.get("compteurs", {}) if isinstance(blocages, dict) else {}
+    activity_summary = agent_activity.get("summary", {}) if isinstance(agent_activity, dict) else {}
+    audit_summary = agent_loop_audit.get("summary", {}) if isinstance(agent_loop_audit, dict) else {}
+    proof_items = ((contracts.get("proof_ledger") or {}).get("items") or []) if isinstance(contracts, dict) else []
+    pages = ((contracts.get("page_contracts") or {}).get("items") or []) if isinstance(contracts, dict) else []
+
+    def freshness(name: str, source: str, generated_at: object, href: str, status: str = "fresh", note: str = "") -> dict:
+        return {
+            "name": name,
+            "source": source,
+            "generated_at": str(generated_at or "unknown"),
+            "status": status if generated_at not in (None, "", "unknown") else "unknown",
+            "href": href,
+            "note": note,
+        }
+
+    return {
+        "schema": "oa.qg-cockpit/v1",
+        "generated_at": built_at,
+        "mode": "read-only-pointer-ledger",
+        "boundary": {
+            "qg": "cockpit global: compte, pointe, expose preuves/fraîcheur",
+            "hub": "runtime local par VPS/tenant — QG ne duplique pas ses données fines",
+            "omartop": "standards/maturité — QG ne remplace pas le référentiel",
+        },
+        "summary": {
+            "open_decisions": len(open_decisions),
+            "alex_blockers": int(blocages_compteurs.get("pour_alex") or 0),
+            "total_blockers": int(blocages_compteurs.get("total") or blocages_compteurs.get("ouverts") or 0),
+            "proofs": len(proof_items),
+            "agent_tasks_active": int(activity_summary.get("active") or 0),
+            "agent_tasks_blocked": int(activity_summary.get("blocked") or 0),
+            "agents_seen": int(activity_summary.get("agents") or 0),
+            "gate_orphans": int(audit_summary.get("total_orphans") or 0),
+        },
+        "decisions": [
+            {
+                "id": str(d.get("id") or ""),
+                "group": str(d.get("groupe") or "divers"),
+                "label": str(d.get("texte") or "Décision ouverte")[:220],
+                "href": f"/decisions/#card-{d.get('id')}",
+                "blocked_ref": str(d.get("blocked_ref") or ""),
+            }
+            for d in open_decisions[:8]
+        ],
+        "proofs": [
+            {
+                "label": str(p.get("label") or "preuve"),
+                "status": str(p.get("status") or "unknown"),
+                "ref": str(p.get("url_or_path") or ""),
+                "checked_at": str(p.get("checked_at") or built_at),
+            }
+            for p in proof_items[:10]
+            if isinstance(p, dict)
+        ],
+        "agents": {
+            "summary": activity_summary,
+            "decision_required": (agent_activity.get("decision_required") or [])[:8] if isinstance(agent_activity, dict) else [],
+            "by_status": activity_summary.get("by_status") or {},
+            "by_type": activity_summary.get("by_type") or {},
+        },
+        "freshness": [
+            freshness("QG core repos", "/api/core-repos.json", core_data.get("built_at"), "/api/core-repos.json"),
+            freshness("Décisions", "var/decisions.json → /api/decisions.json", built_at if decisions else None, "/decisions/", "fresh" if decisions else "unknown"),
+            freshness("Blocages", "collect_blocages.py → /api/blocages.json", blocages.get("generated_at") if isinstance(blocages, dict) else None, "/blocages/"),
+            freshness("Agents", "scripts/agent_activity.py → /api/agent-activity.json", agent_activity.get("generated_at") if isinstance(agent_activity, dict) else None, "/agent-activity/"),
+            freshness("Gates & orphelins", "var/agent-loop-audit.json → /api/agent-loop-audit.json", agent_loop_audit.get("checked_at") if isinstance(agent_loop_audit, dict) else None, "/agent-loop/", note="peut être figé depuis le 15/06 si non recronifié"),
+            freshness("Contrats pages", "/api/oa-system-contracts.json", contracts.get("generated_at") if isinstance(contracts, dict) else None, "/controle-oa/"),
+        ],
+        "pages": [
+            {"id": str(p.get("id") or ""), "route": str(p.get("route") or ""), "freshness": p.get("freshness") or {}}
+            for p in pages[:12]
+            if isinstance(p, dict)
+        ],
+    }
+
+
+def page_qg_cockpit(cockpit: dict) -> str:
+    summary = cockpit.get("summary", {}) if isinstance(cockpit, dict) else {}
+    decisions = cockpit.get("decisions", []) if isinstance(cockpit, dict) else []
+    proofs = cockpit.get("proofs", []) if isinstance(cockpit, dict) else []
+    freshness = cockpit.get("freshness", []) if isinstance(cockpit, dict) else []
+    boundary = cockpit.get("boundary", {}) if isinstance(cockpit, dict) else {}
+    agents = cockpit.get("agents", {}) if isinstance(cockpit, dict) else {}
+
+    def kpi(label: str, value: object, href: str, tone: str = "text-slate-950") -> str:
+        return f'<a href="{escape(href)}" class="block rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-blue-300 hover:shadow-sm"><div class="text-2xl font-bold {tone}">{escape(str(value))}</div><div class="text-xs text-slate-500 mt-0.5">{escape(label)}</div></a>'
+
+    def status_cls(status: object) -> str:
+        return {"fresh": "bg-green-50 text-green-700 border-green-200", "ok": "bg-green-50 text-green-700 border-green-200", "partial": "bg-amber-50 text-amber-700 border-amber-200", "unknown": "bg-slate-50 text-slate-600 border-slate-200", "stale": "bg-red-50 text-red-700 border-red-200"}.get(str(status), "bg-slate-50 text-slate-600 border-slate-200")
+
+    decision_rows = "".join(
+        '<a class="block px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-amber-50" href="{href}"><div class="text-sm font-semibold text-slate-900">{label}</div><div class="mt-1 text-xs text-slate-500">{group}{blocked}</div></a>'.format(
+            href=escape(str(d.get("href") or "/decisions/")),
+            label=escape(str(d.get("label") or "Décision ouverte")),
+            group=escape(str(d.get("group") or "divers")),
+            blocked=(" · bloque " + escape(str(d.get("blocked_ref")))) if d.get("blocked_ref") else "",
+        )
+        for d in decisions
+    ) or '<div class="px-4 py-4 text-sm text-green-700 bg-green-50">Aucune décision ouverte dans le snapshot.</div>'
+
+    proof_rows = "".join(
+        '<div class="px-4 py-3 border-b border-slate-100 last:border-0"><div class="flex items-start justify-between gap-2"><div class="text-sm font-semibold text-slate-900">{label}</div><span class="rounded-full border px-2 py-0.5 text-[11px] font-semibold {cls}">{status}</span></div><div class="mt-1 text-xs font-mono text-slate-500 break-all">{ref}</div><div class="text-[11px] text-slate-400 mt-0.5">check {checked}</div></div>'.format(
+            label=escape(str(p.get("label") or "preuve")),
+            cls=status_cls(p.get("status")),
+            status=escape(str(p.get("status") or "unknown")),
+            ref=escape(str(p.get("ref") or "")),
+            checked=escape(str(p.get("checked_at") or "unknown")),
+        )
+        for p in proofs
+    ) or '<div class="px-4 py-4 text-sm text-amber-700 bg-amber-50">Aucune preuve publiée.</div>'
+
+    freshness_rows = "".join(
+        '<a href="{href}" class="grid md:grid-cols-[180px_1fr_170px_90px] gap-2 px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50"><div class="text-sm font-semibold text-slate-900">{name}</div><div class="text-xs text-slate-500">{source}{note}</div><div class="text-xs font-mono text-slate-500">{generated}</div><div><span class="rounded-full border px-2 py-0.5 text-[11px] font-semibold {cls}">{status}</span></div></a>'.format(
+            href=escape(str(f.get("href") or "#")),
+            name=escape(str(f.get("name") or "source")),
+            source=escape(str(f.get("source") or "")),
+            note=(" · " + escape(str(f.get("note")))) if f.get("note") else "",
+            generated=escape(str(f.get("generated_at") or "unknown")),
+            cls=status_cls(f.get("status")),
+            status=escape(str(f.get("status") or "unknown")),
+        )
+        for f in freshness
+    )
+
+    by_status = agents.get("by_status") or {}
+    by_type = agents.get("by_type") or {}
+    agent_summary = f'<div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600"><span class="font-semibold">Statuts:</span> {escape(str(by_status))} · <span class="font-semibold">Types:</span> {escape(str(by_type))}</div>'
+
+    return (
+        '<section class="mb-6"><div class="text-xs font-semibold uppercase tracking-wide text-blue-600">Cockpit décision/proof/agents</div><h1 class="text-2xl font-bold text-slate-950">Décider, prouver, rafraîchir — sans dupliquer Hub/OmarTop</h1><p class="mt-1 text-sm text-slate-500">Le QG compte et pointe: décisions ouvertes, preuves publiées, activité agents et fraîcheur des sources. API <a class="text-blue-600 hover:underline" href="/api/qg-cockpit.json">oa.qg-cockpit/v1</a>.</p></section>'
+        '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">'
+        + kpi("Décisions ouvertes", summary.get("open_decisions", 0), "/decisions/", "text-amber-600" if summary.get("open_decisions") else "text-slate-950")
+        + kpi("Blocages Alex", summary.get("alex_blockers", 0), "/blocages/", "text-red-600" if summary.get("alex_blockers") else "text-slate-950")
+        + kpi("Preuves ledger", summary.get("proofs", 0), "/controle-oa/")
+        + kpi("Agents actifs", summary.get("agent_tasks_active", 0), "/agent-activity/")
+        + '</div><section class="grid lg:grid-cols-3 gap-4 mb-5">'
+        '<article class="rounded-2xl border border-amber-200 bg-white overflow-hidden"><div class="px-4 py-3 bg-amber-50 border-b border-amber-100"><div class="text-sm font-bold text-amber-950">Décisions</div><div class="text-xs text-amber-700">Lien vers /decisions/, pas de recomptage parallèle.</div></div>' + decision_rows + '</article>'
+        '<article class="rounded-2xl border border-blue-200 bg-white overflow-hidden"><div class="px-4 py-3 bg-blue-50 border-b border-blue-100"><div class="text-sm font-bold text-blue-950">Proof ledger</div><div class="text-xs text-blue-700">Preuves timestampées, public-safe.</div></div>' + proof_rows + '</article>'
+        '<article class="rounded-2xl border border-slate-200 bg-white p-4"><div class="text-sm font-bold text-slate-950">Agents & gates</div><div class="mt-2 grid grid-cols-2 gap-2">'
+        + kpi("Bloquées", summary.get("agent_tasks_blocked", 0), "/agent-activity/", "text-red-600" if summary.get("agent_tasks_blocked") else "text-slate-950")
+        + kpi("Orphelins gate", summary.get("gate_orphans", 0), "/agent-loop/", "text-red-600" if summary.get("gate_orphans") else "text-slate-950")
+        + '</div><div class="mt-3">' + agent_summary + '</div></article></section>'
+        '<section class="rounded-2xl border border-slate-200 bg-white overflow-hidden mb-5"><div class="px-4 py-3 border-b border-slate-100"><div class="text-sm font-bold text-slate-950">Fraîcheur des sources affichées</div><div class="text-xs text-slate-400">unknown vaut mieux qu\'une donnée prétendue live.</div></div>' + freshness_rows + '</section>'
+        '<section class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600"><span class="font-semibold">Boundary:</span> QG — ' + escape(str(boundary.get("qg"))) + ' · Hub — ' + escape(str(boundary.get("hub"))) + ' · OmarTop — ' + escape(str(boundary.get("omartop"))) + '</section>'
+    )
+
+
 def payload(built_at: str) -> dict:
     # le `next` codé en dur ; vps.json alimente la vue alignement VPS Hermes OA.
     triage = _read_var_json("triage.json")
@@ -1939,6 +2116,7 @@ NAV_SECTIONS = [
         "hint": "Décider maintenant",
         "children": [
             ("/", "registry", "Accueil"),
+            ("/cockpit/", "cockpit", "Cockpit"),
             ("/productivite/", "productivite", "Objectif du jour"),
             ("/blocages/", "blocages", "Blocages"),
             ("/decisions/", "decisions", "Décisions"),
@@ -4849,11 +5027,25 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(oa_system_contracts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
+    qg_cockpit = collect_qg_cockpit(
+        built_at=built_at,
+        decisions=decisions,
+        blocages=blocages_payload,
+        agent_activity=agent_activity,
+        agent_loop_audit=agent_loop_audit,
+        contracts=oa_system_contracts,
+        core_data=data,
+    )
+    (tmp / "api" / "qg-cockpit.json").write_text(
+        json.dumps(qg_cockpit, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
         ("/docs/",        "docs",        "Docs",                    page_docs(docs_index)),
         ("/carte/",       "carte",       "Carte du puzzle",         page_carte(carte_payload)),
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet, agent_activity)),
+        ("/cockpit/",     "cockpit",     "Cockpit décisions/proofs/agents", page_qg_cockpit(qg_cockpit)),
         ("/productivite/", "productivite", "Objectif du jour",       page_productivite(productivite, ledger)),
         ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),

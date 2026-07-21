@@ -59,6 +59,17 @@ Afficher en un cockpit :
 /api/*.json
 ```
 
+### Push mTLS QG-100
+
+`POST /api/ingest/vps-report` reçoit les enveloppes montantes `oa.vps-report/v1` par stream (`heartbeat`, `verdicts`, `expected-work`, `error-fingerprint`, `oa-cost`). Le QG valide `producer_epoch` + `sequence`, vérifie `payload_hash`, exige une identité transport non spoofable par header HTTP direct, persiste dans une base SQLite dédiée/propre `var/qg-ingest/qg-ingest.sqlite3`, puis seulement après commit répond `oa.qg-ack/v1` avec `accepted_through`, `gaps`, `duplicates`, `quarantined`.
+
+Variables runtime :
+
+- `QG_INGEST_DB` : chemin de la base propre dédiée ;
+- `QG_INGEST_REQUIRE_MTLS` : `1` par défaut, `0` uniquement pour smoke local/tests ;
+- `QG_INGEST_TLS_CERT`, `QG_INGEST_TLS_KEY`, `QG_INGEST_TLS_CA` : activent un serveur direct HTTPS+mTLS ;
+- `QG_INGEST_TRUST_PROXY_HEADERS=1` + `QG_INGEST_PROXY_SHARED_SECRET` : autorisent un reverse-proxy contrôlé à injecter un header d'identité signé (`x-oa-proxy-signature`). Sans signature valide, `x-oa-client-cert-subject` est ignoré et l'appel est rejeté.
+
 ### Cockpit décision/proof/agents
 
 `/cockpit/` publie `/api/qg-cockpit.json` (schéma `oa.qg-cockpit/v1`) :
@@ -78,8 +89,8 @@ Boundary : QG compte/pointe ; Hub garde la vérité runtime locale par VPS/tenan
 
 - ligne globale « N VPS rapportent · M en dérive · K muet(s) » ;
 - un bloc par VPS attendu (`omar`, `jab`, `pantheos`) : maturité en grand (X PASS / Y FAIL + %), liste intégrale des standards FAIL (item_id + preuve redacted, zéro ellipsis), compteur apps par kind, next_action ownerisée, horodatage ;
-- rapport absent ou stale (> 36 h) = bloc ambre avec outbox attendue + owner transport (`jab` → h-edilia, `pantheos` → h-aurel) — un VPS muet est une alerte (doctrine H-Omar) ;
-- dead-man's-switch permanent : `scripts/alerts.py` tourne toutes les 2 min avec un seuil aligné sur la cadence réelle de chaque producteur (`oa-master` 6 min pour un rapport toutes les 5 min, `jab` quotidien avec tolérance 26 h, `pantheos` 65 min) ; l'incident/Telegram n'est créé qu'après 2 cycles consécutifs (flap-damping) ; pour `oa-master`, cela garantit une alerte en 8 min maximum (strictement <10 min) sans course reporter/collecteur ; retour d'un heartbeat frais = résolution automatique ;
+- rapport absent ou stale (> 36 h) = bloc ambre avec outbox attendue + owner transport (`jab` → cc-jab, `pantheos` → h-aurel) — un VPS muet est une alerte (doctrine H-Omar) ;
+- dead-man's-switch permanent : `scripts/alerts.py` tourne toutes les 5 min, mesure uniquement le heartbeat source (`source_report_generated_at` ou `generated_at` natif) et ignore les refreshs synthétiques locaux (`observed_at` / `normalized_at`) ; seuils alignés sur la cadence réelle (`oa-master` 4 min natif */5 requis, `jab` 26 h, `pantheos` 65 min pour pull */30 + marge) ; incident/Telegram après 2 cycles consécutifs, retour d'un heartbeat source frais = résolution automatique ;
 - `oa-master` est un alias santé du même VPS que `omar` : jamais compté comme 4e nœud ;
 - pied de bloc : « SAV : non instrumenté — aucun flux SAV n'existe encore » (honnêteté, décision Alex).
 
