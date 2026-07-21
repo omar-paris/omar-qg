@@ -87,7 +87,9 @@ SESS_WARN = 1_000              # P1
 SESS_CRIT = 10_000            # P0
 SESS_RATE_WARN = 200          # sessions créées dans la dernière heure -> P1
 RAM_AVAIL_CRIT = 400          # Mo available -> P0
-SWAP_PCT_WARN = 80            # % swap utilisé -> P1
+RAM_AVAIL_WARN = 1_024        # Mo available + swap élevé -> P1
+SWAP_PCT_WARN = 80            # % swap utilisé, à qualifier par pression -> P1
+MEMORY_PSI_WARN = 0.10        # % stalled avg10 -> P1 avec swap élevé
 BACKUP_WARN_H = 36            # h sans backup OK -> P1
 KANBAN_RUNNING_H = 6          # tâche running > 6h -> P1
 REPO_IDLE_DAYS = 5           # commit le plus récent > 5j + 0 issue -> P2
@@ -139,11 +141,13 @@ def _slug_part(value: str) -> str:
 
 
 def finding_fingerprint(f: Finding) -> str:
-    """Empreinte stable d'un finding logique."""
+    """Empreinte stable par cible, détecteur et classe de seuil.
+
+    Les compteurs et pourcentages rendent le titre/détail dynamiques : les y
+    inclure créait une nouvelle carte à chaque variation d'un même incident.
+    """
     payload = {
         "severite": f.severite,
-        "titre": f.titre,
-        "detail": f.detail,
         "vps": f.vps,
         "detecteur": f.detecteur or "unknown",
     }
@@ -538,8 +542,34 @@ def det_kanban_loop(t: dict) -> list[Finding]:
     return out
 
 
+def _ram_swap_pressure(t: dict) -> tuple[float, bool]:
+    """Retourne PSI mémoire avg10 maximal et activité swap récente."""
+    rc, output = run_on(t, "cat /proc/pressure/memory; vmstat -w 1 3", timeout=20)
+    if rc != 0 or not output:
+        return 0.0, False
+
+    psi_values = [float(value) for value in re.findall(r"(?:some|full) avg10=([0-9.]+)", output)]
+    psi_avg10 = max(psi_values, default=0.0)
+
+    headers = None
+    samples: list[list[str]] = []
+    for line in output.splitlines():
+        columns = line.split()
+        if "si" in columns and "so" in columns:
+            headers = columns
+            continue
+        if headers and len(columns) == len(headers) and all(part.lstrip("-").isdigit() for part in columns):
+            samples.append(columns)
+    if not headers or not samples:
+        return psi_avg10, False
+    si_index, so_index = headers.index("si"), headers.index("so")
+    recent = samples[-2:]
+    active = any(int(sample[si_index]) > 0 or int(sample[so_index]) > 0 for sample in recent)
+    return psi_avg10, active
+
+
 def det_ram_swap(t: dict) -> list[Finding]:
-    """available < 400 Mo = P0 ; swap > 80% = P1. (leçon OOM 9-10 juin)"""
+    """Préserve P0 RAM ; P1 swap seulement si pression, activité ou RAM basse."""
     out: list[Finding] = []
     rc, o = run_on(t, "free -m", timeout=15)
     if rc != 0 or not o:
@@ -564,13 +594,25 @@ def det_ram_swap(t: dict) -> list[Finding]:
     if swap_total and swap_used is not None:
         pct = round(100 * swap_used / swap_total)
         if pct > SWAP_PCT_WARN:
+            low_available = avail is not None and avail < RAM_AVAIL_WARN
+            psi_avg10, swap_active = _ram_swap_pressure(t)
+            memory_pressure = psi_avg10 >= MEMORY_PSI_WARN
+            if not (low_available or memory_pressure or swap_active):
+                return out
+            signals = []
+            if low_available:
+                signals.append(f"RAM disponible basse ({avail} Mo < {RAM_AVAIL_WARN} Mo)")
+            if memory_pressure:
+                signals.append(f"PSI mémoire avg10={psi_avg10:.2f}%")
+            if swap_active:
+                signals.append("activité swap récente détectée")
             out.append(Finding(
-                "P1", f"Swap saturé : {pct}% ({swap_used}/{swap_total} Mo)",
-                f"Le swap est utilisé à {pct}%. Au-delà, la machine rame et le "
-                f"risque OOM grimpe — précurseur classique d'incident.",
+                "P1", f"Swap sous pression : {pct}% ({swap_used}/{swap_total} Mo)",
+                f"Le swap est utilisé à {pct}% et le signal est qualifié par "
+                + "; ".join(signals) + ".",
                 t["name"],
-                "Vérifier la pression mémoire ; un service fuit-il ? Envisager un "
-                "redémarrage propre du process le plus gourmand.",
+                "Vérifier les processus consommateurs et la pression mémoire ; "
+                "ne pas vider le swap pour masquer la métrique.",
                 "ram_swap"))
     return out
 
