@@ -37,6 +37,11 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
 
+try:
+    from swap_pressure import classify_swap_pressure, is_real_swap_pressure
+except ModuleNotFoundError:  # import par tests depuis la racine du dépôt
+    from scripts.swap_pressure import classify_swap_pressure, is_real_swap_pressure
+
 # --------------------------------------------------------------------------- #
 # CIBLES DE LA FLOTTE — ajouter un VPS = ajouter une entrée ici.
 # mode "local"  : commandes exécutées directement (VPS hôte = VPS-Omar)
@@ -87,9 +92,7 @@ SESS_WARN = 1_000              # P1
 SESS_CRIT = 10_000            # P0
 SESS_RATE_WARN = 200          # sessions créées dans la dernière heure -> P1
 RAM_AVAIL_CRIT = 400          # Mo available -> P0
-RAM_AVAIL_WARN = 1_024        # Mo available + swap élevé -> P1
 SWAP_PCT_WARN = 80            # % swap utilisé, à qualifier par pression -> P1
-MEMORY_PSI_WARN = 0.10        # % stalled avg10 -> P1 avec swap élevé
 BACKUP_WARN_H = 36            # h sans backup OK -> P1
 KANBAN_RUNNING_H = 6          # tâche running > 6h -> P1
 REPO_IDLE_DAYS = 5           # commit le plus récent > 5j + 0 issue -> P2
@@ -546,30 +549,12 @@ def det_kanban_loop(t: dict) -> list[Finding]:
     return out
 
 
-def _ram_swap_pressure(t: dict) -> tuple[float, bool]:
-    """Retourne PSI mémoire avg10 maximal et activité swap récente."""
+def _ram_swap_pressure(t: dict, available_mb: int | None) -> dict:
+    """Mesure les signaux du contrat unique de pression swap réelle."""
     rc, output = run_on(t, "cat /proc/pressure/memory; vmstat -w 1 3", timeout=20)
     if rc != 0 or not output:
-        return 0.0, False
-
-    psi_values = [float(value) for value in re.findall(r"(?:some|full) avg10=([0-9.]+)", output)]
-    psi_avg10 = max(psi_values, default=0.0)
-
-    headers = None
-    samples: list[list[str]] = []
-    for line in output.splitlines():
-        columns = line.split()
-        if "si" in columns and "so" in columns:
-            headers = columns
-            continue
-        if headers and len(columns) == len(headers) and all(part.lstrip("-").isdigit() for part in columns):
-            samples.append(columns)
-    if not headers or not samples:
-        return psi_avg10, False
-    si_index, so_index = headers.index("si"), headers.index("so")
-    recent = samples[-2:]
-    active = any(int(sample[si_index]) > 0 or int(sample[so_index]) > 0 for sample in recent)
-    return psi_avg10, active
+        output = ""
+    return classify_swap_pressure(available_mb, output, output)
 
 
 def det_ram_swap(t: dict) -> list[Finding]:
@@ -598,18 +583,18 @@ def det_ram_swap(t: dict) -> list[Finding]:
     if swap_total and swap_used is not None:
         pct = round(100 * swap_used / swap_total)
         if pct > SWAP_PCT_WARN:
-            low_available = avail is not None and avail < RAM_AVAIL_WARN
-            psi_avg10, swap_active = _ram_swap_pressure(t)
-            memory_pressure = psi_avg10 >= MEMORY_PSI_WARN
-            if not (low_available or memory_pressure or swap_active):
+            pressure = _ram_swap_pressure(t, avail)
+            if not is_real_swap_pressure(pressure):
                 return out
             signals = []
-            if low_available:
-                signals.append(f"RAM disponible basse ({avail} Mo < {RAM_AVAIL_WARN} Mo)")
-            if memory_pressure:
-                signals.append(f"PSI mémoire avg10={psi_avg10:.2f}%")
-            if swap_active:
-                signals.append("activité swap récente détectée")
+            if pressure["low_available"]:
+                signals.append(f"RAM disponible basse ({avail} Mo < 1024 Mo)")
+            if pressure["memory_pressure"]:
+                signals.append(f"PSI mémoire avg10={pressure['psi_avg10']:.2f}%")
+            if pressure["sustained_swap_out"]:
+                signals.append(
+                    f"swap-out soutenu ({pressure['swap_out_kbps']} KiB/s sur 2 échantillons)"
+                )
             out.append(Finding(
                 "P1", f"Swap sous pression : {pct}% ({swap_used}/{swap_total} Mo)",
                 f"Le swap est utilisé à {pct}% et le signal est qualifié par "
