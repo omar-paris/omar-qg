@@ -17,6 +17,16 @@ def load_oa_observe():
     return module
 
 
+def load_vps_doctor():
+    spec = importlib.util.spec_from_file_location("vps_doctor", ROOT / "scripts/vps_doctor.py")
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def sample_finding():
     mod = load_oa_observe()
     return mod.Finding(
@@ -103,6 +113,23 @@ def test_ram_swap_high_occupancy_without_pressure_or_activity_is_not_p1(monkeypa
     assert mod.det_ram_swap({"name": "VPS-Test"}) == []
 
 
+def test_ram_swap_cold_page_ins_without_swap_out_are_not_p1(monkeypatch):
+    mod = load_oa_observe()
+    outputs = iter([
+        "Mem: 16000 8000 1000 100 7000 8000\nSwap: 6144 6000 144\n",
+        "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        "procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----\n"
+        " r  b     swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st\n"
+        " 0  0  6000000 8000000 100000 100000   22    0     1     1    1    1  1  1 98  0  0\n"
+        " 0  0  6000000 8000000 100000 100000   18    0     1     1    1    1  1  1 98  0  0\n"
+        " 0  0  6000000 8000000 100000 100000   20    0     1     1    1    1  1  1 98  0  0\n",
+    ])
+    monkeypatch.setattr(mod, "run_on", lambda *args, **kwargs: (0, next(outputs)))
+
+    assert mod.det_ram_swap({"name": "VPS-Test"}) == []
+
+
 def test_ram_swap_high_occupancy_with_memory_pressure_is_p1(monkeypatch):
     mod = load_oa_observe()
     outputs = iter([
@@ -119,6 +146,26 @@ def test_ram_swap_high_occupancy_with_memory_pressure_is_p1(monkeypatch):
     assert "pression" in findings[0].titre.lower()
 
 
+def test_ram_swap_high_occupancy_with_sustained_swap_out_is_p1(monkeypatch):
+    mod = load_oa_observe()
+    outputs = iter([
+        "Mem: 16000 8000 1000 100 7000 8000\nSwap: 6144 6000 144\n",
+        "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        "procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----\n"
+        " r  b     swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st\n"
+        " 0  0  6000000 8000000 100000 100000    0  256     1     1    1    1  1  1 98  0  0\n"
+        " 0  0  6000000 8000000 100000 100000    0  256     1     1    1    1  1  1 98  0  0\n",
+    ])
+    monkeypatch.setattr(mod, "run_on", lambda *args, **kwargs: (0, next(outputs)))
+
+    findings = mod.det_ram_swap({"name": "VPS-Test"})
+
+    assert len(findings) == 1
+    assert findings[0].severite == "P1"
+    assert "swap-out soutenu" in findings[0].detail
+
+
 def test_ram_swap_p0_available_threshold_is_unchanged(monkeypatch):
     mod = load_oa_observe()
     monkeypatch.setattr(
@@ -131,6 +178,63 @@ def test_ram_swap_p0_available_threshold_is_unchanged(monkeypatch):
     assert len(findings) == 1
     assert findings[0].severite == "P0"
     assert "399 Mo disponibles" in findings[0].titre
+
+
+def test_vps_doctor_high_swap_with_healthy_memory_and_cold_page_ins_has_no_alert(monkeypatch):
+    mod = load_vps_doctor()
+    responses = {
+        ("df", "--output=pcent", "/"): "Use%\n42%",
+        ("free", "-m"): "Mem: 16000 8000 1000 100 7000 8000\nSwap: 6144 6000 144",
+        ("cat", "/proc/pressure/memory"): (
+            "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+            "full avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+        ),
+        ("vmstat", "-w", "1", "3"): (
+            "procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----\n"
+            " r  b     swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st\n"
+            " 0  0  6000000 8000000 100000 100000   22    0     1     1    1    1  1  1 98  0  0\n"
+            " 0  0  6000000 8000000 100000 100000   18    0     1     1    1    1  1  1 98  0  0\n"
+            " 0  0  6000000 8000000 100000 100000   20    0     1     1    1    1  1  1 98  0  0"
+        ),
+    }
+
+    def fake_run(command, timeout=30):
+        if command[:2] == ["bash", "-c"]:
+            return "0"
+        if command[:2] == ["systemctl", "is-active"] or command[:3] == ["systemctl", "--user", "is-active"]:
+            return "active"
+        return responses.get(tuple(command), "")
+
+    monkeypatch.setattr(mod, "run", fake_run)
+
+    health = mod.system_health()
+
+    assert health["swap_pct"] == 98
+    assert health["alerts"] == []
+
+
+def test_vps_doctor_high_swap_with_low_available_ram_has_pressure_alert(monkeypatch):
+    mod = load_vps_doctor()
+    responses = {
+        ("df", "--output=pcent", "/"): "Use%\n42%",
+        ("free", "-m"): "Mem: 16000 15000 1000 100 700 900\nSwap: 6144 6000 144",
+        ("cat", "/proc/pressure/memory"): "some avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+        ("vmstat", "-w", "1", "3"): "",
+    }
+
+    def fake_run(command, timeout=30):
+        if command[:2] == ["bash", "-c"]:
+            return "0"
+        if command[:2] == ["systemctl", "is-active"] or command[:3] == ["systemctl", "--user", "is-active"]:
+            return "active"
+        return responses.get(tuple(command), "")
+
+    monkeypatch.setattr(mod, "run", fake_run)
+
+    health = mod.system_health()
+
+    assert health["swap_pressure"]["low_available"] is True
+    assert health["alerts"] == ["swap 98% — pression réelle détectée"]
 
 
 def test_kanban_dry_run_plans_create_then_update_without_duplicate():

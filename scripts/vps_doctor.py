@@ -14,6 +14,11 @@ import subprocess
 import time
 from pathlib import Path
 
+try:
+    from swap_pressure import classify_swap_pressure, is_real_swap_pressure
+except ModuleNotFoundError:  # import par tests depuis la racine du dépôt
+    from scripts.swap_pressure import classify_swap_pressure, is_real_swap_pressure
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "var" / "vps.json"
 OA_DOCTOR = Path("/home/omar/23-Offre/actifs/omar-top/bin/oa-doctor")
@@ -59,7 +64,11 @@ def oa_doctor() -> dict:
 
 def system_health() -> dict:
     disk = run(["df", "--output=pcent", "/"]).splitlines()
-    swap_line = [l for l in run(["free", "-m"]).splitlines() if l.startswith("Swap")]
+    free_lines = run(["free", "-m"]).splitlines()
+    swap_line = [line for line in free_lines if line.startswith("Swap")]
+    mem_line = next((line for line in free_lines if line.startswith("Mem:")), "")
+    mem_parts = mem_line.split()
+    available_mb = int(mem_parts[6]) if len(mem_parts) >= 7 else None
     swap_pct = None
     if swap_line:
         parts = swap_line[0].split()
@@ -73,10 +82,11 @@ def system_health() -> dict:
     for s in SERVICES_USER:
         services[s + " (user)"] = run(["systemctl", "--user", "is-active", s]) or "unknown"
     alerts = []
-    # Swap: alerte seulement sur pression durable/critique. >80% créait des cartes
-    # doublonnées sur pics transitoires; la RAM disponible reste le vrai garde-fou court terme.
-    if swap_pct is not None and swap_pct > 90:
-        alerts.append(f"swap {swap_pct}% (>90) — pression critique à confirmer, cf. incident 9 juin")
+    psi_output = run(["cat", "/proc/pressure/memory"])
+    vmstat_output = run(["vmstat", "-w", "1", "3"], timeout=10)
+    swap_pressure = classify_swap_pressure(available_mb, psi_output, vmstat_output)
+    if swap_pct is not None and swap_pct > 90 and is_real_swap_pressure(swap_pressure):
+        alerts.append(f"swap {swap_pct}% — pression réelle détectée")
     try:
         if int(orphans or 0) > 5:
             alerts.append(f"{orphans} processus claude orphelins (>5)")
@@ -88,6 +98,8 @@ def system_health() -> dict:
     return {
         "disk_root": disk[-1].strip() if len(disk) > 1 else None,
         "swap_pct": swap_pct,
+        "mem_available_mb": available_mb,
+        "swap_pressure": swap_pressure,
         "claude_orphans": int(orphans) if (orphans or "").isdigit() else None,
         "services": services,
         "alerts": alerts,
