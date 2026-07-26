@@ -93,6 +93,21 @@ def _load_storage_collector():
     spec.loader.exec_module(mod)
     return mod
 
+
+def _load_delivery_outcomes_collector():
+    """Import the redacted delivery-outcomes collector used by QG and Hub."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "delivery_outcomes", Path(__file__).resolve().parent / "delivery_outcomes.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("delivery_outcomes.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def _load_blocages_collector():
     """Importe scripts/collect_blocages.py — vue « Ce qui bloque » (var/blocages.json)."""
     import importlib.util
@@ -3386,6 +3401,52 @@ def _hub_node_maturity_section(hub_node_maturity: dict | None) -> str:
     return html
 
 
+def page_delivery_outcomes(payload: dict) -> str:
+    """Render a read-only, redacted outcome ledger; missing input stays unknown."""
+    items = payload.get("items", []) if isinstance(payload, dict) else []
+    status = str(payload.get("status", "unknown")) if isinstance(payload, dict) else "unknown"
+    summary = payload.get("summary", {}) if isinstance(payload, dict) else {}
+    errors = payload.get("errors", []) if isinstance(payload, dict) else []
+    status_cls = "pill-ok" if status == "ok" else "pill-warn"
+    html = (
+        '<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between mb-6">'
+        '<div><div class="text-xs font-semibold uppercase tracking-wide text-blue-600">oa.delivery-outcomes/v1</div>'
+        '<h1 class="text-2xl font-bold text-gray-900">Livraisons prouvées</h1>'
+        '<p class="mt-1 text-sm text-gray-500">Feedback → décision → implémentation → gate → test → preuve live. QG affiche des résumés redacted, jamais des conversations ou secrets.</p></div>'
+        '<a href="/api/delivery-outcomes.json" class="text-xs text-blue-500 hover:underline">API delivery-outcomes</a></div>'
+        '<div class="grid grid-cols-2 gap-3 mb-6">'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{escape(str(summary.get("total", 0)))}</div><div class="text-xs text-gray-500">outcome(s)</div></div>'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{escape(str(summary.get("unknown", 0)))}</div><div class="text-xs text-gray-500">unknown / non vérifiable</div></div></div>'
+    )
+    if errors:
+        html += '<div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><span class="font-semibold">Source incomplète :</span> ' + escape(" · ".join(str(error) for error in errors[:5])) + '</div>'
+    if not items:
+        return html + '<div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">unknown — aucun rapport outcome valide disponible.</div>'
+    for item in items:
+        delivery = item.get("delivery", {}) if isinstance(item, dict) else {}
+        phase = str(item.get("phase", "unknown"))
+        item_status = str(item.get("status", "unknown"))
+        html += '<article class="mb-4 rounded-xl border border-gray-200 bg-white p-5">'
+        html += '<div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between"><div>'
+        html += f'<div class="text-xs font-mono text-gray-400">{escape(str(item.get("outcome_id", "unknown")))} · {escape(str(item.get("project_id", "unknown")))}</div>'
+        html += f'<h2 class="mt-1 text-lg font-bold text-gray-900">{escape(str(item.get("title", "Outcome unavailable")))}</h2>'
+        html += f'<div class="mt-1 text-xs text-gray-500">responsable actuel : <span class="font-semibold">{escape(str(item.get("responsible_now", "unknown")))}</span> · maj {escape(str(item.get("updated_at") or "unknown"))}</div></div>'
+        html += f'<div class="flex gap-2"><span class="{status_cls} rounded-full px-2 py-0.5 text-xs font-medium">{escape(phase)}</span><span class="pill-warn rounded-full px-2 py-0.5 text-xs font-medium">{escape(item_status)}</span></div></div>'
+        html += f'<div class="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"><span class="font-semibold">Prochaine gate :</span> {escape(str(item.get("next_gate", "unknown")))}</div>'
+        html += '<div class="mt-4 grid gap-3 md:grid-cols-2">'
+        for label, key in (("Décisions", "decisions"), ("Implémentation", "implementation"), ("Revue Athena", "reviews"), ("Tests", "tests"), ("Preuves live", "live_proofs")):
+            records = delivery.get(key, []) if isinstance(delivery, dict) else []
+            content = "".join(f'<li>{escape(str(record.get("summary", "unknown")))}</li>' for record in records[:5] if isinstance(record, dict)) or '<li>unknown</li>'
+            html += f'<section><h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</h3><ul class="mt-1 space-y-1 text-sm text-gray-700">{content}</ul></section>'
+        html += '</div>'
+        feedbacks = item.get("feedbacks", []) if isinstance(item, dict) else []
+        feedback_html = "".join(f'<li><span class="font-semibold">{escape(str(f.get("actor", "unknown")).title())} · {escape(str(f.get("kind", "unknown")))}</span> — {escape(str(f.get("summary", ""))) } <span class="text-gray-400">({escape(str(f.get("disposition", "unknown")))})</span></li>' for f in feedbacks[:10] if isinstance(f, dict)) or '<li>unknown</li>'
+        anomalies = item.get("anomalies", []) if isinstance(item, dict) else []
+        anomaly_html = " · ".join(escape(str(a)) for a in anomalies[:10]) or "aucune signalée"
+        html += f'<section class="mt-4 border-t border-gray-100 pt-3"><h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Feedbacks par acteur</h3><ul class="mt-1 space-y-1 text-sm text-gray-700">{feedback_html}</ul><div class="mt-2 text-xs text-amber-700">Anomalies : {anomaly_html}</div></section></article>'
+    return html
+
+
 def page_ops(ledger: dict, repo_health: dict | None = None, storage: dict | None = None, vps_fleet: dict | None = None, hub_node_maturity: dict | None = None) -> str:
     gh = ledger.get("github_totals", {})
     hermes = ledger.get("sessions", {}).get("hermes", {})
@@ -4961,6 +5022,18 @@ def _main_locked(argv: list[str] | None, out_root: Path) -> None:
             }
 
     data = payload(built_at)
+    try:
+        delivery_outcomes = _load_delivery_outcomes_collector().collect()
+    except Exception as exc:  # outcome sources must never break the QG build
+        delivery_outcomes = {
+            "schema": "oa.delivery-outcomes/v1",
+            "status": "unknown",
+            "generated_at": built_at,
+            "source": "append-only outcome reports",
+            "summary": {"total": 0, "unknown": 0},
+            "items": [],
+            "errors": [f"collector_unavailable:{exc.__class__.__name__}"],
+        }
 
     # Carte du puzzle (vision Alex 07/07) : collectée juste après payload() pour
     # recevoir l'inventaire apps FRAIS (le snapshot public/ date du build
@@ -4995,6 +5068,9 @@ def _main_locked(argv: list[str] | None, out_root: Path) -> None:
     )
     (tmp / "api" / "vps-app-inventory.json").write_text(
         json.dumps(data.get("vps_app_inventory", {}), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    (tmp / "api" / "delivery-outcomes.json").write_text(
+        json.dumps(delivery_outcomes, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
@@ -5243,6 +5319,7 @@ def _main_locked(argv: list[str] | None, out_root: Path) -> None:
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
         ("/agent-activity/", "agent-activity", "Activité agents",     page_agent_activity(agent_activity)),
+        ("/livraisons/",  "ops",         "Livraisons prouvées",       page_delivery_outcomes(delivery_outcomes)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage, vps_fleet, hub_node_maturity)),
         ("/controle-oa/", "controle-oa", "Contrôle OA",             page_oa_system_control(oa_system_contracts)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
