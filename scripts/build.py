@@ -6,12 +6,15 @@ import json
 import os
 import re
 import ssl
+import stat
 import sqlite3
 import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import contextmanager
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
@@ -4803,14 +4806,126 @@ def _parse_args(argv: list[str]) -> dict:
     return opts
 
 
-def main(argv: list[str] | None = None) -> None:
-    import sys
+def _private_directory(path: Path) -> Path:
+    """Create or validate a user-owned 0700 directory without following links."""
+    try:
+        os.mkdir(path, 0o700)
+    except FileExistsError:
+        pass
+    info = os.lstat(path)
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_mode & 0o077
+    ):
+        raise RuntimeError(f"unsafe QG build lock directory: {path}")
+    return path
+
+
+def _resolved_outside_root(path: Path) -> Path | None:
+    """Resolve an existing path and reject the checkout and its descendants."""
+    try:
+        resolved_path = path.resolve(strict=True)
+        resolved_root = ROOT.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if resolved_path.is_relative_to(resolved_root):
+        return None
+    return resolved_path
+
+
+def _fallback_runtime_dir() -> Path | None:
+    """Find an existing fallback parent outside the resolved checkout."""
+    try:
+        resolved_root = ROOT.resolve(strict=True)
+        candidate = Path(tempfile.gettempdir()).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    while candidate.is_relative_to(resolved_root):
+        parent = candidate.parent
+        if parent == candidate:
+            return None
+        candidate = parent
+    return candidate
+
+
+def _secure_xdg_runtime_dir() -> Path | None:
+    raw_runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if not raw_runtime:
+        return None
+    runtime_dir = Path(raw_runtime)
+    if not runtime_dir.is_absolute():
+        return None
+    try:
+        info = os.lstat(runtime_dir)
+    except FileNotFoundError:
+        return None
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_mode & 0o077
+    ):
+        return None
+    return _resolved_outside_root(runtime_dir)
+
+
+def build_lock_path(out_root: Path) -> Path:
+    """Return a stable advisory-lock path outside the Git checkout.
+
+    A flock file is an inode used as a mutex, not an indication that a writer is
+    currently active.  It must stay stable between processes; unlinking it after
+    releasing the lock would allow two processes to lock different inodes.  Keep
+    these persistent mutex files under ignored runtime state instead of beside
+    ``public/``, where they would make the canonical checkout dirty.
+    """
+    import hashlib
+
+    output_id = hashlib.sha256(str(out_root.resolve()).encode("utf-8")).hexdigest()[:16]
+    runtime_dir = _secure_xdg_runtime_dir()
+    if runtime_dir is None:
+        runtime_dir = _fallback_runtime_dir()
+        if runtime_dir is None:
+            raise RuntimeError("no safe QG build lock runtime outside checkout")
+        lock_dir = runtime_dir / f"oa-qg-build-locks-{os.getuid()}"
+    else:
+        lock_dir = runtime_dir / "oa-qg-build-locks"
+    _private_directory(lock_dir)
+    if _resolved_outside_root(lock_dir) is None:
+        raise RuntimeError("unsafe QG build lock directory under checkout")
+    return lock_dir / f"qg-build-{output_id}.lock"
+
+
+@contextmanager
+def build_lock(out_root: Path):
+    """Hold a stable, private advisory lock for one QG output directory."""
     import fcntl
+
+    lock_path = build_lock_path(out_root)
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(lock_path, flags, 0o600)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+            raise RuntimeError(f"unsafe QG build lock file: {lock_path}")
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "a+") as lock_fh:
+            fd = -1
+            fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
+            yield
+    finally:
+        if fd != -1:
+            os.close(fd)
+
+
+def main(argv: list[str] | None = None) -> None:
     out_root = build_output_dir()
     out_root.parent.mkdir(parents=True, exist_ok=True)
-    lock_path = out_root.parent / f".{out_root.name}.qg-build.lock"
-    lock_fh = lock_path.open("w")
-    fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
+    with build_lock(out_root):
+        _main_locked(argv, out_root)
+
+
+def _main_locked(argv: list[str] | None, out_root: Path) -> None:
+    import sys
     opts = _parse_args(list(argv) if argv is not None else sys.argv[1:])
 
     # NIVEAU 2 (rbac-model §5) : build d'une vue client isolée. Artefact statique
