@@ -4803,14 +4803,35 @@ def _parse_args(argv: list[str]) -> dict:
     return opts
 
 
+def build_lock_path(out_root: Path) -> Path:
+    """Return a stable advisory-lock path outside the Git checkout.
+
+    A flock file is an inode used as a mutex, not an indication that a writer is
+    currently active.  It must stay stable between processes; unlinking it after
+    releasing the lock would allow two processes to lock different inodes.  Keep
+    these persistent mutex files under ignored runtime state instead of beside
+    ``public/``, where they would make the canonical checkout dirty.
+    """
+    import hashlib
+
+    output_id = hashlib.sha256(str(out_root.resolve()).encode("utf-8")).hexdigest()[:16]
+    lock_dir = ROOT / "var" / "build-locks"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    return lock_dir / f"qg-build-{output_id}.lock"
+
+
 def main(argv: list[str] | None = None) -> None:
-    import sys
     import fcntl
     out_root = build_output_dir()
     out_root.parent.mkdir(parents=True, exist_ok=True)
-    lock_path = out_root.parent / f".{out_root.name}.qg-build.lock"
-    lock_fh = lock_path.open("w")
-    fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
+    lock_path = build_lock_path(out_root)
+    with lock_path.open("a+") as lock_fh:
+        fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
+        _main_locked(argv, out_root)
+
+
+def _main_locked(argv: list[str] | None, out_root: Path) -> None:
+    import sys
     opts = _parse_args(list(argv) if argv is not None else sys.argv[1:])
 
     # NIVEAU 2 (rbac-model §5) : build d'une vue client isolée. Artefact statique
