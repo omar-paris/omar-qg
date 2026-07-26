@@ -1623,8 +1623,28 @@ HUB_NODE_REPORT_DIRS = [
     Path("/home/omar/11-Pilotage/sujets-actifs/qg-hub-onboarding-reset/contracts/hub-node-report-v1/examples"),
     Path("/home/omar/.hermes/kanban/workspaces/t_11fc1a25/examples"),
 ]
-if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
-    HUB_NODE_REPORT_DIRS = [ROOT / "tests" / "fixtures" / "hub-node-reports"]
+
+
+def hub_node_report_dirs() -> list[Path]:
+    """Return the sole Hub report source selected for this build mode.
+
+    ``QG_HUB_NODE_REPORT_DIR`` is a candidate-smoke boundary: when set, QG
+    reads only that directory (even if fixtures are enabled). An absent or
+    invalid candidate directory therefore yields UNKNOWN rather than falling
+    back to runtime reports or fixtures.
+    """
+    candidate_dir = os.environ.get("QG_HUB_NODE_REPORT_DIR")
+    if candidate_dir:
+        return [Path(candidate_dir)]
+    if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
+        return [ROOT / "tests" / "fixtures" / "hub-node-reports"]
+    return HUB_NODE_REPORT_DIRS
+
+
+def build_output_dir() -> Path:
+    """Return production public/ by default or an explicitly selected staging dir."""
+    staging_dir = os.environ.get("QG_BUILD_OUTPUT_DIR")
+    return Path(staging_dir) if staging_dir else PUBLIC
 
 HUB_NODE_EXPECTED = [
     {"node_id": "oa-master", "label": "OA Master", "kind": "vps", "owner": "h-omar"},
@@ -1663,7 +1683,7 @@ def _hub_node_source_ref(node_id: str, path: Path) -> str:
 
 def _read_hub_node_reports() -> dict[str, dict]:
     reports: dict[str, dict] = {}
-    for root in HUB_NODE_REPORT_DIRS:
+    for root in hub_node_report_dirs():
         if not root.exists():
             continue
         for path in _hub_node_report_paths(root):
@@ -4786,7 +4806,9 @@ def _parse_args(argv: list[str]) -> dict:
 def main(argv: list[str] | None = None) -> None:
     import sys
     import fcntl
-    lock_path = PUBLIC.parent / ".qg-build.lock"
+    out_root = build_output_dir()
+    out_root.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = out_root.parent / f".{out_root.name}.qg-build.lock"
     lock_fh = lock_path.open("w")
     fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
     opts = _parse_args(list(argv) if argv is not None else sys.argv[1:])
@@ -4846,7 +4868,7 @@ def main(argv: list[str] | None = None) -> None:
     ledger = daily_ledger(data, built_at)
     ledger_history = _merge_daily_ledgers(ledger, previous_ledgers)
 
-    tmp = PUBLIC.parent / "public_build_tmp"
+    tmp = out_root.parent / f".{out_root.name}_build_tmp"
     if tmp.exists():
         import shutil
         shutil.rmtree(tmp)
@@ -5131,10 +5153,10 @@ def main(argv: list[str] | None = None) -> None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(layout(active, title, built_at, body), encoding="utf-8")
 
-    if PUBLIC.exists():
+    if out_root.exists():
         import shutil
-        shutil.rmtree(PUBLIC)
-    tmp.rename(PUBLIC)
+        shutil.rmtree(out_root)
+    tmp.rename(out_root)
 
     healthy = data["counts"]["healthy"]
     issues  = data["counts"]["open_issues_total"]
