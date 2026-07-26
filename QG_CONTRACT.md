@@ -34,6 +34,7 @@ Afficher en un cockpit :
 - Repos locaux sous `/home/omar/23-Offre/actifs/`.
 - `var/*.json` produit par les collecteurs QG.
 - `/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/**/*health*.json` pour les rapports `oa.vps-report/v1` redacted des VPS.
+- `/home/omar/11-Pilotage/ledgers/outcomes/*.json` pour les outcomes `oa.delivery-outcomes/v1` append-only et redacted.
 - `/home/omar/.hermes/kanban.db` en lecture seule pour les blocages/boucles.
 - GitHub `omar-paris` pour issues, PRs et commits.
 - Doctrine CORE OA quand elle existe ; sinon le QG affiche explicitement `non mesuré`.
@@ -46,6 +47,7 @@ Afficher en un cockpit :
 /chantiers/
 /cockpit/
 /ops/
+/livraisons/
 /manifeste/
 /docs/
 /objectifs/
@@ -80,6 +82,14 @@ Variables runtime :
 - matrice de fraîcheur des sources affichées.
 
 Boundary : QG compte/pointe ; Hub garde la vérité runtime locale par VPS/tenant ; OmarTop garde standards/maturité. Toute donnée absente reste `unknown`.
+
+### Livraisons prouvées
+
+`/livraisons/` publie `/api/delivery-outcomes.json` (schéma `oa.delivery-outcomes/v1`) et rend, pour chaque outcome, feedbacks par acteur, décision, implémentation, revue Athena, tests, preuve live, responsable actuel, prochaine gate et anomalies.
+
+- Le collecteur n'accepte que le contrat allowlisté : aucune conversation brute, transcript, secret, env, header d'authentification ou chemin interne n'est exposé.
+- Rapport absent/invalide : `status`/phase `unknown`, erreurs bornées, build QG non bloqué.
+- La surface est un ledger de lecture ; elle ne vaut ni PASS Athena ni autorisation de release.
 
 ## Reporting inter-VPS
 
