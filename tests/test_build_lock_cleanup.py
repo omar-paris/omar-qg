@@ -65,3 +65,61 @@ def test_main_releases_lock_fd_on_error_without_polluting_checkout(tmp_path, mon
     finally:
         os.close(fd)
     assert list(checkout.iterdir()) == []
+
+
+def test_build_lock_rejects_xdg_runtime_inside_checkout(tmp_path, monkeypatch):
+    mod = load_build()
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    rejected_runtime = checkout / "runtime-private"
+    rejected_runtime.mkdir(mode=0o700)
+    fallback_parent = tmp_path / "runtime-parent"
+    fallback_parent.mkdir()
+    monkeypatch.setattr(mod, "ROOT", checkout)
+    monkeypatch.setattr(mod.tempfile, "gettempdir", lambda: str(fallback_parent))
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(rejected_runtime))
+
+    lock_path = mod.build_lock_path(tmp_path / "staging" / "public")
+
+    assert not lock_path.resolve().is_relative_to(checkout.resolve())
+    assert lock_path.parent == fallback_parent / f"oa-qg-build-locks-{os.getuid()}"
+
+
+def test_build_lock_rejects_xdg_path_resolving_inside_checkout_via_symlink(tmp_path, monkeypatch):
+    mod = load_build()
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    rejected_runtime = checkout / "runtime-private"
+    rejected_runtime.mkdir(mode=0o700)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    lexical_alias = outside / "checkout-alias"
+    lexical_alias.symlink_to(checkout, target_is_directory=True)
+    fallback_parent = tmp_path / "runtime-parent"
+    fallback_parent.mkdir()
+    monkeypatch.setattr(mod, "ROOT", checkout)
+    monkeypatch.setattr(mod.tempfile, "gettempdir", lambda: str(fallback_parent))
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(lexical_alias / "runtime-private"))
+
+    lock_path = mod.build_lock_path(tmp_path / "staging" / "public")
+
+    assert not lock_path.resolve().is_relative_to(checkout.resolve())
+    assert lock_path.parent == fallback_parent / f"oa-qg-build-locks-{os.getuid()}"
+
+
+def test_build_lock_uses_external_uid_fallback_when_tempdir_is_inside_checkout(tmp_path, monkeypatch):
+    mod = load_build()
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    rejected_runtime = checkout / "runtime-private"
+    rejected_runtime.mkdir(mode=0o700)
+    fallback_parent = checkout / "tempdir"
+    fallback_parent.mkdir()
+    monkeypatch.setattr(mod, "ROOT", checkout)
+    monkeypatch.setattr(mod.tempfile, "gettempdir", lambda: str(fallback_parent))
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(rejected_runtime))
+
+    lock_path = mod.build_lock_path(tmp_path / "staging" / "public")
+
+    assert not lock_path.resolve().is_relative_to(checkout.resolve())
+    assert lock_path.parent == tmp_path / f"oa-qg-build-locks-{os.getuid()}"

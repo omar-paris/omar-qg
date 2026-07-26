@@ -4822,6 +4822,33 @@ def _private_directory(path: Path) -> Path:
     return path
 
 
+def _resolved_outside_root(path: Path) -> Path | None:
+    """Resolve an existing path and reject the checkout and its descendants."""
+    try:
+        resolved_path = path.resolve(strict=True)
+        resolved_root = ROOT.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if resolved_path.is_relative_to(resolved_root):
+        return None
+    return resolved_path
+
+
+def _fallback_runtime_dir() -> Path | None:
+    """Find an existing fallback parent outside the resolved checkout."""
+    try:
+        resolved_root = ROOT.resolve(strict=True)
+        candidate = Path(tempfile.gettempdir()).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    while candidate.is_relative_to(resolved_root):
+        parent = candidate.parent
+        if parent == candidate:
+            return None
+        candidate = parent
+    return candidate
+
+
 def _secure_xdg_runtime_dir() -> Path | None:
     raw_runtime = os.environ.get("XDG_RUNTIME_DIR")
     if not raw_runtime:
@@ -4839,7 +4866,7 @@ def _secure_xdg_runtime_dir() -> Path | None:
         or info.st_mode & 0o077
     ):
         return None
-    return runtime_dir
+    return _resolved_outside_root(runtime_dir)
 
 
 def build_lock_path(out_root: Path) -> Path:
@@ -4856,11 +4883,15 @@ def build_lock_path(out_root: Path) -> Path:
     output_id = hashlib.sha256(str(out_root.resolve()).encode("utf-8")).hexdigest()[:16]
     runtime_dir = _secure_xdg_runtime_dir()
     if runtime_dir is None:
-        runtime_dir = Path(tempfile.gettempdir())
+        runtime_dir = _fallback_runtime_dir()
+        if runtime_dir is None:
+            raise RuntimeError("no safe QG build lock runtime outside checkout")
         lock_dir = runtime_dir / f"oa-qg-build-locks-{os.getuid()}"
     else:
         lock_dir = runtime_dir / "oa-qg-build-locks"
     _private_directory(lock_dir)
+    if _resolved_outside_root(lock_dir) is None:
+        raise RuntimeError("unsafe QG build lock directory under checkout")
     return lock_dir / f"qg-build-{output_id}.lock"
 
 
