@@ -2222,6 +2222,7 @@ NAV_SECTIONS = [
             ("/chantiers/", "chantiers", "Chantiers"),
             ("/agent-activity/", "agent-activity", "Activité agents"),
             ("/agent-loop/", "agent-loop", "Gates & orphelins"),
+            ("/livraisons/", "livraisons", "Livraisons prouvées"),
             ("/builds/", "builds", "Builds"),
         ],
     },
@@ -2276,6 +2277,98 @@ NAV_ITEMS = [
     for section in NAV_SECTIONS
     for href, key, label in section["children"]
 ]
+
+MAX_PRIMARY_NAV_SECTIONS = 5
+SURFACE_GOVERNANCE_DECISION = "QG-HUB-RESET-2026-07-08-Q21"
+SURFACE_GOVERNANCE_SOURCE = "/home/omar/11-Pilotage/sujets-actifs/qg-hub-onboarding-reset/DECISIONS_ALEX_VALIDEES.md"
+SURFACE_GOVERNANCE_REQUIRED_FIELDS = (
+    "decision",
+    "owner",
+    "role",
+    "source_canonique",
+    "freshness",
+    "preuve_attendue",
+    "justification_non_fusion",
+)
+
+
+def route_surface_contracts() -> dict[str, dict[str, str]]:
+    """Contrat anti-accumulation des routes QG niveau 1 et sous-pages.
+
+    Toute route servie par le QG doit être rattachée à une décision tracée,
+    un owner autorisé (Alexandre ou H-Omar), une source canonique, une fraîcheur,
+    une preuve attendue et une justification de non-fusion. Le QG reste ainsi un
+    cockpit synthétique au lieu d'accumuler des surfaces niveau 1 par inertie.
+    """
+    contracts: dict[str, dict[str, str]] = {}
+    section_roles = {
+        "commandement": "Décision immédiate: blocages, décisions, productivité du jour.",
+        "production": "Suivi des missions, gates et activité agents sans logs bruts.",
+        "supervision": "Synthèse fleet/apps/clients avec liens vers Hub pour le détail local.",
+        "standards": "Doctrine et référentiels OmarTop sans devenir cockpit runtime.",
+        "journal": "Historique et legacy maintenus hors navigation principale étendue.",
+    }
+    section_freshness = {
+        "commandement": "build QG + collecteurs blocages/productivité",
+        "production": "build QG + snapshots Kanban/GitHub redacted",
+        "supervision": "build QG + APIs ops/clients/apps redacted",
+        "standards": "docs versionnés + build QG",
+        "journal": "changelog versionné + routes legacy",
+    }
+    for section in NAV_SECTIONS:
+        for href, key, label in section["children"]:
+            contracts[href] = {
+                "decision": SURFACE_GOVERNANCE_DECISION,
+                "owner": "H-Omar",
+                "role": f"{section_roles[section['key']]} Sous-page: {label}.",
+                "source_canonique": SURFACE_GOVERNANCE_SOURCE,
+                "freshness": section_freshness[section["key"]],
+                "preuve_attendue": f"route {href} générée par scripts/build.py + test anti-accumulation",
+                "justification_non_fusion": f"Sous-page rattachée à {section['label']} ; pas une nouvelle surface niveau 1.",
+            }
+    app_routes = {
+        "/apps/landing/": "Fiche Landing",
+        "/apps/app/": "Fiche AppOmar",
+        "/apps/catalogue/": "Fiche Catalogue",
+        "/apps/lab/": "Fiche Lab",
+        "/apps/qg/": "Fiche QG",
+        "/apps/hub/": "Fiche Hub",
+        "/apps/omartop/": "Fiche OmarTop",
+    }
+    for href, label in app_routes.items():
+        contracts[href] = {
+            "decision": SURFACE_GOVERNANCE_DECISION,
+            "owner": "H-Omar",
+            "role": f"{label}: fiche application, pas cockpit secondaire.",
+            "source_canonique": "scripts/build.py::payload app registry + public/api/core-repos.json",
+            "freshness": "build QG + registry apps CORE OA",
+            "preuve_attendue": f"route {href} générée par scripts/build.py + fiche app visible",
+            "justification_non_fusion": "Fiche rattachée à Supervision/Standards/Journal ; ne crée pas de nouvelle section primaire.",
+        }
+    return contracts
+
+
+def validate_surface_governance(routes: list[str] | tuple[str, ...] | set[str] | None = None) -> None:
+    errors: list[str] = []
+    if len(NAV_SECTIONS) > MAX_PRIMARY_NAV_SECTIONS:
+        errors.append(f"primary_nav>{MAX_PRIMARY_NAV_SECTIONS}: {len(NAV_SECTIONS)}")
+    section_keys = [section["key"] for section in NAV_SECTIONS]
+    if len(section_keys) != len(set(section_keys)):
+        errors.append("primary_nav_duplicate_keys")
+    contracts = route_surface_contracts()
+    served_routes = set(routes) if routes is not None else set(contracts)
+    for route in sorted(served_routes):
+        contract = contracts.get(route)
+        if not contract:
+            errors.append(f"surface_contract_missing:{route}")
+            continue
+        for field in SURFACE_GOVERNANCE_REQUIRED_FIELDS:
+            if not contract.get(field):
+                errors.append(f"surface_contract_{field}_missing:{route}")
+        if contract.get("owner") not in {"Alexandre", "H-Omar"}:
+            errors.append(f"surface_contract_owner_unauthorized:{route}")
+    if errors:
+        raise ValueError("QG surface governance failed: " + "; ".join(errors))
 
 
 def _active_section(active: str) -> dict:
@@ -5319,7 +5412,7 @@ def _main_locked(argv: list[str] | None, out_root: Path) -> None:
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
         ("/agent-activity/", "agent-activity", "Activité agents",     page_agent_activity(agent_activity)),
-        ("/livraisons/",  "ops",         "Livraisons prouvées",       page_delivery_outcomes(delivery_outcomes)),
+        ("/livraisons/",  "livraisons",  "Livraisons prouvées",       page_delivery_outcomes(delivery_outcomes)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage, vps_fleet, hub_node_maturity)),
         ("/controle-oa/", "controle-oa", "Contrôle OA",             page_oa_system_control(oa_system_contracts)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
@@ -5340,6 +5433,18 @@ def _main_locked(argv: list[str] | None, out_root: Path) -> None:
             "/apps/lab/": "app-lab",
         }.get(app_route, "registry")
         pages.append((app_route, app_active, f'{app.get("name", "App")} · fiche app', page_app_detail(data, app, builds, ledger_history)))
+    validate_surface_governance({route for route, _, _, _ in pages})
+    (tmp / "api" / "qg-surface-governance.json").write_text(
+        json.dumps({
+            "schema": "oa.qg-surface-governance/v1",
+            "generated_at": built_at,
+            "max_primary_nav_sections": MAX_PRIMARY_NAV_SECTIONS,
+            "primary_nav_count": len(NAV_SECTIONS),
+            "decision": SURFACE_GOVERNANCE_DECISION,
+            "routes": route_surface_contracts(),
+        }, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     for route, active, title, body in pages:
         out = tmp / "index.html" if route == "/" else tmp / route.strip("/") / "index.html"
         out.parent.mkdir(parents=True, exist_ok=True)

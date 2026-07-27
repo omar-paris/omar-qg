@@ -47,6 +47,12 @@ Smoke local sans cert réel (tests uniquement) : `QG_INGEST_REQUIRE_MTLS=0 QG_IN
 
 Note de convergence : la cible produit est 5 pages (`/`, `/blocages/`, `/chantiers/`, `/boucles/`, `/ops/`). Les routes legacy restent servies tant que les étapes de fusion/suppression n'ont pas reçu leur gate. `/boucles/` est cible mais non activé dans ce commit car le travail boucles local est explicitement hors périmètre/NO-GO.
 
+## Garde-fou anti-accumulation surfaces
+
+La navigation primaire QG est plafonnée à 5 sections dans `scripts/build.py` (`MAX_PRIMARY_NAV_SECTIONS = 5`). Toute route servie doit passer `validate_surface_governance()` avec un contrat portant décision tracée, owner autorisé (`Alexandre` ou `H-Omar`), rôle, source canonique, fraîcheur, preuve attendue et justification de non-fusion.
+
+Le build publie `/api/qg-surface-governance.json` pour rendre ce contrat vérifiable. Une nouvelle route sans entrée dans `route_surface_contracts()` fait échouer le build/tests au lieu de créer une surface niveau 1 par accumulation.
+
 ## Build local
 
 ```bash
