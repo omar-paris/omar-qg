@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
@@ -17,6 +18,7 @@ ROUTES = {
     "/objectifs": PUBLIC / "objectifs" / "index.html",
     "/ops": PUBLIC / "ops" / "index.html",
     "/agent-activity": PUBLIC / "agent-activity" / "index.html",
+    "/livraisons": PUBLIC / "livraisons" / "index.html",
     "/controle-oa": PUBLIC / "controle-oa" / "index.html",
     "/partenaires": PUBLIC / "partenaires" / "index.html",
     "/changelog": PUBLIC / "changelog" / "index.html",
@@ -39,6 +41,7 @@ def test_qg_primary_nav_is_capped_at_five_level_one_surfaces():
     spec = importlib.util.spec_from_file_location("qg_build_under_test", ROOT / "scripts" / "build.py")
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
 
     assert len(mod.NAV_SECTIONS) <= 5
@@ -49,6 +52,7 @@ def test_qg_every_served_route_has_surface_governance_metadata():
     spec = importlib.util.spec_from_file_location("qg_build_under_test", ROOT / "scripts" / "build.py")
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
 
     route_contracts = mod.route_surface_contracts()
