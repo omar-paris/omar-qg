@@ -6,12 +6,16 @@ import json
 import os
 import re
 import ssl
+import stat
 import sqlite3
 import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import contextmanager
+from dataclasses import dataclass
 from html import escape
 from pathlib import Path
 
@@ -88,6 +92,21 @@ def _load_storage_collector():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def _load_delivery_outcomes_collector():
+    """Import the redacted delivery-outcomes collector used by QG and Hub."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "delivery_outcomes", Path(__file__).resolve().parent / "delivery_outcomes.py"
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("delivery_outcomes.py introuvable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 
 def _load_blocages_collector():
     """Importe scripts/collect_blocages.py — vue « Ce qui bloque » (var/blocages.json)."""
@@ -233,8 +252,10 @@ def _is_internal_health_probe_domain(domain: str) -> bool:
 
 # ── Providers ─────────────────────────────────────────────────────────────────
 
+HETZNER_VAULT_PATH = "secret/integrations/hetzner/test"
+
 PROVIDERS = {
-    "hetzner":     {"name": "Hetzner",     "logo": "H", "color": "#d50c2d", "url": "https://www.hetzner.com",       "vault_key": "secret/integrations/hetzner/prod"},
+    "hetzner":     {"name": "Hetzner",     "logo": "H", "color": "#d50c2d", "url": "https://www.hetzner.com",       "vault_key": HETZNER_VAULT_PATH},
     "ovh":         {"name": "OVH",         "logo": "O", "color": "#0050d7", "url": "https://www.ovh.com/fr/",       "vault_key": "secret/integrations/ovh"},
     "infomaniak":  {"name": "Infomaniak",  "logo": "I", "color": "#00b04f", "url": "https://www.infomaniak.com/fr", "vault_key": "secret/integrations/infomaniak"},
     "telnyx":      {"name": "Telnyx",      "logo": "T", "color": "#00c89c", "url": "https://telnyx.com",            "vault_key": "secret/integrations/telnyx"},
@@ -892,16 +913,43 @@ def _vault_env() -> dict:
     return env
 
 
-def _vault_read(path: str) -> dict:
+@dataclass(frozen=True)
+class VaultReadResult:
+    """Secret read outcome without including Vault output or secret values."""
+
+    status: str
+    data: dict
+
+
+def _vault_read(path: str) -> VaultReadResult:
+    """Read a Vault KV secret while preserving safe operational failure classes."""
     try:
-        raw = subprocess.check_output(
+        completed = subprocess.run(
             ["/usr/bin/vault", "kv", "get", "-format=json", path],
-            text=True, stderr=subprocess.DEVNULL,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             env=_vault_env(),
+            check=False,
         )
-        return json.loads(raw).get("data", {}).get("data", {})
-    except Exception:
-        return {}
+    except OSError:
+        return VaultReadResult(status="vault_unavailable", data={})
+
+    if completed.returncode:
+        error_text = (completed.stderr or "").lower()
+        if "no value found" in error_text or "not found" in error_text:
+            return VaultReadResult(status="secret_missing", data={})
+        if "no space left on device" in error_text or "audit" in error_text:
+            return VaultReadResult(status="vault_unavailable", data={})
+        return VaultReadResult(status="api_error", data={})
+
+    try:
+        data = json.loads(completed.stdout).get("data", {}).get("data", {})
+    except (TypeError, ValueError, AttributeError):
+        return VaultReadResult(status="api_error", data={})
+    if not isinstance(data, dict):
+        return VaultReadResult(status="api_error", data={})
+    return VaultReadResult(status="ok", data=data)
 
 
 def _ovh_get(path: str, creds: dict) -> object:
@@ -961,14 +1009,20 @@ def _http_status(url: str, headers: dict, timeout: int = 6) -> int | None:
 
 
 def probe_ovh() -> str:
-    creds = _vault_read("secret/integrations/ovh")
+    vault = _vault_read("secret/integrations/ovh")
+    if vault.status != "ok":
+        return "key_missing" if vault.status == "secret_missing" else vault.status
+    creds = vault.data
     if not creds.get("OVH_CONSUMER_KEY"):
         return "key_missing"
     return "ok" if _ovh_get("/me", creds) else "error"
 
 
 def probe_telnyx() -> str:
-    creds = _vault_read("secret/integrations/telnyx")
+    vault = _vault_read("secret/integrations/telnyx")
+    if vault.status != "ok":
+        return "key_missing" if vault.status == "secret_missing" else vault.status
+    creds = vault.data
     key = creds.get("TELNYX_API_KEY", "")
     if not key:
         return "key_missing"
@@ -977,7 +1031,10 @@ def probe_telnyx() -> str:
 
 
 def probe_hetzner() -> str:
-    creds = _vault_read("secret/integrations/hetzner/test")
+    vault = _vault_read(HETZNER_VAULT_PATH)
+    if vault.status != "ok":
+        return "key_missing" if vault.status == "secret_missing" else vault.status
+    creds = vault.data
     key = creds.get("HETZNER_API_TOKEN") or creds.get("HETZNER_TOKEN") or creds.get("HCLOUD_TOKEN", "")
     if not key:
         return "key_missing"
@@ -986,7 +1043,10 @@ def probe_hetzner() -> str:
 
 
 def probe_infomaniak() -> str:
-    creds = _vault_read("secret/integrations/infomaniak")
+    vault = _vault_read("secret/integrations/infomaniak")
+    if vault.status != "ok":
+        return "key_missing" if vault.status == "secret_missing" else vault.status
+    creds = vault.data
     key = creds.get("INFOMANIAK_API_TOKEN") or creds.get("INFOMANIAK_TOKEN") or creds.get("IK_TOKEN", "")
     if not key:
         return "key_missing"
@@ -1012,12 +1072,15 @@ def probe_all_providers() -> dict:
     return out
 
 
-def hetzner_fleet() -> list:
-    """Live VPS fleet from Hetzner API, merged with VPS_META. No tokens, build-time."""
-    creds = _vault_read("secret/integrations/hetzner/test")
+def hetzner_fleet_result() -> dict:
+    """Return fleet items plus a safe status instead of silently masking Vault/API errors."""
+    vault = _vault_read(HETZNER_VAULT_PATH)
+    if vault.status != "ok":
+        return {"items": [], "status": vault.status}
+    creds = vault.data
     key = creds.get("HCLOUD_TOKEN") or creds.get("HETZNER_API_TOKEN") or creds.get("HETZNER_TOKEN", "")
     if not key:
-        return []
+        return {"items": [], "status": "secret_missing"}
     req = urllib.request.Request(
         "https://api.hetzner.cloud/v1/servers",
         headers={"Authorization": f"Bearer {key}"},
@@ -1026,7 +1089,7 @@ def hetzner_fleet() -> list:
         with urllib.request.urlopen(req, timeout=8) as r:
             data = json.loads(r.read())
     except Exception:
-        return []
+        return {"items": [], "status": "api_error"}
 
     fleet = []
     for s in data.get("servers", []):
@@ -1081,7 +1144,12 @@ def hetzner_fleet() -> list:
     # order: CORE, STUDIO, CLIENT, then others
     order = {"CORE OA": 0, "STUDIO": 1, "CLIENT": 2}
     fleet.sort(key=lambda v: order.get(v["role"], 9))
-    return fleet
+    return {"items": fleet, "status": "ok"}
+
+
+def hetzner_fleet() -> list:
+    """Compatibility wrapper for callers that only need the live fleet entries."""
+    return hetzner_fleet_result()["items"]
 
 
 def _read_var_json(name: str) -> dict:
@@ -1186,6 +1254,29 @@ def _inter_vps_report_paths(root: Path) -> list[Path]:
     return sorted(paths)
 
 
+def _normalize_inter_vps_report_timestamps(payload: dict, path: Path) -> dict:
+    """Conserve séparément heartbeat source et refresh local QG.
+
+    Certains normaliseurs locaux réécrivent `generated_at` avec NOW tout en
+    gardant le heartbeat natif dans `source_report_generated_at`. Le QG doit
+    publier/mesurer la fraîcheur sur le timestamp source, et garder l'horloge
+    locale uniquement dans `observed_at` / `normalized_at`.
+    """
+    normalized = dict(payload)
+    local_generated_at = str(normalized.get("generated_at") or "unknown")
+    source_generated_at = str(normalized.get("source_report_generated_at") or local_generated_at)
+    normalized["source_report_generated_at"] = source_generated_at
+    if normalized.get("source_report_generated_at") and source_generated_at != local_generated_at:
+        normalized.setdefault("observed_at", local_generated_at)
+        normalized.setdefault("normalized_at", local_generated_at)
+        normalized["generated_at"] = source_generated_at
+    else:
+        normalized.setdefault("observed_at", str(normalized.get("observed_at") or "unknown"))
+        normalized.setdefault("normalized_at", str(normalized.get("normalized_at") or "unknown"))
+    normalized["_source_path"] = str(path)
+    return normalized
+
+
 def _read_inter_vps_reports() -> list[dict]:
     reports: dict[str, dict] = {}
     for root in INTER_VPS_REPORT_DIRS:
@@ -1203,9 +1294,8 @@ def _read_inter_vps_reports() -> list[dict]:
             node = _node_from_report(payload, path)
             if not node:
                 continue
-            payload = dict(payload)
+            payload = _normalize_inter_vps_report_timestamps(payload, path)
             payload["node"] = node
-            payload["_source_path"] = str(path)
             prev = reports.get(node)
             if not prev or str(payload.get("generated_at") or "") >= str(prev.get("generated_at") or ""):
                 reports[node] = payload
@@ -1551,8 +1641,28 @@ HUB_NODE_REPORT_DIRS = [
     Path("/home/omar/11-Pilotage/sujets-actifs/qg-hub-onboarding-reset/contracts/hub-node-report-v1/examples"),
     Path("/home/omar/.hermes/kanban/workspaces/t_11fc1a25/examples"),
 ]
-if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
-    HUB_NODE_REPORT_DIRS = [ROOT / "tests" / "fixtures" / "hub-node-reports"]
+
+
+def hub_node_report_dirs() -> list[Path]:
+    """Return the sole Hub report source selected for this build mode.
+
+    ``QG_HUB_NODE_REPORT_DIR`` is a candidate-smoke boundary: when set, QG
+    reads only that directory (even if fixtures are enabled). An absent or
+    invalid candidate directory therefore yields UNKNOWN rather than falling
+    back to runtime reports or fixtures.
+    """
+    candidate_dir = os.environ.get("QG_HUB_NODE_REPORT_DIR")
+    if candidate_dir:
+        return [Path(candidate_dir)]
+    if os.environ.get("QG_USE_TEST_FIXTURES") == "1":
+        return [ROOT / "tests" / "fixtures" / "hub-node-reports"]
+    return HUB_NODE_REPORT_DIRS
+
+
+def build_output_dir() -> Path:
+    """Return production public/ by default or an explicitly selected staging dir."""
+    staging_dir = os.environ.get("QG_BUILD_OUTPUT_DIR")
+    return Path(staging_dir) if staging_dir else PUBLIC
 
 HUB_NODE_EXPECTED = [
     {"node_id": "oa-master", "label": "OA Master", "kind": "vps", "owner": "h-omar"},
@@ -1591,7 +1701,7 @@ def _hub_node_source_ref(node_id: str, path: Path) -> str:
 
 def _read_hub_node_reports() -> dict[str, dict]:
     reports: dict[str, dict] = {}
-    for root in HUB_NODE_REPORT_DIRS:
+    for root in hub_node_report_dirs():
         if not root.exists():
             continue
         for path in _hub_node_report_paths(root):
@@ -1834,6 +1944,161 @@ def page_oa_system_control(contracts: dict) -> str:
     return html
 
 
+def collect_qg_cockpit(*, built_at: str, decisions: list, blocages: dict, agent_activity: dict, agent_loop_audit: dict, contracts: dict, core_data: dict) -> dict:
+    """Cockpit QG public-safe: décisions, preuves, agents et fraîcheur.
+
+    Le QG ne réplique pas Hub/OmarTop : il publie seulement des compteurs, liens
+    vers les sources de vérité et fraîcheur des snapshots qu'il affiche.
+    """
+    open_decisions = [d for d in decisions if isinstance(d, dict) and d.get("statut") == "ouverte"]
+    blocages_compteurs = blocages.get("compteurs", {}) if isinstance(blocages, dict) else {}
+    activity_summary = agent_activity.get("summary", {}) if isinstance(agent_activity, dict) else {}
+    audit_summary = agent_loop_audit.get("summary", {}) if isinstance(agent_loop_audit, dict) else {}
+    proof_items = ((contracts.get("proof_ledger") or {}).get("items") or []) if isinstance(contracts, dict) else []
+    pages = ((contracts.get("page_contracts") or {}).get("items") or []) if isinstance(contracts, dict) else []
+
+    def freshness(name: str, source: str, generated_at: object, href: str, status: str = "fresh", note: str = "") -> dict:
+        return {
+            "name": name,
+            "source": source,
+            "generated_at": str(generated_at or "unknown"),
+            "status": status if generated_at not in (None, "", "unknown") else "unknown",
+            "href": href,
+            "note": note,
+        }
+
+    return {
+        "schema": "oa.qg-cockpit/v1",
+        "generated_at": built_at,
+        "mode": "read-only-pointer-ledger",
+        "boundary": {
+            "qg": "cockpit global: compte, pointe, expose preuves/fraîcheur",
+            "hub": "runtime local par VPS/tenant — QG ne duplique pas ses données fines",
+            "omartop": "standards/maturité — QG ne remplace pas le référentiel",
+        },
+        "summary": {
+            "open_decisions": len(open_decisions),
+            "alex_blockers": int(blocages_compteurs.get("pour_alex") or 0),
+            "total_blockers": int(blocages_compteurs.get("total") or blocages_compteurs.get("ouverts") or 0),
+            "proofs": len(proof_items),
+            "agent_tasks_active": int(activity_summary.get("active") or 0),
+            "agent_tasks_blocked": int(activity_summary.get("blocked") or 0),
+            "agents_seen": int(activity_summary.get("agents") or 0),
+            "gate_orphans": int(audit_summary.get("total_orphans") or 0),
+        },
+        "decisions": [
+            {
+                "id": str(d.get("id") or ""),
+                "group": str(d.get("groupe") or "divers"),
+                "label": str(d.get("texte") or "Décision ouverte")[:220],
+                "href": f"/decisions/#card-{d.get('id')}",
+                "blocked_ref": str(d.get("blocked_ref") or ""),
+            }
+            for d in open_decisions[:8]
+        ],
+        "proofs": [
+            {
+                "label": str(p.get("label") or "preuve"),
+                "status": str(p.get("status") or "unknown"),
+                "ref": str(p.get("url_or_path") or ""),
+                "checked_at": str(p.get("checked_at") or built_at),
+            }
+            for p in proof_items[:10]
+            if isinstance(p, dict)
+        ],
+        "agents": {
+            "summary": activity_summary,
+            "decision_required": (agent_activity.get("decision_required") or [])[:8] if isinstance(agent_activity, dict) else [],
+            "by_status": activity_summary.get("by_status") or {},
+            "by_type": activity_summary.get("by_type") or {},
+        },
+        "freshness": [
+            freshness("QG core repos", "/api/core-repos.json", core_data.get("built_at"), "/api/core-repos.json"),
+            freshness("Décisions", "var/decisions.json → /api/decisions.json", built_at if decisions else None, "/decisions/", "fresh" if decisions else "unknown"),
+            freshness("Blocages", "collect_blocages.py → /api/blocages.json", blocages.get("generated_at") if isinstance(blocages, dict) else None, "/blocages/"),
+            freshness("Agents", "scripts/agent_activity.py → /api/agent-activity.json", agent_activity.get("generated_at") if isinstance(agent_activity, dict) else None, "/agent-activity/"),
+            freshness("Gates & orphelins", "var/agent-loop-audit.json → /api/agent-loop-audit.json", agent_loop_audit.get("checked_at") if isinstance(agent_loop_audit, dict) else None, "/agent-loop/", note="peut être figé depuis le 15/06 si non recronifié"),
+            freshness("Contrats pages", "/api/oa-system-contracts.json", contracts.get("generated_at") if isinstance(contracts, dict) else None, "/controle-oa/"),
+        ],
+        "pages": [
+            {"id": str(p.get("id") or ""), "route": str(p.get("route") or ""), "freshness": p.get("freshness") or {}}
+            for p in pages[:12]
+            if isinstance(p, dict)
+        ],
+    }
+
+
+def page_qg_cockpit(cockpit: dict) -> str:
+    summary = cockpit.get("summary", {}) if isinstance(cockpit, dict) else {}
+    decisions = cockpit.get("decisions", []) if isinstance(cockpit, dict) else []
+    proofs = cockpit.get("proofs", []) if isinstance(cockpit, dict) else []
+    freshness = cockpit.get("freshness", []) if isinstance(cockpit, dict) else []
+    boundary = cockpit.get("boundary", {}) if isinstance(cockpit, dict) else {}
+    agents = cockpit.get("agents", {}) if isinstance(cockpit, dict) else {}
+
+    def kpi(label: str, value: object, href: str, tone: str = "text-slate-950") -> str:
+        return f'<a href="{escape(href)}" class="block rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-blue-300 hover:shadow-sm"><div class="text-2xl font-bold {tone}">{escape(str(value))}</div><div class="text-xs text-slate-500 mt-0.5">{escape(label)}</div></a>'
+
+    def status_cls(status: object) -> str:
+        return {"fresh": "bg-green-50 text-green-700 border-green-200", "ok": "bg-green-50 text-green-700 border-green-200", "partial": "bg-amber-50 text-amber-700 border-amber-200", "unknown": "bg-slate-50 text-slate-600 border-slate-200", "stale": "bg-red-50 text-red-700 border-red-200"}.get(str(status), "bg-slate-50 text-slate-600 border-slate-200")
+
+    decision_rows = "".join(
+        '<a class="block px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-amber-50" href="{href}"><div class="text-sm font-semibold text-slate-900">{label}</div><div class="mt-1 text-xs text-slate-500">{group}{blocked}</div></a>'.format(
+            href=escape(str(d.get("href") or "/decisions/")),
+            label=escape(str(d.get("label") or "Décision ouverte")),
+            group=escape(str(d.get("group") or "divers")),
+            blocked=(" · bloque " + escape(str(d.get("blocked_ref")))) if d.get("blocked_ref") else "",
+        )
+        for d in decisions
+    ) or '<div class="px-4 py-4 text-sm text-green-700 bg-green-50">Aucune décision ouverte dans le snapshot.</div>'
+
+    proof_rows = "".join(
+        '<div class="px-4 py-3 border-b border-slate-100 last:border-0"><div class="flex items-start justify-between gap-2"><div class="text-sm font-semibold text-slate-900">{label}</div><span class="rounded-full border px-2 py-0.5 text-[11px] font-semibold {cls}">{status}</span></div><div class="mt-1 text-xs font-mono text-slate-500 break-all">{ref}</div><div class="text-[11px] text-slate-400 mt-0.5">check {checked}</div></div>'.format(
+            label=escape(str(p.get("label") or "preuve")),
+            cls=status_cls(p.get("status")),
+            status=escape(str(p.get("status") or "unknown")),
+            ref=escape(str(p.get("ref") or "")),
+            checked=escape(str(p.get("checked_at") or "unknown")),
+        )
+        for p in proofs
+    ) or '<div class="px-4 py-4 text-sm text-amber-700 bg-amber-50">Aucune preuve publiée.</div>'
+
+    freshness_rows = "".join(
+        '<a href="{href}" class="grid md:grid-cols-[180px_1fr_170px_90px] gap-2 px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50"><div class="text-sm font-semibold text-slate-900">{name}</div><div class="text-xs text-slate-500">{source}{note}</div><div class="text-xs font-mono text-slate-500">{generated}</div><div><span class="rounded-full border px-2 py-0.5 text-[11px] font-semibold {cls}">{status}</span></div></a>'.format(
+            href=escape(str(f.get("href") or "#")),
+            name=escape(str(f.get("name") or "source")),
+            source=escape(str(f.get("source") or "")),
+            note=(" · " + escape(str(f.get("note")))) if f.get("note") else "",
+            generated=escape(str(f.get("generated_at") or "unknown")),
+            cls=status_cls(f.get("status")),
+            status=escape(str(f.get("status") or "unknown")),
+        )
+        for f in freshness
+    )
+
+    by_status = agents.get("by_status") or {}
+    by_type = agents.get("by_type") or {}
+    agent_summary = f'<div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600"><span class="font-semibold">Statuts:</span> {escape(str(by_status))} · <span class="font-semibold">Types:</span> {escape(str(by_type))}</div>'
+
+    return (
+        '<section class="mb-6"><div class="text-xs font-semibold uppercase tracking-wide text-blue-600">Cockpit décision/proof/agents</div><h1 class="text-2xl font-bold text-slate-950">Décider, prouver, rafraîchir — sans dupliquer Hub/OmarTop</h1><p class="mt-1 text-sm text-slate-500">Le QG compte et pointe: décisions ouvertes, preuves publiées, activité agents et fraîcheur des sources. API <a class="text-blue-600 hover:underline" href="/api/qg-cockpit.json">oa.qg-cockpit/v1</a>.</p></section>'
+        '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">'
+        + kpi("Décisions ouvertes", summary.get("open_decisions", 0), "/decisions/", "text-amber-600" if summary.get("open_decisions") else "text-slate-950")
+        + kpi("Blocages Alex", summary.get("alex_blockers", 0), "/blocages/", "text-red-600" if summary.get("alex_blockers") else "text-slate-950")
+        + kpi("Preuves ledger", summary.get("proofs", 0), "/controle-oa/")
+        + kpi("Agents actifs", summary.get("agent_tasks_active", 0), "/agent-activity/")
+        + '</div><section class="grid lg:grid-cols-3 gap-4 mb-5">'
+        '<article class="rounded-2xl border border-amber-200 bg-white overflow-hidden"><div class="px-4 py-3 bg-amber-50 border-b border-amber-100"><div class="text-sm font-bold text-amber-950">Décisions</div><div class="text-xs text-amber-700">Lien vers /decisions/, pas de recomptage parallèle.</div></div>' + decision_rows + '</article>'
+        '<article class="rounded-2xl border border-blue-200 bg-white overflow-hidden"><div class="px-4 py-3 bg-blue-50 border-b border-blue-100"><div class="text-sm font-bold text-blue-950">Proof ledger</div><div class="text-xs text-blue-700">Preuves timestampées, public-safe.</div></div>' + proof_rows + '</article>'
+        '<article class="rounded-2xl border border-slate-200 bg-white p-4"><div class="text-sm font-bold text-slate-950">Agents & gates</div><div class="mt-2 grid grid-cols-2 gap-2">'
+        + kpi("Bloquées", summary.get("agent_tasks_blocked", 0), "/agent-activity/", "text-red-600" if summary.get("agent_tasks_blocked") else "text-slate-950")
+        + kpi("Orphelins gate", summary.get("gate_orphans", 0), "/agent-loop/", "text-red-600" if summary.get("gate_orphans") else "text-slate-950")
+        + '</div><div class="mt-3">' + agent_summary + '</div></article></section>'
+        '<section class="rounded-2xl border border-slate-200 bg-white overflow-hidden mb-5"><div class="px-4 py-3 border-b border-slate-100"><div class="text-sm font-bold text-slate-950">Fraîcheur des sources affichées</div><div class="text-xs text-slate-400">unknown vaut mieux qu\'une donnée prétendue live.</div></div>' + freshness_rows + '</section>'
+        '<section class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600"><span class="font-semibold">Boundary:</span> QG — ' + escape(str(boundary.get("qg"))) + ' · Hub — ' + escape(str(boundary.get("hub"))) + ' · OmarTop — ' + escape(str(boundary.get("omartop"))) + '</section>'
+    )
+
+
 def payload(built_at: str) -> dict:
     # le `next` codé en dur ; vps.json alimente la vue alignement VPS Hermes OA.
     triage = _read_var_json("triage.json")
@@ -1883,11 +2148,12 @@ def payload(built_at: str) -> dict:
     # OVH live data only if its API is reachable
     live = {}
     if statuses.get("ovh") == "ok":
-        live["ovh"] = ovh_live(_vault_read("secret/integrations/ovh"))
+        live["ovh"] = ovh_live(_vault_read("secret/integrations/ovh").data)
     else:
         live["ovh"] = {"domains": [], "email_domains_with_accounts": []}
 
-    fleet = hetzner_fleet()
+    fleet_result = hetzner_fleet_result()
+    fleet = fleet_result["items"]
     fleet_supervision_v0 = _read_var_json("oa-fleet-supervision-v0.json")
     if not isinstance(fleet_supervision_v0, dict):
         fleet_supervision_v0 = {}
@@ -1907,6 +2173,7 @@ def payload(built_at: str) -> dict:
         "items": items, "counts": counts,
         "catalog": CATALOG, "providers": providers, "live": live,
         "fleet": fleet,
+        "fleet_status": fleet_result["status"],
         "fleet_supervision_v0": fleet_supervision_v0,
         "vps": vps,
         "vps_app_inventory": vps_app_inventory,
@@ -1939,6 +2206,7 @@ NAV_SECTIONS = [
         "hint": "Décider maintenant",
         "children": [
             ("/", "registry", "Accueil"),
+            ("/cockpit/", "cockpit", "Cockpit"),
             ("/productivite/", "productivite", "Objectif du jour"),
             ("/blocages/", "blocages", "Blocages"),
             ("/decisions/", "decisions", "Décisions"),
@@ -2680,6 +2948,8 @@ def _api_badge(status: str) -> str:
     labels = {
         "ok":          ("bg-green-50 text-green-700 border border-green-200",   "API OK"),
         "key_missing": ("bg-gray-100 text-gray-500 border border-gray-200",     "Clef à ajouter"),
+        "vault_unavailable": ("bg-amber-50 text-amber-700 border border-amber-200", "Vault indisponible"),
+        "api_error":   ("bg-red-50 text-red-700 border border-red-200",         "Erreur Vault/API"),
         "error":       ("bg-red-50 text-red-700 border border-red-200",         "Erreur API"),
     }
     cls, label = labels.get(status, ("bg-gray-100 text-gray-500","?"))
@@ -3220,6 +3490,52 @@ def _hub_node_maturity_section(hub_node_maturity: dict | None) -> str:
     html += '</div>'
     html += '<div class="px-4 py-3 bg-gray-50 text-xs text-gray-500">Garde-fou: QG ne duplique pas les logs locaux et ne centralise pas de secret; il affiche uniquement les résumés redacted Hub.</div>'
     html += '</section>'
+    return html
+
+
+def page_delivery_outcomes(payload: dict) -> str:
+    """Render a read-only, redacted outcome ledger; missing input stays unknown."""
+    items = payload.get("items", []) if isinstance(payload, dict) else []
+    status = str(payload.get("status", "unknown")) if isinstance(payload, dict) else "unknown"
+    summary = payload.get("summary", {}) if isinstance(payload, dict) else {}
+    errors = payload.get("errors", []) if isinstance(payload, dict) else []
+    status_cls = "pill-ok" if status == "ok" else "pill-warn"
+    html = (
+        '<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between mb-6">'
+        '<div><div class="text-xs font-semibold uppercase tracking-wide text-blue-600">oa.delivery-outcomes/v1</div>'
+        '<h1 class="text-2xl font-bold text-gray-900">Livraisons prouvées</h1>'
+        '<p class="mt-1 text-sm text-gray-500">Feedback → décision → implémentation → gate → test → preuve live. QG affiche des résumés redacted, jamais des conversations ou secrets.</p></div>'
+        '<a href="/api/delivery-outcomes.json" class="text-xs text-blue-500 hover:underline">API delivery-outcomes</a></div>'
+        '<div class="grid grid-cols-2 gap-3 mb-6">'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{escape(str(summary.get("total", 0)))}</div><div class="text-xs text-gray-500">outcome(s)</div></div>'
+        f'<div class="bg-white rounded-xl border border-gray-200 px-4 py-3"><div class="text-2xl font-bold text-gray-900">{escape(str(summary.get("unknown", 0)))}</div><div class="text-xs text-gray-500">unknown / non vérifiable</div></div></div>'
+    )
+    if errors:
+        html += '<div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><span class="font-semibold">Source incomplète :</span> ' + escape(" · ".join(str(error) for error in errors[:5])) + '</div>'
+    if not items:
+        return html + '<div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">unknown — aucun rapport outcome valide disponible.</div>'
+    for item in items:
+        delivery = item.get("delivery", {}) if isinstance(item, dict) else {}
+        phase = str(item.get("phase", "unknown"))
+        item_status = str(item.get("status", "unknown"))
+        html += '<article class="mb-4 rounded-xl border border-gray-200 bg-white p-5">'
+        html += '<div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between"><div>'
+        html += f'<div class="text-xs font-mono text-gray-400">{escape(str(item.get("outcome_id", "unknown")))} · {escape(str(item.get("project_id", "unknown")))}</div>'
+        html += f'<h2 class="mt-1 text-lg font-bold text-gray-900">{escape(str(item.get("title", "Outcome unavailable")))}</h2>'
+        html += f'<div class="mt-1 text-xs text-gray-500">responsable actuel : <span class="font-semibold">{escape(str(item.get("responsible_now", "unknown")))}</span> · maj {escape(str(item.get("updated_at") or "unknown"))}</div></div>'
+        html += f'<div class="flex gap-2"><span class="{status_cls} rounded-full px-2 py-0.5 text-xs font-medium">{escape(phase)}</span><span class="pill-warn rounded-full px-2 py-0.5 text-xs font-medium">{escape(item_status)}</span></div></div>'
+        html += f'<div class="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"><span class="font-semibold">Prochaine gate :</span> {escape(str(item.get("next_gate", "unknown")))}</div>'
+        html += '<div class="mt-4 grid gap-3 md:grid-cols-2">'
+        for label, key in (("Décisions", "decisions"), ("Implémentation", "implementation"), ("Revue Athena", "reviews"), ("Tests", "tests"), ("Preuves live", "live_proofs")):
+            records = delivery.get(key, []) if isinstance(delivery, dict) else []
+            content = "".join(f'<li>{escape(str(record.get("summary", "unknown")))}</li>' for record in records[:5] if isinstance(record, dict)) or '<li>unknown</li>'
+            html += f'<section><h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</h3><ul class="mt-1 space-y-1 text-sm text-gray-700">{content}</ul></section>'
+        html += '</div>'
+        feedbacks = item.get("feedbacks", []) if isinstance(item, dict) else []
+        feedback_html = "".join(f'<li><span class="font-semibold">{escape(str(f.get("actor", "unknown")).title())} · {escape(str(f.get("kind", "unknown")))}</span> — {escape(str(f.get("summary", ""))) } <span class="text-gray-400">({escape(str(f.get("disposition", "unknown")))})</span></li>' for f in feedbacks[:10] if isinstance(f, dict)) or '<li>unknown</li>'
+        anomalies = item.get("anomalies", []) if isinstance(item, dict) else []
+        anomaly_html = " · ".join(escape(str(a)) for a in anomalies[:10]) or "aucune signalée"
+        html += f'<section class="mt-4 border-t border-gray-100 pt-3"><h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Feedbacks par acteur</h3><ul class="mt-1 space-y-1 text-sm text-gray-700">{feedback_html}</ul><div class="mt-2 text-xs text-amber-700">Anomalies : {anomaly_html}</div></section></article>'
     return html
 
 
@@ -4643,12 +4959,126 @@ def _parse_args(argv: list[str]) -> dict:
     return opts
 
 
-def main(argv: list[str] | None = None) -> None:
-    import sys
+def _private_directory(path: Path) -> Path:
+    """Create or validate a user-owned 0700 directory without following links."""
+    try:
+        os.mkdir(path, 0o700)
+    except FileExistsError:
+        pass
+    info = os.lstat(path)
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_mode & 0o077
+    ):
+        raise RuntimeError(f"unsafe QG build lock directory: {path}")
+    return path
+
+
+def _resolved_outside_root(path: Path) -> Path | None:
+    """Resolve an existing path and reject the checkout and its descendants."""
+    try:
+        resolved_path = path.resolve(strict=True)
+        resolved_root = ROOT.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if resolved_path.is_relative_to(resolved_root):
+        return None
+    return resolved_path
+
+
+def _fallback_runtime_dir() -> Path | None:
+    """Find an existing fallback parent outside the resolved checkout."""
+    try:
+        resolved_root = ROOT.resolve(strict=True)
+        candidate = Path(tempfile.gettempdir()).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    while candidate.is_relative_to(resolved_root):
+        parent = candidate.parent
+        if parent == candidate:
+            return None
+        candidate = parent
+    return candidate
+
+
+def _secure_xdg_runtime_dir() -> Path | None:
+    raw_runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if not raw_runtime:
+        return None
+    runtime_dir = Path(raw_runtime)
+    if not runtime_dir.is_absolute():
+        return None
+    try:
+        info = os.lstat(runtime_dir)
+    except FileNotFoundError:
+        return None
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_mode & 0o077
+    ):
+        return None
+    return _resolved_outside_root(runtime_dir)
+
+
+def build_lock_path(out_root: Path) -> Path:
+    """Return a stable advisory-lock path outside the Git checkout.
+
+    A flock file is an inode used as a mutex, not an indication that a writer is
+    currently active.  It must stay stable between processes; unlinking it after
+    releasing the lock would allow two processes to lock different inodes.  Keep
+    these persistent mutex files under ignored runtime state instead of beside
+    ``public/``, where they would make the canonical checkout dirty.
+    """
+    import hashlib
+
+    output_id = hashlib.sha256(str(out_root.resolve()).encode("utf-8")).hexdigest()[:16]
+    runtime_dir = _secure_xdg_runtime_dir()
+    if runtime_dir is None:
+        runtime_dir = _fallback_runtime_dir()
+        if runtime_dir is None:
+            raise RuntimeError("no safe QG build lock runtime outside checkout")
+        lock_dir = runtime_dir / f"oa-qg-build-locks-{os.getuid()}"
+    else:
+        lock_dir = runtime_dir / "oa-qg-build-locks"
+    _private_directory(lock_dir)
+    if _resolved_outside_root(lock_dir) is None:
+        raise RuntimeError("unsafe QG build lock directory under checkout")
+    return lock_dir / f"qg-build-{output_id}.lock"
+
+
+@contextmanager
+def build_lock(out_root: Path):
+    """Hold a stable, private advisory lock for one QG output directory."""
     import fcntl
-    lock_path = PUBLIC.parent / ".qg-build.lock"
-    lock_fh = lock_path.open("w")
-    fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
+
+    lock_path = build_lock_path(out_root)
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(lock_path, flags, 0o600)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+            raise RuntimeError(f"unsafe QG build lock file: {lock_path}")
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "a+") as lock_fh:
+            fd = -1
+            fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
+            yield
+    finally:
+        if fd != -1:
+            os.close(fd)
+
+
+def main(argv: list[str] | None = None) -> None:
+    out_root = build_output_dir()
+    out_root.parent.mkdir(parents=True, exist_ok=True)
+    with build_lock(out_root):
+        _main_locked(argv, out_root)
+
+
+def _main_locked(argv: list[str] | None, out_root: Path) -> None:
+    import sys
     opts = _parse_args(list(argv) if argv is not None else sys.argv[1:])
 
     # NIVEAU 2 (rbac-model §5) : build d'une vue client isolée. Artefact statique
@@ -4684,6 +5114,18 @@ def main(argv: list[str] | None = None) -> None:
             }
 
     data = payload(built_at)
+    try:
+        delivery_outcomes = _load_delivery_outcomes_collector().collect()
+    except Exception as exc:  # outcome sources must never break the QG build
+        delivery_outcomes = {
+            "schema": "oa.delivery-outcomes/v1",
+            "status": "unknown",
+            "generated_at": built_at,
+            "source": "append-only outcome reports",
+            "summary": {"total": 0, "unknown": 0},
+            "items": [],
+            "errors": [f"collector_unavailable:{exc.__class__.__name__}"],
+        }
 
     # Carte du puzzle (vision Alex 07/07) : collectée juste après payload() pour
     # recevoir l'inventaire apps FRAIS (le snapshot public/ date du build
@@ -4706,7 +5148,7 @@ def main(argv: list[str] | None = None) -> None:
     ledger = daily_ledger(data, built_at)
     ledger_history = _merge_daily_ledgers(ledger, previous_ledgers)
 
-    tmp = PUBLIC.parent / "public_build_tmp"
+    tmp = out_root.parent / f".{out_root.name}_build_tmp"
     if tmp.exists():
         import shutil
         shutil.rmtree(tmp)
@@ -4718,6 +5160,9 @@ def main(argv: list[str] | None = None) -> None:
     )
     (tmp / "api" / "vps-app-inventory.json").write_text(
         json.dumps(data.get("vps_app_inventory", {}), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    (tmp / "api" / "delivery-outcomes.json").write_text(
+        json.dumps(delivery_outcomes, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
@@ -4941,17 +5386,32 @@ def main(argv: list[str] | None = None) -> None:
         json.dumps(oa_system_contracts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
+    qg_cockpit = collect_qg_cockpit(
+        built_at=built_at,
+        decisions=decisions,
+        blocages=blocages_payload,
+        agent_activity=agent_activity,
+        agent_loop_audit=agent_loop_audit,
+        contracts=oa_system_contracts,
+        core_data=data,
+    )
+    (tmp / "api" / "qg-cockpit.json").write_text(
+        json.dumps(qg_cockpit, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
     pages = [
         ("/manifeste/",   "manifeste",   "Manifeste",               page_manifeste(manifeste)),
         ("/docs/",        "docs",        "Docs",                    page_docs(docs_index)),
         ("/carte/",       "carte",       "Carte du puzzle",         page_carte(carte_payload)),
         ("/",             "registry",    "Registry CORE OA",        page_registry(data, pending_alex_actions, builds_today, objectifs, builds, agent_loop_audit, blocages_payload, vps_fleet, agent_activity)),
+        ("/cockpit/",     "cockpit",     "Cockpit décisions/proofs/agents", page_qg_cockpit(qg_cockpit)),
         ("/productivite/", "productivite", "Objectif du jour",       page_productivite(productivite, ledger)),
         ("/blocages/",    "blocages",    "Blocages",                page_blocages(blocages_payload)),
         ("/objectifs/",   "objectifs",   "Objectifs",               page_objectifs(objectifs, decisions)),
         ("/chantiers/",   "chantiers",   "Chantiers",               page_chantiers(chantiers)),
         ("/agent-loop/",  "agent-loop",  "Audit anti-orphelins",     page_agent_loop_audit(agent_loop_audit, agent_loop_registry)),
         ("/agent-activity/", "agent-activity", "Activité agents",     page_agent_activity(agent_activity)),
+        ("/livraisons/",  "ops",         "Livraisons prouvées",       page_delivery_outcomes(delivery_outcomes)),
         ("/ops/",         "ops",         "Ops quotidien",           page_ops(ledger, repo_health, storage, vps_fleet, hub_node_maturity)),
         ("/controle-oa/", "controle-oa", "Contrôle OA",             page_oa_system_control(oa_system_contracts)),
         ("/clients/",     "clients",     "Clients & VPS",           page_clients(data)),
@@ -4989,10 +5449,10 @@ def main(argv: list[str] | None = None) -> None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(layout(active, title, built_at, body), encoding="utf-8")
 
-    if PUBLIC.exists():
+    if out_root.exists():
         import shutil
-        shutil.rmtree(PUBLIC)
-    tmp.rename(PUBLIC)
+        shutil.rmtree(out_root)
+    tmp.rename(out_root)
 
     healthy = data["counts"]["healthy"]
     issues  = data["counts"]["open_issues_total"]

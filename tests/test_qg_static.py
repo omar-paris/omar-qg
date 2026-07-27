@@ -12,6 +12,7 @@ _LAST_BUILD_KEY = object()
 ROUTES = {
     "/": PUBLIC / "index.html",
     "/productivite": PUBLIC / "productivite" / "index.html",
+    "/cockpit": PUBLIC / "cockpit" / "index.html",
     "/carte": PUBLIC / "carte" / "index.html",
     "/objectifs": PUBLIC / "objectifs" / "index.html",
     "/ops": PUBLIC / "ops" / "index.html",
@@ -186,6 +187,31 @@ def test_qg_agent_activity_redacts_bare_hermes_mentions():
     spec.loader.exec_module(mod)
     assert ".hermes" not in mod._redact("plain .hermes mention")
     assert mod._redact("plain .hermes mention") == "plain [INTERNAL_PATH] mention"
+
+
+def test_qg_cockpit_decisions_proofs_agents_and_freshness():
+    build()
+    page = (PUBLIC / "cockpit" / "index.html").read_text(encoding="utf-8")
+    assert "Cockpit décision/proof/agents" in page
+    assert "Décider, prouver, rafraîchir" in page
+    assert "sans dupliquer Hub/OmarTop" in page
+    assert "Proof ledger" in page
+    assert "Fraîcheur des sources affichées" in page
+    assert "/api/qg-cockpit.json" in page
+    assert 'href="/cockpit/"' in page
+
+    payload = json.loads((PUBLIC / "api" / "qg-cockpit.json").read_text(encoding="utf-8"))
+    assert payload["schema"] == "oa.qg-cockpit/v1"
+    assert payload["mode"] == "read-only-pointer-ledger"
+    assert {"open_decisions", "alex_blockers", "proofs", "agent_tasks_active", "gate_orphans"} <= set(payload["summary"])
+    assert payload["boundary"]["qg"].startswith("cockpit global")
+    assert "QG ne duplique pas" in payload["boundary"]["hub"]
+    assert len(payload["freshness"]) >= 5
+    assert any(item["href"] == "/agent-activity/" for item in payload["freshness"])
+    assert any(proof["status"] in {"ok", "partial", "unknown"} for proof in payload["proofs"])
+    serialized = json.dumps(payload, ensure_ascii=False)
+    for forbidden in ["/home/omar/", "~/.hermes", "ghp_", "sk-proj-", "Authorization:"]:
+        assert forbidden not in serialized
 
 
 def test_qg_productivite_daily_objective_page_and_api():

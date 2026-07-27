@@ -11,15 +11,19 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import qg_ingest
+
 ROOT = Path(__file__).resolve().parents[1]
 STORE = ROOT / "var" / "decisions.json"
-HOST, PORT = "100.79.68.6", 8097
+HOST = os.environ.get("QG_API_HOST", "100.79.68.6")
+PORT = int(os.environ.get("QG_API_PORT", "8097"))
 HERMES = "/home/omar/.local/bin/hermes"  # chemin absolu: PATH systemd ne contient pas ~/.local/bin
 ISSUE_RE = re.compile(r"^([a-z0-9-]+)#(\d+)$")
 
@@ -105,6 +109,24 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"error": "not_found"})
 
     def do_POST(self) -> None:
+        if self.path == "/api/ingest/vps-report":
+            try:
+                length = int(self.headers.get("content-length", "0"))
+                raw = self.rfile.read(length)
+                peer_cert = None
+                if hasattr(self.connection, "getpeercert"):
+                    try:
+                        peer_cert = self.connection.getpeercert()
+                    except Exception:
+                        peer_cert = None
+                status, ack = qg_ingest.handle_ingest(raw, self.headers, peer_cert=peer_cert)
+                self._send(status, ack)
+            except qg_ingest.IngestError as exc:
+                self._send(exc.status, {"error": exc.code, "message": exc.message})
+            except Exception as exc:
+                self._send(500, {"error": "ingest_failed", "message": f"{exc.__class__.__name__}: {str(exc)[:160]}"})
+            return
+
         # Réponse directe à un blocage depuis /blocages/ (Alex 06/07) :
         # « fait » ou explication → commentaire + déblocage de la ref
         # (carte kanban t_xxx ou issue repo#n) via le même helper que les
@@ -151,5 +173,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"qg-api decisions sur http://{HOST}:{PORT}", flush=True)
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    httpd = ThreadingHTTPServer((HOST, PORT), Handler)
+    tls_context = qg_ingest.mtls_server_context()
+    scheme = "http"
+    if tls_context is not None:
+        httpd.socket = tls_context.wrap_socket(httpd.socket, server_side=True)
+        scheme = "https+mtls"
+    print(f"qg-api decisions+ingest sur {scheme}://{HOST}:{PORT}", flush=True)
+    httpd.serve_forever()

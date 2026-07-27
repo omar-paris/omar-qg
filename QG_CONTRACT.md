@@ -34,6 +34,7 @@ Afficher en un cockpit :
 - Repos locaux sous `/home/omar/23-Offre/actifs/`.
 - `var/*.json` produit par les collecteurs QG.
 - `/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/**/*health*.json` pour les rapports `oa.vps-report/v1` redacted des VPS.
+- `/home/omar/11-Pilotage/ledgers/outcomes/*.json` pour les outcomes `oa.delivery-outcomes/v1` append-only et redacted.
 - `/home/omar/.hermes/kanban.db` en lecture seule pour les blocages/boucles.
 - GitHub `omar-paris` pour issues, PRs et commits.
 - Doctrine CORE OA quand elle existe ; sinon le QG affiche explicitement `non mesuré`.
@@ -44,7 +45,9 @@ Afficher en un cockpit :
 /
 /blocages/
 /chantiers/
+/cockpit/
 /ops/
+/livraisons/
 /manifeste/
 /docs/
 /objectifs/
@@ -58,6 +61,36 @@ Afficher en un cockpit :
 /api/*.json
 ```
 
+### Push mTLS QG-100
+
+`POST /api/ingest/vps-report` reçoit les enveloppes montantes `oa.vps-report/v1` par stream (`heartbeat`, `verdicts`, `expected-work`, `error-fingerprint`, `oa-cost`). Le QG valide `producer_epoch` + `sequence`, vérifie `payload_hash`, exige une identité transport non spoofable par header HTTP direct, persiste dans une base SQLite dédiée/propre `var/qg-ingest/qg-ingest.sqlite3`, puis seulement après commit répond `oa.qg-ack/v1` avec `accepted_through`, `gaps`, `duplicates`, `quarantined`.
+
+Variables runtime :
+
+- `QG_INGEST_DB` : chemin de la base propre dédiée ;
+- `QG_INGEST_REQUIRE_MTLS` : `1` par défaut, `0` uniquement pour smoke local/tests ;
+- `QG_INGEST_TLS_CERT`, `QG_INGEST_TLS_KEY`, `QG_INGEST_TLS_CA` : activent un serveur direct HTTPS+mTLS ;
+- `QG_INGEST_TRUST_PROXY_HEADERS=1` + `QG_INGEST_PROXY_SHARED_SECRET` : autorisent un reverse-proxy contrôlé à injecter un header d'identité signé (`x-oa-proxy-signature`). Sans signature valide, `x-oa-client-cert-subject` est ignoré et l'appel est rejeté.
+
+### Cockpit décision/proof/agents
+
+`/cockpit/` publie `/api/qg-cockpit.json` (schéma `oa.qg-cockpit/v1`) :
+
+- décisions ouvertes et blocages Alex, avec liens vers les pages canoniques ;
+- proof ledger issu du contrat `oa.system-contracts/v1` ;
+- activité agents et gaps gate, issus des collecteurs Kanban read-only ;
+- matrice de fraîcheur des sources affichées.
+
+Boundary : QG compte/pointe ; Hub garde la vérité runtime locale par VPS/tenant ; OmarTop garde standards/maturité. Toute donnée absente reste `unknown`.
+
+### Livraisons prouvées
+
+`/livraisons/` publie `/api/delivery-outcomes.json` (schéma `oa.delivery-outcomes/v1`) et rend, pour chaque outcome, feedbacks par acteur, décision, implémentation, revue Athena, tests, preuve live, responsable actuel, prochaine gate et anomalies.
+
+- Le collecteur n'accepte que le contrat allowlisté : aucune conversation brute, transcript, secret, env, header d'authentification ou chemin interne n'est exposé.
+- Rapport absent/invalide : `status`/phase `unknown`, erreurs bornées, build QG non bloqué.
+- La surface est un ledger de lecture ; elle ne vaut ni PASS Athena ni autorisation de release.
+
 ## Reporting inter-VPS
 
 ### Flotte VPS sur /ops/ (vue multi-VPS)
@@ -67,6 +100,7 @@ Afficher en un cockpit :
 - ligne globale « N VPS rapportent · M en dérive · K muet(s) » ;
 - un bloc par VPS attendu (`omar`, `jab`, `pantheos`) : maturité en grand (X PASS / Y FAIL + %), liste intégrale des standards FAIL (item_id + preuve redacted, zéro ellipsis), compteur apps par kind, next_action ownerisée, horodatage ;
 - rapport absent ou stale (> 36 h) = bloc ambre avec outbox attendue + owner transport (`jab` → cc-jab, `pantheos` → h-aurel) — un VPS muet est une alerte (doctrine H-Omar) ;
+- dead-man's-switch permanent : `scripts/alerts.py` tourne toutes les 5 min, mesure uniquement le heartbeat source (`source_report_generated_at` ou `generated_at` natif) et ignore les refreshs synthétiques locaux (`observed_at` / `normalized_at`) ; seuils alignés sur la cadence réelle (`oa-master` 4 min natif */5 requis, `jab` 26 h, `pantheos` 65 min pour pull */30 + marge) ; incident/Telegram après 2 cycles consécutifs, retour d'un heartbeat source frais = résolution automatique ;
 - `oa-master` est un alias santé du même VPS que `omar` : jamais compté comme 4e nœud ;
 - pied de bloc : « SAV : non instrumenté — aucun flux SAV n'existe encore » (honnêteté, décision Alex).
 
