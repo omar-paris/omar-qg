@@ -637,18 +637,25 @@ def github_state(repo_slug: str) -> dict:
 
 
 def health_probe(domain: str) -> dict:
-    url = f"https://{domain}/"
+    normalized_domain = domain.strip().lower().rstrip(".")
+    is_app_public_health = normalized_domain == "app.omar.paris"
+    url = (
+        "https://app.omar.paris/api/health"
+        if is_app_public_health
+        else f"https://{domain}/"
+    )
     t0 = time.monotonic()
     try:
-        _tok = ""
-        try:
-            _tok = (Path.home() / ".config/oa-hub/machine-token").read_text().strip()
-        except Exception:
-            pass
         _hdrs = {"User-Agent": "OA-QG-probe/1.0"}
         internal_probe = _is_internal_health_probe_domain(domain)
-        if _tok and internal_probe:
-            _hdrs["X-OA-Token"] = _tok
+        if not is_app_public_health:
+            _tok = ""
+            try:
+                _tok = (Path.home() / ".config/oa-hub/machine-token").read_text().strip()
+            except Exception:
+                pass
+            if _tok and internal_probe:
+                _hdrs["X-OA-Token"] = _tok
         req = urllib.request.Request(url, headers=_hdrs)
         if internal_probe:
             response = urllib.request.urlopen(req, timeout=8, context=_INTERNAL_OMAR_PARIS_SSL)
