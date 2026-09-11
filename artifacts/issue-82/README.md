@@ -28,6 +28,7 @@
 - `artifacts/issue-82/chantiers.legacy.json`
 - `artifacts/issue-82/chantiers.html`
 - `artifacts/issue-82/README.md`
+- `artifacts/issue-82/PR_BODY.md`
 
 ## TDD et vérifications exécutées
 
