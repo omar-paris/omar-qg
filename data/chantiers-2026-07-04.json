@@ -1,0 +1,13 @@
+[
+  {
+    "rang": 1,
+    "nom": "Historical workstream",
+    "horizon": "next",
+    "objectif": "Demonstrate age handling without operational data.",
+    "ecart": "Historical assertion retained for age demonstration only.",
+    "effort": "S",
+    "owner": "unassigned",
+    "remaining_gap": "A dated, authorized proof is required.",
+    "next_proof": "Provide a redacted dated proof outside the rebuild."
+  }
+]

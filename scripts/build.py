@@ -4028,60 +4028,156 @@ def page_carte(carte: dict) -> str:
     return html
 
 
-def page_chantiers(chantiers: list) -> str:
-    """Tableau Now/Next/Later des 8 briques (PRODUCT-TRUTH, Fable 4D System Rescue).
+CHANTIERS_SOURCE_PATH = ROOT / "data" / "chantiers.json"
+CHANTIERS_SCHEMA = "oa.chantiers/v2"
 
-    Source statique : var/chantiers.json (republié en /api/chantiers.json). Chaque
-    brique = carte avec rang de finition, objectif, écart vs promesse, effort et
-    renvoi /decisions/ quand une décision Alex ouverte la bloque.
-    """
-    horizons = [
-        ("now",   "Now",   "text-blue-700",  "à finir en premier — débloque le client réel"),
-        ("next",  "Next",  "text-gray-700",  "juste après — funnel et outillage"),
-        ("later", "Later", "text-gray-500",  "cohérence interne — aucun client n'attend dessus"),
-    ]
-    effort_cls = {"S": "pill-ok", "M": "pill-warn"}
-    html = (
-        '<div class="mb-6">'
-        '<h1 class="text-xl font-bold text-gray-900">Chantiers — quoi finir, dans l\'ordre</h1>'
-        '<p class="text-sm text-gray-500 mt-0.5">8 briques classées par le test doctrine « livrable client réel cette semaine ? » '
-        '— source <a href="/api/chantiers.json" class="text-blue-500 hover:underline">chantiers.json</a> (PRODUCT-TRUTH 04/07).</p>'
-        '</div>'
+
+def _parse_chantiers_timestamp(value: object) -> dt.datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.timezone.utc)
+
+
+def _chantiers_now(now: str | dt.datetime | None = None) -> dt.datetime:
+    if isinstance(now, dt.datetime):
+        return now if now.tzinfo else now.replace(tzinfo=dt.timezone.utc)
+    parsed = _parse_chantiers_timestamp(now)
+    return parsed or dt.datetime.now(dt.timezone.utc)
+
+
+def _unknown_chantiers_contract(error: str) -> dict:
+    return {
+        "schema": CHANTIERS_SCHEMA,
+        "contract_version": 2,
+        "compatibility": {"legacy_api": "/api/chantiers.json", "legacy_schema": "oa.chantiers/legacy-list", "v2_api": "/api/chantiers-v2.json"},
+        "source": {"id": None, "checked_at": None, "description": None},
+        "freshness": "unknown",
+        "items": [],
+        "history": [],
+        "errors": [error],
+    }
+
+
+def normalize_chantiers_contract(raw: object, *, now: str | dt.datetime | None = None) -> dict:
+    """Build the v2 projection from checked source time, never from build time."""
+    if not isinstance(raw, dict) or raw.get("schema") != "oa.chantiers-source/v1":
+        return _unknown_chantiers_contract("source_invalid")
+    source = raw.get("source")
+    if not isinstance(source, dict):
+        return _unknown_chantiers_contract("source_invalid")
+    checked_at = _parse_chantiers_timestamp(source.get("checked_at"))
+    if checked_at is None:
+        return _unknown_chantiers_contract("source_checked_at_invalid")
+    current_time = _chantiers_now(now)
+    if checked_at > current_time:
+        return _unknown_chantiers_contract("source_checked_at_in_future")
+    items = raw.get("items")
+    if not isinstance(items, list):
+        return _unknown_chantiers_contract("source_items_invalid")
+    ttl_days = source.get("freshness_ttl_days", 14)
+    if not isinstance(ttl_days, int) or ttl_days < 0:
+        return _unknown_chantiers_contract("source_ttl_invalid")
+    freshness = "unknown" if checked_at is None else (
+        "fresh" if _chantiers_now(now) - checked_at <= dt.timedelta(days=ttl_days) else "stale"
     )
-    if not chantiers:
-        return html + '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-700">Aucun chantier chargé — var/chantiers.json absent ou vide.</div>'
-    for key, label, title_cls, hint in horizons:
-        briques = sorted([c for c in chantiers if c.get("horizon") == key], key=lambda c: c.get("rang", 99))
+    history = raw.get("history") if isinstance(raw.get("history"), list) else []
+    normalized_items = []
+    for item in items:
+        if not isinstance(item, dict):
+            return _unknown_chantiers_contract("source_item_invalid")
+        normalized = dict(item)
+        normalized["checked_at"] = source.get("checked_at") if checked_at else None
+        normalized["freshness"] = freshness
+        normalized["historical"] = freshness == "stale"
+        normalized.setdefault("remaining_gap", str(item.get("ecart") or "À préciser par une preuve datée."))
+        normalized.setdefault("owner", "unknown")
+        normalized.setdefault("next_proof", "Preuve datée à fournir hors rebuild.")
+        normalized_items.append(normalized)
+    return {
+        "schema": CHANTIERS_SCHEMA,
+        "contract_version": 2,
+        "compatibility": {"legacy_api": "/api/chantiers.json", "legacy_schema": "oa.chantiers/legacy-list", "v2_api": "/api/chantiers-v2.json"},
+        "source": {"id": source.get("id"), "checked_at": source.get("checked_at") if checked_at else None, "description": source.get("description"), "reference": source.get("reference")},
+        "freshness": freshness,
+        "items": normalized_items,
+        "history": history,
+        "errors": [],
+    }
+
+
+def _chantiers_annotation(annotations: object, item: dict) -> dict:
+    if not isinstance(annotations, dict):
+        return {}
+    value = annotations.get(str(item.get("nom")))
+    return value if isinstance(value, dict) else {}
+
+
+def load_chantiers_contract(source_path: Path = CHANTIERS_SOURCE_PATH, *, now: str | dt.datetime | None = None) -> dict:
+    try:
+        manifest = json.loads(source_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return _unknown_chantiers_contract("source_missing")
+    except (OSError, json.JSONDecodeError):
+        return _unknown_chantiers_contract("source_unparseable")
+    if not isinstance(manifest, dict):
+        return _unknown_chantiers_contract("source_invalid")
+    source = manifest.get("source")
+    archive = source.get("archive") if isinstance(source, dict) else None
+    if archive:
+        archive_path = source_path.parent / str(archive)
+        try:
+            archived_items = json.loads(archive_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return _unknown_chantiers_contract("source_archive_unparseable")
+        annotations = manifest.get("item_annotations")
+        if not isinstance(archived_items, list):
+            return _unknown_chantiers_contract("source_archive_invalid")
+        manifest["items"] = [
+            {**item, **_chantiers_annotation(annotations, item)} if isinstance(item, dict) else item
+            for item in archived_items
+        ]
+    return normalize_chantiers_contract(manifest, now=now)
+
+
+def page_chantiers(contract: dict) -> str:
+    """Render the v2 truth contract; stale evidence is explicitly historical."""
+    contract = contract if isinstance(contract, dict) else _unknown_chantiers_contract("render_input_invalid")
+    freshness = str(contract.get("freshness") or "unknown")
+    source = contract.get("source") if isinstance(contract.get("source"), dict) else {}
+    checked_at = str(source.get("checked_at") or "non renseignée")
+    items = contract.get("items") if isinstance(contract.get("items"), list) else []
+    horizons = [("now", "Now", "text-blue-700"), ("next", "Next", "text-gray-700"), ("later", "Later", "text-gray-500")]
+    status_label = {"fresh": "Source vérifiée", "stale": "Historique", "unknown": "Source inconnue"}.get(freshness, "Source inconnue")
+    html = (
+        f'<div class="mb-6" data-chantiers-freshness="{escape(freshness)}">'
+        '<h1 class="text-xl font-bold text-gray-900">Chantiers — constats sourcés</h1>'
+        f'<p class="text-sm text-gray-500 mt-0.5">{escape(status_label)} — source vérifiée le {escape(checked_at)} · '
+        '<a href="/api/chantiers-v2.json" class="text-blue-500 hover:underline">contrat v2</a> · '
+        '<a href="/api/chantiers.json" class="text-blue-500 hover:underline">projection legacy</a>.</p></div>'
+    )
+    if freshness == "stale":
+        html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800">Historique : ce constat n’est pas un état courant et un rebuild ne le revalide pas.</div>'
+    if freshness == "unknown":
+        html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800">Source absente ou non parsable : verdict unknown, aucune projection antérieure n’est réutilisée.</div>'
+    if not items:
+        return html
+    for key, label, title_cls in horizons:
+        briques = sorted([c for c in items if c.get("horizon") == key], key=lambda c: c.get("rang", 99))
         if not briques:
             continue
-        html += (
-            f'<div class="flex items-baseline gap-2 mt-6 mb-3"><h2 class="text-sm font-bold uppercase tracking-wide {title_cls}">{escape(label)}</h2>'
-            f'<span class="text-xs text-gray-400">{escape(hint)}</span></div>'
-            '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">'
-        )
+        html += f'<div class="flex items-baseline gap-2 mt-6 mb-3"><h2 class="text-sm font-bold uppercase tracking-wide {title_cls}">{escape(label)}</h2></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">'
         for c in briques:
-            effort = str(c.get("effort") or "?")
-            pill = effort_cls.get(effort, "pill-warn")
             nom = escape(str(c.get("nom") or "Brique"))
-            titre = (f'<a href="{escape(c["lien"])}" target="_blank" rel="noopener" class="hover:underline">{nom}</a>'
-                     if c.get("lien") else nom)
-            html += (
-                '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4 flex flex-col">'
-                '<div class="flex items-center justify-between mb-2">'
-                '<div class="flex items-center gap-2">'
-                f'<span class="w-6 h-6 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center">{c.get("rang", "?")}</span>'
-                f'<span class="text-sm font-semibold text-gray-900">{titre}</span></div>'
-                f'<span class="px-2 py-0.5 rounded text-xs font-medium {pill}">effort {escape(effort)}</span></div>'
-                f'<div class="text-sm text-gray-700 mb-2">{escape(str(c.get("objectif") or ""))}</div>'
-                f'<div class="text-xs text-gray-500 mb-2"><span class="font-medium text-gray-600">Écart :</span> {escape(str(c.get("ecart") or ""))}</div>'
-            )
-            if c.get("preuve"):
-                html += f'<div class="text-xs text-gray-400 mb-2"><span class="font-medium">Preuve :</span> <span class="font-mono">{escape(str(c["preuve"]))}</span></div>'
-            html += '<div class="mt-auto pt-2 flex items-center justify-between gap-2">'
-            html += f'<span class="text-xs text-gray-400">{escape(str(c.get("owner") or ""))}</span>'
-            if c.get("decision_attendue"):
-                html += '<a href="/decisions/" class="text-xs font-medium text-amber-600 hover:underline">décision en attente →</a>'
-            html += '</div></div>'
+            html += '<div class="bg-white rounded-xl border border-gray-200 px-5 py-4 flex flex-col">'
+            html += f'<div class="text-sm font-semibold text-gray-900">{nom}</div>'
+            html += f'<div class="text-xs text-gray-500 mt-2"><span class="font-medium">Écart :</span> {escape(str(c.get("ecart") or ""))}</div>'
+            html += f'<div class="text-xs text-gray-500 mt-2"><span class="font-medium">Remaining gap :</span> {escape(str(c.get("remaining_gap") or ""))}</div>'
+            html += f'<div class="text-xs text-gray-500 mt-2"><span class="font-medium">Owner :</span> {escape(str(c.get("owner") or "unknown"))}</div>'
+            html += f'<div class="text-xs text-gray-500 mt-2"><span class="font-medium">Prochaine preuve :</span> {escape(str(c.get("next_proof") or ""))}</div></div>'
         html += '</div>'
     return html
 
@@ -5174,7 +5270,7 @@ def _main_locked(argv: list[str] | None, out_root: Path) -> None:
     )
     # Republie les sorties des crons triage/vps-doctor (public/ est détruit à chaque build).
     # En worktree propre, ROOT/var est souvent absent: on conserve alors le snapshot public/api existant.
-    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "chantiers.json", "boucles.json", "manifeste.json", "builder-pr-autogate.json", "oa-fleet-supervision-v0.json", "vps-resource-onboarding-v0.json"):
+    for var_name in ("triage.json", "vps.json", "decisions.json", "objectifs.json", "boucles.json", "manifeste.json", "builder-pr-autogate.json", "oa-fleet-supervision-v0.json", "vps-resource-onboarding-v0.json"):
         var_payload = _read_var_json(var_name)
         if var_payload:
             if var_name == "vps-resource-onboarding-v0.json":
@@ -5226,10 +5322,15 @@ def _main_locked(argv: list[str] | None, out_root: Path) -> None:
         ]
     (tmp / "api" / "objectifs.json").write_text(json.dumps(objectifs, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    # Couche CHANTIERS (Fable 4D rescue) : ordre de finition Now/Next/Later des 8 briques.
-    chantiers = _read_var_json("chantiers.json")
-    if not isinstance(chantiers, list):
-        chantiers = []
+    # Couche CHANTIERS : le manifeste versionné porte la source et checked_at.
+    # Le verdict ne dépend jamais de built_at ; un fallback public serait trompeur.
+    chantiers = load_chantiers_contract()
+    (tmp / "api" / "chantiers.json").write_text(
+        json.dumps(chantiers["items"], ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    (tmp / "api" / "chantiers-v2.json").write_text(
+        json.dumps(chantiers, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     # Couche MANIFESTE (Fable 4D rescue, handbook-first) : extrait fidèle des docs
     # 02/02bis validés 28/05 — la page d'entrée conceptuelle du QG.
@@ -5384,7 +5485,7 @@ def _main_locked(argv: list[str] | None, out_root: Path) -> None:
         pending_alex_actions = 0
     builds_today = (builds.get("totals", {}) or {}).get("today", 0)
 
-    productivite = _daily_objective_model(objectifs, decisions, chantiers, blocages_payload, builds, agent_loop_audit, ledger)
+    productivite = _daily_objective_model(objectifs, decisions, chantiers["items"], blocages_payload, builds, agent_loop_audit, ledger)
     (tmp / "api" / "productivite.json").write_text(
         json.dumps(productivite, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
