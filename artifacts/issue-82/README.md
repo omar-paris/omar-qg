@@ -3,7 +3,8 @@
 - Repository: `omar-paris/omar-qg`
 - Branche: `fix/issue-82-chantiers-truth`
 - Base initiale vérifiée: `34c58a5976da70ec524d93b6b4e97b2fdd884646`
-- Commit candidat: `PENDING_AMEND`
+- Artefact build figé (commit de contenu): `eaf395938d018abde053bb187ee8fe5924ebb3ba`
+- Commit de synthèse: voir la tête de branche après ce document.
 - Portée: contrat de vérité Chantiers uniquement; aucune collecte distante, publication, deploy, restart, cron, ni secret.
 
 ## Contrat livré
