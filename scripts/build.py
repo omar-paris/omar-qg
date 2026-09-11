@@ -4053,7 +4053,7 @@ def _unknown_chantiers_contract(error: str) -> dict:
     return {
         "schema": CHANTIERS_SCHEMA,
         "contract_version": 2,
-        "compatibility": {"legacy_api": "/api/chantiers-legacy.json", "legacy_schema": "oa.chantiers/legacy-list"},
+        "compatibility": {"legacy_api": "/api/chantiers.json", "legacy_schema": "oa.chantiers/legacy-list", "v2_api": "/api/chantiers-v2.json"},
         "source": {"id": None, "checked_at": None, "description": None},
         "freshness": "unknown",
         "items": [],
@@ -4070,6 +4070,11 @@ def normalize_chantiers_contract(raw: object, *, now: str | dt.datetime | None =
     if not isinstance(source, dict):
         return _unknown_chantiers_contract("source_invalid")
     checked_at = _parse_chantiers_timestamp(source.get("checked_at"))
+    if checked_at is None:
+        return _unknown_chantiers_contract("source_checked_at_invalid")
+    current_time = _chantiers_now(now)
+    if checked_at > current_time:
+        return _unknown_chantiers_contract("source_checked_at_in_future")
     items = raw.get("items")
     if not isinstance(items, list):
         return _unknown_chantiers_contract("source_items_invalid")
@@ -4095,7 +4100,7 @@ def normalize_chantiers_contract(raw: object, *, now: str | dt.datetime | None =
     return {
         "schema": CHANTIERS_SCHEMA,
         "contract_version": 2,
-        "compatibility": {"legacy_api": "/api/chantiers-legacy.json", "legacy_schema": "oa.chantiers/legacy-list"},
+        "compatibility": {"legacy_api": "/api/chantiers.json", "legacy_schema": "oa.chantiers/legacy-list", "v2_api": "/api/chantiers-v2.json"},
         "source": {"id": source.get("id"), "checked_at": source.get("checked_at") if checked_at else None, "description": source.get("description"), "reference": source.get("reference")},
         "freshness": freshness,
         "items": normalized_items,
@@ -4151,8 +4156,8 @@ def page_chantiers(contract: dict) -> str:
         f'<div class="mb-6" data-chantiers-freshness="{escape(freshness)}">'
         '<h1 class="text-xl font-bold text-gray-900">Chantiers — constats sourcés</h1>'
         f'<p class="text-sm text-gray-500 mt-0.5">{escape(status_label)} — source vérifiée le {escape(checked_at)} · '
-        '<a href="/api/chantiers.json" class="text-blue-500 hover:underline">contrat v2</a> · '
-        '<a href="/api/chantiers-legacy.json" class="text-blue-500 hover:underline">projection legacy</a>.</p></div>'
+        '<a href="/api/chantiers-v2.json" class="text-blue-500 hover:underline">contrat v2</a> · '
+        '<a href="/api/chantiers.json" class="text-blue-500 hover:underline">projection legacy</a>.</p></div>'
     )
     if freshness == "stale":
         html += '<div class="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800">Historique : ce constat n’est pas un état courant et un rebuild ne le revalide pas.</div>'
@@ -5321,10 +5326,10 @@ def _main_locked(argv: list[str] | None, out_root: Path) -> None:
     # Le verdict ne dépend jamais de built_at ; un fallback public serait trompeur.
     chantiers = load_chantiers_contract()
     (tmp / "api" / "chantiers.json").write_text(
-        json.dumps(chantiers, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    (tmp / "api" / "chantiers-legacy.json").write_text(
         json.dumps(chantiers["items"], ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    (tmp / "api" / "chantiers-v2.json").write_text(
+        json.dumps(chantiers, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
     # Couche MANIFESTE (Fable 4D rescue, handbook-first) : extrait fidèle des docs

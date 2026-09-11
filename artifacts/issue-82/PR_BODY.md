@@ -1,17 +1,13 @@
-## Scope
+## R2 scope
 
-- Versionne la source Chantiers et conserve l'archive du 04/07.
-- Publie le contrat `oa.chantiers/v2` avec compatibilité `/api/chantiers-legacy.json`.
-- Fraîcheur fondée exclusivement sur `source.checked_at`; aucune collecte distante ni publication.
+- Replaces tracked material with an anonymous one-item historical fixture.
+- Fails closed when the source timestamp is missing, invalid, or future-dated.
+- Keeps `/api/chantiers.json` as the legacy list and publishes v2 at `/api/chantiers-v2.json`.
 
 ## Evidence
 
-- Base: `34c58a5976da70ec524d93b6b4e97b2fdd884646`
-- Artefact H-Athena: `artifacts/issue-82/README.md`
-- TDD: rouge 3 échecs, puis vert 4/4.
-- Régression isolée: 94 passed.
-- Build isolé: `/tmp/omar-qg-issue82-build-20260911` (copie durable dans `artifacts/issue-82/`).
+- R2 artifact: `artifacts/issue-82/README.md`
+- R2 historical remediation plan: `artifacts/issue-82/historical-remediation-plan.md`
+- Frozen-time tests, full suite, isolated build, and final-diff redaction scan run on the R2 head.
 
-Refs #82
-
-Review gate requis: H-Athena. Aucun merge/deploy demandé.
+Review gate required: H-Athena. No merge or release authorization.
