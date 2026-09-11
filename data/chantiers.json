@@ -1,0 +1,29 @@
+{
+  "schema": "oa.chantiers-source/v1",
+  "source": {
+    "id": "product-truth-2026-07-04",
+    "checked_at": "2026-07-04T12:00:00Z",
+    "freshness_ttl_days": 14,
+    "description": "Constat historique PRODUCT-TRUTH du 04/07 conservé comme historique ; aucune assertion n'est rajeunie par un rebuild.",
+    "archive": "chantiers-2026-07-04.json",
+    "reference": "exploration-hub-qg.md §§152–172"
+  },
+  "item_annotations": {
+    "QG": {
+      "remaining_gap": "Le constat du 04/07 (dont « 26 dirty + 3 PRs draft ») est historique et doit être revalidé ; un rebuild ne mesure ni Git ni GitHub.",
+      "owner": "H-Omar",
+      "next_proof": "Relevé Git local et PR GitHub explicitement autorisé, daté et distinct du build."
+    },
+    "Hub": {
+      "remaining_gap": "Le constat du 04/07 est historique ; Git, plan et runtime restent des sources distinctes et leur parité n'est pas attestée.",
+      "owner": "H-Omar",
+      "next_proof": "Vérification autorisée et datée des sources Git, plan et runtime ; ne pas inférer la parité du rebuild."
+    }
+  },
+  "history": [
+    {
+      "checked_at": "2026-07-04T12:00:00Z",
+      "summary": "Constat initial PRODUCT-TRUTH conservé sans réécriture ni validation implicite par rebuild."
+    }
+  ]
+}
