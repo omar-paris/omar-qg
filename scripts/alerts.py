@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -31,6 +32,22 @@ HERMES = Path.home() / ".local/bin/hermes"
 HEARTBEAT_SILENCE_MIN = int(os.environ.get("QG_VPS_HEARTBEAT_SILENCE_MIN", "4"))
 DEADMAN_DAMPING_CYCLES = int(os.environ.get("QG_DEADMAN_DAMPING_CYCLES", "2"))
 ALERTS_CRON_INTERVAL_MIN = int(os.environ.get("QG_ALERTS_CRON_INTERVAL_MIN", "5"))
+
+_VOLATILE_NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
+
+
+def stable_key(text: str) -> str:
+    """Clé d'anomalie stable : les nombres volatils ne créent pas de nouvelles cartes.
+
+    Incident 2026-11-11 (cartes t_7612ab9b / t_040e3a67 / état « disque 91% ») :
+    la clé contenait le pourcentage mesuré, donc chaque variation de 1 pt
+    (78 % → 79 % → 91 %) produisait une NOUVELLE clé, donc une nouvelle carte
+    Kanban et un nouveau Telegram pour la même panne, et un faux « 🟢 résolu »
+    à chaque changement. On normalise tout nombre en `N` : « disque 78% (>70%) »
+    et « disque 91% (>70%) » désignent la même anomalie.
+    """
+    return _VOLATILE_NUMBER.sub("N", text)
+
 
 INTER_VPS_REPORT_DIRS = [
     Path("/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox"),
@@ -69,6 +86,17 @@ DEADMAN_EXPECTED_NODES = [
         "expected_path": "/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox/pantheos/vps-report-latest.json",
         "cadence": "pull every 30 min + one missed pull + 5 min margin",
         "silence_min": 65,
+        # 2026-11-11 (H-Omar, carte t_609eb126) : le reporter pantheos-health a été
+        # retiré côté Pantheos le 2026-10-18T12:49:27Z (archive
+        # pantheos-health-reporter-retired-20261018T124927Z.tar.gz, unité user
+        # pantheos-health-report.timer absente) sans source de remplacement.
+        # Le dead-man mesure un heartbeat de reporter VIVANT : une source
+        # volontairement retirée n'est pas un heartbeat attendu, sinon l'alerte
+        # devient un faux positif structurel (17461 cycles consécutifs constatés,
+        # soit ~24 j à */2). Le trou de supervision Pantheos qui en résulte est
+        # suivi par décision explicite (carte Kanban dédiée), pas par ce dead-man.
+        "retired_at": "2026-10-18T12:49:27Z",
+        "retired_reason": "reporter pantheos-health retiré côté Pantheos, aucune source de remplacement",
     },
 ]
 
@@ -163,6 +191,9 @@ def collect_vps_deadman(now: dt.datetime | None = None) -> dict[str, str]:
     reports = _read_inter_vps_reports()
     out: dict[str, str] = {}
     for expected in DEADMAN_EXPECTED_NODES:
+        # Source volontairement retirée côté nœud : plus un heartbeat attendu.
+        if expected.get("retired_at"):
+            continue
         silence_min = int(expected.get("silence_min", HEARTBEAT_SILENCE_MIN))
         aliases = {str(a).lower() for a in expected["aliases"]}
         candidates = [r for r in reports if aliases.intersection(set(r.get("_ids") or []))]
@@ -237,8 +268,16 @@ def collect(*, damped: bool = True, now: dt.datetime | None = None) -> dict[str,
     try:
         core = json.loads((ROOT / "public/api/core-repos.json").read_text())
         for it in core.get("items", []):
-            if it.get("health", {}).get("status") != "ok":
-                a[f"health-{it['id']}"] = f"{it['domain']} ne répond pas (health {it['health'].get('http_code')})"
+            health = it.get("health") or {}
+            status = health.get("status")
+            # 2026-11-11 (H-Omar, carte t_8161f324) : un actif volontairement
+            # décommissionné (reset Chantier 1, cf. build.py ITEMS) n'est pas une
+            # panne à surveiller. Sans ce filtre, le probe /api/health de
+            # app.omar.paris renvoie 502 en boucle (service arrêté exprès) et le
+            # détecteur recrée indéfiniment une carte d'alerte pour un état voulu.
+            if status in {"ok", "decommissioned", "retired"}:
+                continue
+            a[f"health-{it['id']}"] = f"{it['domain']} ne répond pas (health {health.get('http_code')})"
         fleet_status = core.get("fleet_status", "unknown")
         if fleet_status in {"vault_unavailable", "api_error"}:
             a["fleet-vault-unavailable"] = f"Flotte Hetzner non rafraîchie ({fleet_status})"
@@ -258,7 +297,7 @@ def collect(*, damped: bool = True, now: dt.datetime | None = None) -> dict[str,
             for al in (v.get("system") or {}).get("alerts", []):
                 if "Hermes runtime absent" in al or "install prévue" in al:
                     continue  # état connu pré-install, pas une panne
-                a[f"vps-{v['id']}-{al[:24]}"] = f"{v['id']} : {al}"
+                a[stable_key(f"vps-{v['id']}-{al[:24]}")] = f"{v['id']} : {al}"
     except Exception:
         pass
     a.update(collect_vps_deadman(now=now))
@@ -272,11 +311,23 @@ def collect(*, damped: bool = True, now: dt.datetime | None = None) -> dict[str,
     return cur
 
 
+def diff_alerts(prev: dict, cur: dict) -> tuple[dict, dict]:
+    """(nouvelles, résolues) en comparant sur clés normalisées.
+
+    Une migration de clé (ex. ancien « disque 91% » -> « disque N% ») ne doit
+    produire ni nouvelle carte ni faux « 🟢 résolu ».
+    """
+    prev_norm = {stable_key(k) for k in prev}
+    cur_norm = {stable_key(k) for k in cur}
+    new = {k: v for k, v in cur.items() if k not in prev and stable_key(k) not in prev_norm}
+    gone = {k: v for k, v in prev.items() if stable_key(k) not in cur_norm}
+    return new, gone
+
+
 def main() -> None:
     prev = _load_json_obj(STATE)
     cur = collect(damped=True)
-    new = {k: v for k, v in cur.items() if k not in prev}
-    gone = {k: v for k, v in prev.items() if k not in cur}
+    new, gone = diff_alerts(prev, cur)
     for key, desc in new.items():
         subprocess.run([str(HERMES), "kanban", "create", f"ALERTE: {desc[:70]}",
                         "--assignee", "default", "--priority", "90",
