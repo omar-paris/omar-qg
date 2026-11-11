@@ -1,0 +1,17 @@
+{
+  "schema": "oa.chantiers-source/v1",
+  "source": {
+    "id": "historical-fixture-2026-07",
+    "checked_at": "2026-07-04T12:00:00Z",
+    "freshness_ttl_days": 14,
+    "description": "Anonymous historical fixture.",
+    "archive": "chantiers-2026-07-04.json",
+    "reference": "issue-82 historical-age fixture"
+  },
+  "history": [
+    {
+      "checked_at": "2026-07-04T12:00:00Z",
+      "summary": "Anonymous historical record."
+    }
+  ]
+}

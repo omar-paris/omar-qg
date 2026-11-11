@@ -1,0 +1,39 @@
+{
+  "schema": "oa.chantiers/v2",
+  "contract_version": 2,
+  "compatibility": {
+    "legacy_api": "/api/chantiers.json",
+    "legacy_schema": "oa.chantiers/legacy-list",
+    "v2_api": "/api/chantiers-v2.json"
+  },
+  "source": {
+    "id": "historical-fixture-2026-07",
+    "checked_at": "2026-07-04T12:00:00Z",
+    "description": "Anonymous historical fixture.",
+    "reference": "issue-82 historical-age fixture"
+  },
+  "freshness": "stale",
+  "items": [
+    {
+      "rang": 1,
+      "nom": "Historical workstream",
+      "horizon": "next",
+      "objectif": "Demonstrate age handling without operational data.",
+      "ecart": "Historical assertion retained for age demonstration only.",
+      "effort": "S",
+      "owner": "unassigned",
+      "remaining_gap": "A dated, authorized proof is required.",
+      "next_proof": "Provide a redacted dated proof outside the rebuild.",
+      "checked_at": "2026-07-04T12:00:00Z",
+      "freshness": "stale",
+      "historical": true
+    }
+  ],
+  "history": [
+    {
+      "checked_at": "2026-07-04T12:00:00Z",
+      "summary": "Anonymous historical record."
+    }
+  ],
+  "errors": []
+}

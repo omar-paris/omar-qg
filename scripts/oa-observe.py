@@ -94,6 +94,11 @@ SESS_RATE_WARN = 200          # sessions créées dans la dernière heure -> P1
 RAM_AVAIL_CRIT = 400          # Mo available -> P0
 SWAP_PCT_WARN = 80            # % swap utilisé, à qualifier par pression -> P1
 BACKUP_WARN_H = 36            # h sans backup OK -> P1
+# Un <defunct> transitoire (parent en cours de wait()) est normal sous Linux et
+# n'est pas actionnable : les workers Hermes spawnent des enfants bash/python
+# courts qui apparaissent en Z pendant quelques ms-s. Seul un zombie PERSISTANT
+# (non reapé depuis > 5 min) révèle un parent malade. Cf. carte t_185f2470.
+ZOMBIE_MIN_AGE_S = 300        # s avant de considérer un zombie comme anormal
 KANBAN_RUNNING_H = 6          # tâche running > 6h -> P1
 REPO_IDLE_DAYS = 5           # commit le plus récent > 5j + 0 issue -> P2
 REPO_DIRTY_H = 24            # fichiers non commités depuis > 24h -> P1
@@ -810,7 +815,11 @@ def det_orphan_procs(t: dict) -> list[Finding]:
             continue
         pid, ppid, etimes, stat_, comm = p
         if "Z" in stat_:
-            zombies += 1
+            # Ne compter que les zombies persistants : un <defunct> de quelques
+            # secondes est un reap en cours, pas un parent malade.
+            age = int(etimes) if etimes.isdigit() else 0
+            if age >= ZOMBIE_MIN_AGE_S:
+                zombies += 1
         # orphelin claude/native-binary : reparenté à init (ppid=1) et vieux (>1h)
         if (ppid == "1" and etimes.isdigit() and int(etimes) > 3600
                 and re.search(r"claude|native-binary", comm, re.I)):
