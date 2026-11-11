@@ -24,7 +24,12 @@ OUT = ROOT / "var" / "vps.json"
 OA_DOCTOR = Path("/home/omar/23-Offre/actifs/omar-top/bin/oa-doctor")
 
 SERVICES_SYSTEM = ["caddy", "docker", "tailscaled"]
-SERVICES_USER = ["hermes-gateway", "oa-proposal-server"]
+# 2026-11-11 (H-Omar, carte t_8161f324) : `oa-proposal-server` retiré de la liste
+# surveillée — service arrêté ET désactivé par le reset Chantier 1 le 2026-10-13
+# (RESET-LEDGER.md). Surveiller un service volontairement éteint produit une
+# alerte permanente « service oa-proposal-server (user): inactive » qui n'a
+# aucune action de réparation possible sans décision de re-release produit.
+SERVICES_USER = ["hermes-gateway"]
 
 
 def run(cmd: list[str], timeout: int = 30) -> str:

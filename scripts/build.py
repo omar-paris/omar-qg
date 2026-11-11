@@ -231,7 +231,16 @@ _INTERNAL_OMAR_PARIS_SSL.verify_mode = ssl.CERT_NONE
 
 ITEMS = [
     {"id": "landing",  "name": "Landing",   "domain": "landing.omar.paris",   "repo": "omar-paris/omar-landing",   "path": "omar-landing",   "scope": "CORE OA",       "role": "Vitrine publique. CTA → AppOmar.",                                  "version": "V0.2.0", "changelog": "https://landing.omar.paris/changelog/",   "next": "Harmoniser CTA vers app.omar.paris."},
-    {"id": "app",      "name": "AppOmar",   "domain": "app.omar.paris",       "repo": "omar-paris/omar-app",       "path": "omar-app",       "scope": "CORE OA",       "role": "Portail client : onboarding, config, buy, SAV, factures.",          "version": "V0.3.0", "changelog": "https://app.omar.paris/changelog/",       "next": "Persister Caddy public/DNS, rendre config interactif."},
+    # 2026-11-11 (H-Omar, carte t_8161f324) : le portail app.omar.paris n'est PAS
+    # en panne — son service a été volontairement arrêté et désactivé par le reset
+    # Chantier 1 (RESET-LEDGER.md §Services arrêtés et désactivés :
+    # `oa-proposal-server.service`, 2026-10-13). Le probe /api/health renvoyait donc
+    # 502 en boucle et le détecteur créait des cartes d'alerte pour un état voulu.
+    # On déclare l'état réel : décommissionné au C1, réactivation = décision explicite
+    # (re-release produit du socle), pas une réparation d'incident.
+    {"id": "app",      "name": "AppOmar",   "domain": "app.omar.paris",       "repo": "omar-paris/omar-app",       "path": "omar-app",       "scope": "CORE OA",       "role": "Portail client : onboarding, config, buy, SAV, factures.",          "version": "V0.3.0", "changelog": "https://app.omar.paris/changelog/",       "next": "Persister Caddy public/DNS, rendre config interactif.",
+     "decommissioned_at": "2026-10-13",
+     "decommissioned_reason": "Chantier 1 — oa-proposal-server.service arrêté et désactivé (RESET-LEDGER.md); port 127.0.0.1:8096 fermé; vhost Caddy public encore présent (couture root à arbitrer)",},
     {"id": "catalogue","name": "Catalogue", "domain": "catalogue.omar.paris", "repo": "omar-paris/omar-catalogue", "path": "omar-catalogue", "scope": "CORE OA",       "role": "Recommandations Apps, Agents, Tools, Skills, MCP, Bundles.",        "version": "V0.7.3", "changelog": "https://catalogue.omar.paris/changelog/", "next": "Enrichir recommandations."},
     {"id": "lab",      "name": "Lab",       "domain": "lab.omar.paris",       "repo": "",                          "path": "oa-lab-plane",   "scope": "CORE OA",       "role": "Atelier Plane : projets, work items, cycles.",                      "version": "Plane",  "changelog": "https://lab.omar.paris/",                 "next": "Consolider projets → CORE/VPS/DIVERS/ARCHIVE."},
     {"id": "qg",       "name": "QG",        "domain": "qg.omar.paris",        "repo": "omar-paris/omar-qg",        "path": "omar-qg",        "scope": "CORE OA",       "role": "Registry opérationnel : versions, health, issues, PRs.",            "version": "V0.3.0", "changelog": "https://qg.omar.paris/changelog/",        "next": "Rebuild cron actif 30 min."},
@@ -2115,7 +2124,17 @@ def payload(built_at: str) -> dict:
         enriched: dict = dict(item)
         enriched["git"] = git_state(item["path"])
         enriched["github"] = github_state(item.get("repo", ""))
-        enriched["health"] = health_probe(item["domain"])
+        enriched["health"] = (
+            {
+                "status": "decommissioned",
+                "http_code": None,
+                "latency_ms": None,
+                "decommissioned_at": item["decommissioned_at"],
+                "decommissioned_reason": item.get("decommissioned_reason", ""),
+            }
+            if item.get("decommissioned_at")
+            else health_probe(item["domain"])
+        )
         t = (triage.get("apps") or {}).get(item["id"])
         if t and t.get("next"):
             enriched["next"] = t["next"]
@@ -2143,6 +2162,7 @@ def payload(built_at: str) -> dict:
         "core": sum(1 for i in items if i["scope"] == "CORE OA"),
         "vps": sum(1 for i in items if i["scope"] == "VPS Hermes OA"),
         "healthy": healthy,
+        "decommissioned": sum(1 for i in items if i["health"]["status"] == "decommissioned"),
         "open_issues_total": sum(i["github"]["open_issues"] or 0 for i in items),
         "open_prs_total": sum(i["github"]["open_prs"] or 0 for i in items),
     }
@@ -2746,6 +2766,10 @@ def page_registry(data: dict, pending_alex_actions: int = 0, builds_today: int =
         if h["status"] == "ok":
             lat = f' · {h["latency_ms"]}ms' if h.get("latency_ms") else ""
             h_pill = f'<span class="pill-ok inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">{h.get("http_code","ok")}{escape(lat)}</span>'
+        elif h["status"] == "decommissioned":
+            # État voulu (reset Chantier 1), pas une panne : ne pas afficher « down ».
+            h_pill = ('<span class="pill-warn inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" '
+                      f'title="{escape(str(h.get("decommissioned_reason", "")))}">retiré {escape(str(h.get("decommissioned_at", "")))}</span>')
         elif h.get("http_code"):
             h_pill = f'<span class="pill-warn inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">{h["http_code"]}</span>'
         else:
