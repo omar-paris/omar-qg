@@ -56,6 +56,42 @@ def stable_key(text: str) -> str:
     return _VOLATILE_NUMBER.sub("N", text)
 
 
+# Marqueur machine écrit dans le body de chaque carte d'alerte (D2). C'est le
+# seul identifiant lisible par un humain ET par le script : `hermes kanban
+# list --json` n'expose pas `idempotency_key`.
+ALERT_KEY_MARKER = "alert-key:"
+
+
+def canonical_key(key: str) -> str:
+    """Forme canonique d'une clé, utilisée pour COMPARER deux clés (migration-safe).
+
+    `stable_key()` neutralise les nombres mais laisse le seuil et la ponctuation :
+    une migration de format de clé (`vps-vps-pantheos-disque N% (>N%)` →
+    `vps-vps-pantheos-disque`, décision D1) produirait sinon un faux « 🟢 résolu »
+    + une carte dupliquée sur le premier cycle après déploiement. On compare donc
+    toujours sur cette forme, jamais sur la chaîne brute.
+    """
+    text = stable_key(key)
+    text = re.sub(r"\([^)]*\)", " ", text)      # seuils : « (>N%) », « (>N) »
+    text = re.sub(r"\bN%?", " ", text)           # pourcentages résiduels
+    text = re.sub(r"[^0-9A-Za-z]+", "-", text)   # séparateurs uniformisés
+    return text.strip("-").lower()
+
+
+def vps_alert_key(vps_id: str, alert: str) -> str:
+    """Clé d'anomalie d'une alerte système VPS : slug SANS aucune valeur volatile.
+
+    D1 : `vps-<id>-disque`, `vps-<id>-swap`, `vps-<id>-<slug alerte sans nombre>`.
+    Le pourcentage mesuré, le seuil et la durée de staleness restent dans la
+    description, jamais dans la clé — sinon une variation d'un point crée une
+    nouvelle carte (incident 2026-11-11 : 13 cartes pour le seul disque Pantheos).
+    """
+    slug = _VOLATILE_NUMBER.sub(" ", alert)
+    slug = re.sub(r"\([^)]*\)", " ", slug)
+    slug = re.sub(r"[^0-9A-Za-z]+", "-", slug).strip("-").lower()
+    return f"vps-{vps_id}-{slug}" if slug else f"vps-{vps_id}"
+
+
 INTER_VPS_REPORT_DIRS = [
     Path("/home/omar/11-Pilotage/sujets-actifs/inter-vps-inbox"),
     Path("/home/omar/11-Pilotage/sujets-actifs/fable-5-rails-1-2/inbox-from-pantheos"),
@@ -304,7 +340,7 @@ def collect(*, damped: bool = True, now: dt.datetime | None = None) -> dict[str,
             for al in (v.get("system") or {}).get("alerts", []):
                 if "Hermes runtime absent" in al or "install prévue" in al:
                     continue  # état connu pré-install, pas une panne
-                a[stable_key(f"vps-{v['id']}-{al[:24]}")] = f"{v['id']} : {al}"
+                a[vps_alert_key(v['id'], al)] = f"{v['id']} : {al}"
     except Exception:
         pass
     a.update(collect_vps_deadman(now=now))
@@ -319,15 +355,15 @@ def collect(*, damped: bool = True, now: dt.datetime | None = None) -> dict[str,
 
 
 def diff_alerts(prev: dict, cur: dict) -> tuple[dict, dict]:
-    """(nouvelles, résolues) en comparant sur clés normalisées.
+    """(nouvelles, résolues) en comparant sur clés canoniques.
 
-    Une migration de clé (ex. ancien « disque 91% » -> « disque N% ») ne doit
-    produire ni nouvelle carte ni faux « 🟢 résolu ».
+    Une migration de clé (ex. ancien « disque 91% » -> « disque N% » -> « disque »)
+    ne doit produire ni nouvelle carte ni faux « 🟢 résolu ».
     """
-    prev_norm = {stable_key(k) for k in prev}
-    cur_norm = {stable_key(k) for k in cur}
-    new = {k: v for k, v in cur.items() if k not in prev and stable_key(k) not in prev_norm}
-    gone = {k: v for k, v in prev.items() if stable_key(k) not in cur_norm}
+    prev_norm = {canonical_key(k) for k in prev}
+    cur_norm = {canonical_key(k) for k in cur}
+    new = {k: v for k, v in cur.items() if k not in prev and canonical_key(k) not in prev_norm}
+    gone = {k: v for k, v in prev.items() if canonical_key(k) not in cur_norm}
     return new, gone
 
 
@@ -365,37 +401,107 @@ def find_open_card_by_idempotency_key(idem_key: str, db_path: Path | None = None
         con.close()
 
 
-def close_card_for_resolved_alert(key: str, desc: str, *, dry_run: bool = False) -> str | None:
-    """Ferme la carte Kanban de l'alerte résolue. Retourne l'id fermé (ou None).
+def alert_card_body(key: str, desc: str, timestamp: str | None = None) -> str:
+    """Body d'une carte d'alerte, avec le marqueur machine `alert-key:` (D2).
+
+    Le marqueur est la seule référence stable et lisible côté humain comme côté
+    script ; la description (avec %, durée, horodatage) reste du texte libre.
+    """
+    ts = timestamp or time.strftime("%Y-%m-%d %H:%M")
+    return (
+        f"Alerte automatique oa-alerts ({ts}).\n\n"
+        f"{ALERT_KEY_MARKER} {key}\n\n"
+        f"{desc}\n\n"
+        "Diagnostiquer, réparer si runbook connu, sinon escalader (boîte de décisions)."
+    )
+
+
+def find_open_cards_by_alert_key(key: str, db_path: Path | None = None) -> list[str]:
+    """Cartes encore ouvertes d'une anomalie : marqueur `alert-key:` puis clé d'idempotence.
+
+    Ordre de résolution (D2/D3) :
+    1. marqueur `alert-key: <key>` dans le body — identifiant stable, lisible,
+       indépendant du schéma de la base ;
+    2. fallback `idempotency_key = alert-<key>` pour les cartes créées avant D2
+       (et pour les boards dont la table `tasks` n'expose pas la colonne `body`).
+
+    Le titre n'est JAMAIS utilisé : il est tronqué à 70 caractères et contient
+    des valeurs volatiles (pourcentage de disque, durée de staleness), donc il
+    ne peut pas identifier une anomalie de façon fiable.
+
+    Lecture seule : la base n'est jamais modifiée ici. Toutes les cartes
+    ouvertes correspondantes sont retournées (doublons inclus), pour pouvoir
+    les fermer ensemble.
+    """
+    path = Path(db_path or KANBAN_DB)
+    if not path.exists():
+        return []
+    try:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
+    except Exception:
+        return []
+    placeholders = ",".join("?" for _ in CARD_OPEN_STATUSES)
+    try:
+        try:
+            rows = con.execute(
+                f"SELECT id FROM tasks WHERE body LIKE ? AND status IN ({placeholders}) "
+                "ORDER BY created_at",
+                (f"%{ALERT_KEY_MARKER} {key}%", *CARD_OPEN_STATUSES),
+            ).fetchall()
+            found = [r[0] for r in rows]
+        except Exception:
+            found = []
+        if not found:
+            row = con.execute(
+                f"SELECT id FROM tasks WHERE idempotency_key = ? AND status IN ({placeholders}) "
+                "ORDER BY created_at DESC LIMIT 1",
+                (alert_idempotency_key(key), *CARD_OPEN_STATUSES),
+            ).fetchone()
+            if row:
+                found = [row[0]]
+        return found
+    except Exception:
+        return []
+    finally:
+        con.close()
+
+
+def close_cards_for_resolved_alert(key: str, desc: str, *, dry_run: bool = False) -> list[str]:
+    """Ferme TOUTES les cartes ouvertes de l'alerte résolue. Retourne les ids fermés.
 
     Contrepartie obligatoire des alertes santé immédiates : sans cette
     fermeture, les cartes ALERTE s'accumulent indéfiniment à chaque anomalie
-    transitoire (constat 2026-11-11 : cartes ouvertes 36 j après résolution).
+    transitoire (constat 2026-11-11 : cartes ouvertes 36 j après résolution,
+    13 doublons pour le seul disque Pantheos).
     """
     idem_key = alert_idempotency_key(key)
-    task_id = find_open_card_by_idempotency_key(idem_key)
-    if not task_id:
-        return None
+    task_ids = find_open_cards_by_alert_key(key)
+    if not task_ids:
+        return []
     result = (
         f"🟢 Alerte auto-résolue ({time.strftime('%Y-%m-%d %H:%M')}) : "
         f"l'anomalie « {desc} » a disparu du collecteur QG. "
-        f"Fermeture automatique par oa-alerts (clé d'idempotence {idem_key})."
+        f"Fermeture automatique par oa-alerts (clé d'alerte {key}, "
+        f"clé d'idempotence {idem_key})."
     )
     if dry_run:
-        return task_id
-    try:
-        cp = subprocess.run(
-            [str(HERMES), "kanban", "complete", task_id, "--result", result],
-            capture_output=True, timeout=30,
-        )
-    except Exception as exc:  # pragma: no cover - garde-fou opérationnel
-        print(f"WARN fermeture {task_id} ({idem_key}) impossible : {exc}", file=sys.stderr)
-        return None
-    if cp.returncode != 0:
-        err = (cp.stderr or b"").decode(errors="replace").strip()[:200]
-        print(f"WARN fermeture {task_id} ({idem_key}) rc={cp.returncode} : {err}", file=sys.stderr)
-        return None
-    return task_id
+        return task_ids
+    closed: list[str] = []
+    for task_id in task_ids:
+        try:
+            cp = subprocess.run(
+                [str(HERMES), "kanban", "complete", task_id, "--result", result],
+                capture_output=True, timeout=30,
+            )
+        except Exception as exc:  # pragma: no cover - garde-fou opérationnel
+            print(f"WARN fermeture {task_id} ({idem_key}) impossible : {exc}", file=sys.stderr)
+            continue
+        if cp.returncode != 0:
+            err = (cp.stderr or b"").decode(errors="replace").strip()[:200]
+            print(f"WARN fermeture {task_id} ({idem_key}) rc={cp.returncode} : {err}", file=sys.stderr)
+            continue
+        closed.append(task_id)
+    return closed
 
 
 def main() -> None:
@@ -410,7 +516,7 @@ def main() -> None:
         subprocess.run([str(HERMES), "kanban", "create", f"ALERTE: {desc[:70]}",
                         "--assignee", "default", "--priority", "90",
                         "--idempotency-key", alert_idempotency_key(key),
-                        "--body", f"Alerte automatique oa-alerts ({time.strftime('%Y-%m-%d %H:%M')}).\n\n{desc}\n\nDiagnostiquer, réparer si runbook connu, sinon escalader (boîte de décisions)."],
+                        "--body", alert_card_body(key, desc)],
                        capture_output=True, timeout=30)
         if TELEGRAM.exists():
             subprocess.run([str(TELEGRAM), f"🔴 QG ALERTE : {desc}"], capture_output=True, timeout=20)
@@ -418,8 +524,7 @@ def main() -> None:
     for key, desc in gone.items():
         if TELEGRAM.exists() and not dry_run:
             subprocess.run([str(TELEGRAM), f"🟢 résolu : {desc}"], capture_output=True, timeout=20)
-        task_id = close_card_for_resolved_alert(key, desc, dry_run=dry_run)
-        if task_id:
+        for task_id in close_cards_for_resolved_alert(key, desc, dry_run=dry_run):
             closed.append(task_id)
             print(f"{'DRY fermerait' if dry_run else 'carte fermée'} {task_id} ({alert_idempotency_key(key)})")
     if not dry_run:
