@@ -645,7 +645,21 @@ def github_state(repo_slug: str) -> dict:
     return {"open_issues": open_issues, "open_prs": open_prs, "last_merged_pr": last_merged}
 
 
+HEALTH_PROBE_MAX_ATTEMPTS = int(os.environ.get("QG_HEALTH_PROBE_MAX_ATTEMPTS", "3"))
+HEALTH_PROBE_BACKOFF_SECONDS = float(os.environ.get("QG_HEALTH_PROBE_BACKOFF_SECONDS", "2"))
+
+
 def health_probe(domain: str) -> dict:
+    """Probe HTTPS borné : jusqu'à HEALTH_PROBE_MAX_ATTEMPTS tentatives.
+
+    Incident 2026-10-06 → 2026-11-11 (carte t_928c3ec6) : le probe était
+    single-shot, donc la moindre exception transitoire (timeout, reset TCP,
+    handshake TLS) produisait `http_code: None` et une carte ALERTE immédiate
+    pour un domaine sain. On réessaie donc un nombre BORNÉ de fois avec un
+    backoff fixe, puis on conserve un échec explicite (`attempts`,
+    `last_error`) : un domaine réellement down produit toujours
+    `status=error`, le retry ne masque jamais une panne réelle.
+    """
     normalized_domain = domain.strip().lower().rstrip(".")
     is_app_public_health = normalized_domain == "app.omar.paris"
     url = (
@@ -653,31 +667,49 @@ def health_probe(domain: str) -> dict:
         if is_app_public_health
         else f"https://{domain}/"
     )
-    t0 = time.monotonic()
-    try:
-        _hdrs = {"User-Agent": "OA-QG-probe/1.0"}
-        internal_probe = _is_internal_health_probe_domain(domain)
-        if not is_app_public_health:
-            _tok = ""
-            try:
-                _tok = (Path.home() / ".config/oa-hub/machine-token").read_text().strip()
-            except Exception:
-                pass
-            if _tok and internal_probe:
-                _hdrs["X-OA-Token"] = _tok
-        req = urllib.request.Request(url, headers=_hdrs)
-        if internal_probe:
-            response = urllib.request.urlopen(req, timeout=8, context=_INTERNAL_OMAR_PARIS_SSL)
-        else:
-            response = urllib.request.urlopen(req, timeout=8)
-        with response as r:
+    max_attempts = max(1, int(HEALTH_PROBE_MAX_ATTEMPTS))
+    last_http_code = None
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        t0 = time.monotonic()
+        try:
+            _hdrs = {"User-Agent": "OA-QG-probe/1.0"}
+            internal_probe = _is_internal_health_probe_domain(domain)
+            if not is_app_public_health:
+                _tok = ""
+                try:
+                    _tok = (Path.home() / ".config/oa-hub/machine-token").read_text().strip()
+                except Exception:
+                    pass
+                if _tok and internal_probe:
+                    _hdrs["X-OA-Token"] = _tok
+            req = urllib.request.Request(url, headers=_hdrs)
+            if internal_probe:
+                response = urllib.request.urlopen(req, timeout=8, context=_INTERNAL_OMAR_PARIS_SSL)
+            else:
+                response = urllib.request.urlopen(req, timeout=8)
+            with response as r:
+                latency_ms = int((time.monotonic() - t0) * 1000)
+                return {"status": "ok", "http_code": r.status, "latency_ms": latency_ms, "attempts": attempt}
+        except urllib.error.HTTPError as e:
             latency_ms = int((time.monotonic() - t0) * 1000)
-            return {"status": "ok", "http_code": r.status, "latency_ms": latency_ms}
-    except urllib.error.HTTPError as e:
-        latency_ms = int((time.monotonic() - t0) * 1000)
-        return {"status": "ok" if e.code < 500 else "error", "http_code": e.code, "latency_ms": latency_ms}
-    except Exception:
-        return {"status": "error", "http_code": None, "latency_ms": None}
+            # 4xx = réponse applicative réelle, pas une panne réseau : pas de retry.
+            if e.code < 500:
+                return {"status": "ok", "http_code": e.code, "latency_ms": latency_ms, "attempts": attempt}
+            last_http_code = e.code
+            last_error = f"HTTP {e.code} {getattr(e, 'reason', '') or ''}".strip()
+        except Exception as e:
+            last_http_code = None
+            last_error = f"{type(e).__name__}: {e}"
+        if attempt < max_attempts and HEALTH_PROBE_BACKOFF_SECONDS > 0:
+            time.sleep(HEALTH_PROBE_BACKOFF_SECONDS)
+    return {
+        "status": "error",
+        "http_code": last_http_code,
+        "latency_ms": None,
+        "attempts": max_attempts,
+        "last_error": last_error,
+    }
 
 
 def _paris_now() -> dt.datetime:
