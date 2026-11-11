@@ -140,6 +140,18 @@ VERSION = "V" + (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 DOMAIN = "qg.omar.paris"
 STATE_DB = Path("/home/omar/.hermes/state.db")
 BUILD_LEDGER_DIR = Path("/home/omar/11-Pilotage/ledgers/builds")
+
+# ── Ledger de conformité omar-top (runtime) ───────────────────────────────────
+# Le runtime oa-compliance-run écrit dans ~/.local/state/oa/omar-top/state/
+# compliance/<vps>/ (cf. bin/oa-compliance-run.py : `state_root` = $OMARTOP_STATE_ROOT
+# ou ROOT/state/compliance, puis `base = state_root / vps`).
+# Le chemin historique (archive sous actifs/omar-top/, figée au 2026-07-27) ne doit
+# plus être lu : il donnait une conformité de juillet, silencieusement.
+# Résolu UNE seule fois ici — ne pas recoder le chemin ailleurs.
+OMAR_TOP_COMPLIANCE_STATE = Path(
+    os.environ.get("OMARTOP_STATE_ROOT")
+    or Path.home() / ".local" / "state" / "oa" / "omar-top" / "state" / "compliance"
+)
 try:
     from zoneinfo import ZoneInfo
 except Exception:  # pragma: no cover
@@ -153,7 +165,7 @@ def _load_graded_for_node(node_id: str, qg_root: Path):
     - VPS distant (jab/pantheos) : depuis l'artefact EXPÉDIÉ (ship-own) déposé en
       var/graded-conformity-<id>.json — le QG ne lit JAMAIS le VPS en direct."""
     if node_id in ("oa-master", "omar", "vps-omar"):
-        comp = Path("/home/omar/23-Offre/actifs/omar-top/state/compliance/omar")
+        comp = OMAR_TOP_COMPLIANCE_STATE / "omar"
         runs = comp / "runs.jsonl"
         if not runs.exists():
             return None
