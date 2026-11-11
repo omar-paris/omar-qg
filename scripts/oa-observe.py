@@ -55,9 +55,8 @@ TARGETS = [
         "host": None,
         "homes": ["/home/omar"],
         "backup_logs": [
-            {"path": "/var/log/oadmin-backup.log", "scope": "primary", "label": "legacy oadmin"},
             {
-                "path": "/home/omar/23-Offre/actifs/omar-top/state/compliance/omar/backup.log",
+                "path": "/home/omar/.local/state/oa/omar-top/state/compliance/omar/backup.log",
                 "scope": "primary",
                 "label": "Omar T1 manifest",
             },
