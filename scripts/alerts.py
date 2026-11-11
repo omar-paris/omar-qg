@@ -19,7 +19,9 @@ import datetime as dt
 import json
 import os
 import re
+import sqlite3
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -28,6 +30,11 @@ STATE = ROOT / "var" / "alerts-state.json"
 DAMPING_STATE = ROOT / "var" / "alerts-damping-state.json"
 TELEGRAM = Path.home() / "omar-alex-vps/scripts/send-telegram.sh"
 HERMES = Path.home() / ".local/bin/hermes"
+# Board Hermes partagé. Lecture seule ici (lookup par clé d'idempotence) ;
+# toute écriture passe par le CLI `hermes kanban`, jamais par SQL direct.
+KANBAN_DB = Path(os.environ.get("HERMES_KANBAN_DB") or (Path.home() / ".hermes" / "kanban.db"))
+# Statuts pour lesquels une carte d'alerte est encore « ouverte » (fermable).
+CARD_OPEN_STATUSES = ("todo", "ready", "running", "review", "blocked", "triage", "scheduled")
 
 HEARTBEAT_SILENCE_MIN = int(os.environ.get("QG_VPS_HEARTBEAT_SILENCE_MIN", "4"))
 DEADMAN_DAMPING_CYCLES = int(os.environ.get("QG_DEADMAN_DAMPING_CYCLES", "2"))
@@ -324,23 +331,100 @@ def diff_alerts(prev: dict, cur: dict) -> tuple[dict, dict]:
     return new, gone
 
 
+def alert_idempotency_key(key: str) -> str:
+    """Clé d'idempotence de la carte Kanban d'une anomalie (source unique)."""
+    return f"alert-{key}"
+
+
+def find_open_card_by_idempotency_key(idem_key: str, db_path: Path | None = None) -> str | None:
+    """Retrouve la carte Kanban encore ouverte créée pour cette alerte.
+
+    La création utilise `--idempotency-key alert-{key}` ; la fermeture doit donc
+    s'appuyer sur la MÊME clé, jamais sur le titre (titre tronqué à 70 car. et
+    contenant des valeurs volatiles comme un pourcentage de disque).
+    Lecture seule : la base n'est jamais modifiée ici.
+    """
+    path = Path(db_path or KANBAN_DB)
+    if not path.exists():
+        return None
+    try:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
+    except Exception:
+        return None
+    try:
+        placeholders = ",".join("?" for _ in CARD_OPEN_STATUSES)
+        row = con.execute(
+            f"SELECT id FROM tasks WHERE idempotency_key = ? AND status IN ({placeholders}) "
+            "ORDER BY created_at DESC LIMIT 1",
+            (idem_key, *CARD_OPEN_STATUSES),
+        ).fetchone()
+        return row[0] if row else None
+    except Exception:
+        return None
+    finally:
+        con.close()
+
+
+def close_card_for_resolved_alert(key: str, desc: str, *, dry_run: bool = False) -> str | None:
+    """Ferme la carte Kanban de l'alerte résolue. Retourne l'id fermé (ou None).
+
+    Contrepartie obligatoire des alertes santé immédiates : sans cette
+    fermeture, les cartes ALERTE s'accumulent indéfiniment à chaque anomalie
+    transitoire (constat 2026-11-11 : cartes ouvertes 36 j après résolution).
+    """
+    idem_key = alert_idempotency_key(key)
+    task_id = find_open_card_by_idempotency_key(idem_key)
+    if not task_id:
+        return None
+    result = (
+        f"🟢 Alerte auto-résolue ({time.strftime('%Y-%m-%d %H:%M')}) : "
+        f"l'anomalie « {desc} » a disparu du collecteur QG. "
+        f"Fermeture automatique par oa-alerts (clé d'idempotence {idem_key})."
+    )
+    if dry_run:
+        return task_id
+    try:
+        cp = subprocess.run(
+            [str(HERMES), "kanban", "complete", task_id, "--result", result],
+            capture_output=True, timeout=30,
+        )
+    except Exception as exc:  # pragma: no cover - garde-fou opérationnel
+        print(f"WARN fermeture {task_id} ({idem_key}) impossible : {exc}", file=sys.stderr)
+        return None
+    if cp.returncode != 0:
+        err = (cp.stderr or b"").decode(errors="replace").strip()[:200]
+        print(f"WARN fermeture {task_id} ({idem_key}) rc={cp.returncode} : {err}", file=sys.stderr)
+        return None
+    return task_id
+
+
 def main() -> None:
+    dry_run = "--dry-run" in sys.argv[1:]
     prev = _load_json_obj(STATE)
     cur = collect(damped=True)
     new, gone = diff_alerts(prev, cur)
     for key, desc in new.items():
+        if dry_run:
+            print(f"DRY créerait carte ALERTE ({alert_idempotency_key(key)}) : {desc}")
+            continue
         subprocess.run([str(HERMES), "kanban", "create", f"ALERTE: {desc[:70]}",
                         "--assignee", "default", "--priority", "90",
-                        "--idempotency-key", f"alert-{key}",
+                        "--idempotency-key", alert_idempotency_key(key),
                         "--body", f"Alerte automatique oa-alerts ({time.strftime('%Y-%m-%d %H:%M')}).\n\n{desc}\n\nDiagnostiquer, réparer si runbook connu, sinon escalader (boîte de décisions)."],
                        capture_output=True, timeout=30)
         if TELEGRAM.exists():
             subprocess.run([str(TELEGRAM), f"🔴 QG ALERTE : {desc}"], capture_output=True, timeout=20)
-    for key in gone:
-        if TELEGRAM.exists():
-            subprocess.run([str(TELEGRAM), f"🟢 résolu : {prev[key]}"], capture_output=True, timeout=20)
-    STATE.write_text(json.dumps(cur, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"alerts: {len(cur)} actives · {len(new)} nouvelles · {len(gone)} résolues")
+    closed: list[str] = []
+    for key, desc in gone.items():
+        if TELEGRAM.exists() and not dry_run:
+            subprocess.run([str(TELEGRAM), f"🟢 résolu : {desc}"], capture_output=True, timeout=20)
+        task_id = close_card_for_resolved_alert(key, desc, dry_run=dry_run)
+        if task_id:
+            closed.append(task_id)
+            print(f"{'DRY fermerait' if dry_run else 'carte fermée'} {task_id} ({alert_idempotency_key(key)})")
+    if not dry_run:
+        STATE.write_text(json.dumps(cur, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"alerts: {len(cur)} actives · {len(new)} nouvelles · {len(gone)} résolues · {len(closed)} cartes fermées")
 
 
 if __name__ == "__main__":
