@@ -102,7 +102,21 @@ DEFAULT_TIMEOUT = 30
 SSH_OPTS = ["-o", "ConnectTimeout=10", "-o", "BatchMode=yes"]
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_KANBAN_STATE = ROOT / "var" / "oa-observe-kanban-state.json"
+# Registre d'intention par repo (gitignoré via .gitignore:8 `var/`). Il porte la
+# décision humaine « ce repo est idle parce qu'il est FIGÉ volontairement » et
+# permet de distinguer un gel décidé d'un abandon. Voir carte t_d1d22bf2.
+DEFAULT_REPO_INTENT = ROOT / "var" / "repo-intent.json"
+REPO_INTENT_SCHEMA = "oa.repo-intent/1"
+# Sévérités qui deviennent des cartes Kanban. Les notices INFO restent dans le
+# briefing (une carte `ready` serait dispatchée à un worker pour rien).
+KANBAN_SYNCED_SEVERITIES = ("P0", "P1", "P2")
+# Racine des checkouts d'apps inspectés par det_repo_idle (surchargeable en test).
+REPOS_BASE = Path("/home/omar/23-Offre/actifs")
 HERMES = Path.home() / ".local/bin/hermes"
+
+# Notes de scan alimentées par les détecteurs (ex: diagnostic d'un `gh` en
+# échec). Vidées au début de chaque scan() puis fusionnées dans les notes.
+SCAN_NOTES: list[str] = []
 
 # Répertoires exclus de la bloat : dépendances build (node_modules/venv) ET
 # copies volontaires (backups, snapshots, incidents) qui dupliquent une base
@@ -149,13 +163,23 @@ def finding_fingerprint(f: Finding) -> str:
     Les mesures de ``ram_swap`` varient pendant un même incident. Les autres
     détecteurs peuvent signaler plusieurs incidents simultanés, donc leur titre
     et détail restent dans l'empreinte pour préserver une carte par incident.
+
+    Exception ``repo_idle`` : le titre porte des mesures qui bougent toutes
+    seules (nombre de jours sans commit, nombre de fichiers sales). Les inclure
+    dans l'empreinte créait une carte NOUVELLE chaque jour pour le même repo —
+    c'est la cause racine des doublons constatés avant la pause du 2026-09-24.
+    On ancre donc l'empreinte sur le nom du repo (préfixe du titre), ce qui
+    garde une carte par repo et par sévérité, stable dans le temps.
     """
     payload = {
         "severite": f.severite,
         "vps": f.vps,
         "detecteur": f.detecteur or "unknown",
     }
-    if f.detecteur != "ram_swap":
+    if f.detecteur == "repo_idle":
+        # titre = "<repo> : <mesure volatile>"
+        payload["scope"] = f.titre.split(" : ", 1)[0].strip() or "unknown"
+    elif f.detecteur != "ram_swap":
         payload["titre"] = f.titre
         payload["detail"] = f.detail
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -215,15 +239,125 @@ def save_kanban_state(state: dict, path: Path = DEFAULT_KANBAN_STATE) -> None:
     path.write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def load_repo_intent(path: Path | str | None = None) -> dict[str, dict]:
+    """Charge le registre d'intention par repo (schéma ``oa.repo-intent/1``).
+
+    Retourne ``{slug: entrée}``. Fichier absent, illisible ou schéma inconnu =>
+    ``{}`` : le scan retombe alors sur le comportement historique (aucun repo
+    n'est considéré comme figé par défaut). Un registre cassé ne doit jamais
+    faire taire une alerte.
+    """
+    p = Path(path) if path else DEFAULT_REPO_INTENT
+    try:
+        payload = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    schema = payload.get("schema")
+    if schema and schema != REPO_INTENT_SCHEMA:
+        SCAN_NOTES.append(
+            f"registre d'intention ignoré : schéma {schema!r} != {REPO_INTENT_SCHEMA!r} ({p})")
+        return {}
+    repos = payload.get("repos")
+    if not isinstance(repos, dict):
+        return {}
+    return {str(k): v for k, v in repos.items() if isinstance(v, dict)}
+
+
+def repo_intent_of(name: str, registry: dict[str, dict] | None = None) -> str:
+    """Intention déclarée pour un repo : ``frozen``, ``active`` ou ``""``."""
+    entry = (registry or {}).get(name) or {}
+    return str(entry.get("intent") or "").strip().lower()
+
+
+_OPEN_BOARD_STATUSES_EXCLUDED = {"done", "archived"}
+_IDEMPOTENCY_RE = re.compile(r"^idempotency_key:\s*(\S+)\s*$", re.MULTILINE)
+
+
+def _idempotency_key_from_body(body: str) -> str | None:
+    m = _IDEMPOTENCY_RE.search(body or "")
+    return m.group(1) if m else None
+
+
+def list_observe_board_cards(runner=subprocess.run, *,
+                             statuses: tuple[str, ...] = ()) -> list[dict]:
+    """Liste les cartes Kanban ENCORE OUVERTES créées par oa-observe.
+
+    Source de vérité de la réconciliation : le board, pas le fichier d'état
+    local. La clé d'idempotence n'est pas exposée par `kanban list --json`, on
+    la relit donc dans le corps de la carte (elle y est écrite par
+    ``_card_body``). Toute erreur => liste vide (dégradation propre).
+    """
+    cmd = [str(HERMES), "kanban", "list", "--json"]
+    try:
+        cp = runner(cmd, capture_output=True, text=True, timeout=60)
+    except Exception:  # noqa: BLE001
+        return []
+    if getattr(cp, "returncode", 1) != 0:
+        return []
+    try:
+        tasks = json.loads(getattr(cp, "stdout", "") or "[]")
+    except Exception:  # noqa: BLE001
+        return []
+    if not isinstance(tasks, list):
+        return []
+    out: list[dict] = []
+    for t in tasks:
+        if not isinstance(t, dict):
+            continue
+        if t.get("created_by") != "oa-observe":
+            continue
+        status = str(t.get("status") or "")
+        if status in _OPEN_BOARD_STATUSES_EXCLUDED:
+            continue
+        if statuses and status not in statuses:
+            continue
+        key = _idempotency_key_from_body(str(t.get("body") or ""))
+        out.append({
+            "task_id": t.get("id"),
+            "idempotency_key": key,
+            "title": t.get("title"),
+            "status": status,
+        })
+    return out
+
+
+def _key_detector(key: str) -> str:
+    """Détecteur porté par une clé d'idempotence ``oa-observe:<vps>:<det>:<fp>``."""
+    parts = str(key or "").split(":")
+    return parts[2] if len(parts) >= 4 else ""
+
+
 def plan_kanban_sync(findings: list[Finding], previous: dict | None = None,
-                     now_ts: int | None = None) -> tuple[list[dict], dict]:
-    """Planifie create/update/resolve sans toucher au Kanban."""
+                     now_ts: int | None = None,
+                     board_cards: list[dict] | None = None,
+                     scanned_detectors: set[str] | None = None) -> tuple[list[dict], dict]:
+    """Planifie create/update/resolve sans toucher au Kanban.
+
+    ``previous`` (fichier d'état local) n'est qu'un CACHE. ``board_cards`` est
+    la liste des cartes oa-observe encore ouvertes sur le board : toute carte
+    dont la clé n'apparaît plus dans les findings courants est un candidat
+    ``resolve``, même si le fichier d'état est vide, perdu ou restauré. Sans
+    cette réconciliation, une carte dont la clé est absente du state restait
+    ouverte indéfiniment (cas des cartes OBS `repo_idle`).
+
+    ``scanned_detectors`` borne la réconciliation aux détecteurs réellement
+    exécutés : un scan partiel (``--only repo_idle``) ne doit JAMAIS clore les
+    cartes des détecteurs qu'il n'a pas mesurés (sinon un scan ciblé fermerait
+    tout le reste du board). ``None`` = tous les détecteurs.
+    """
     previous = previous or {}
     now_ts = int(now_ts or time.time())
     state = dict(previous)
     plan: list[dict] = []
     active_keys: set[str] = set()
     for f in findings:
+        # Seuls les findings actionnables deviennent des cartes. Les notices
+        # informatives (ex: `repo_intent_frozen` en INFO) restent dans le
+        # briefing : une carte `ready` serait dispatchée à un worker pour rien.
+        if f.severite not in KANBAN_SYNCED_SEVERITIES:
+            continue
         key = finding_idempotency_key(f)
         active_keys.add(key)
         prev = previous.get(key, {}) if isinstance(previous.get(key), dict) else {}
@@ -245,19 +379,70 @@ def plan_kanban_sync(findings: list[Finding], previous: dict | None = None,
             "first_seen_at": prev.get("first_seen_at", now_ts),
             "last_seen_at": now_ts,
         }
+
+    # Le board peut connaître le task_id que le state a perdu : on le récupère
+    # pour que les resolve suivants puissent cibler la carte.
+    def _in_scope(key: str) -> bool:
+        if scanned_detectors is None:
+            return True
+        det = _key_detector(key)
+        return not det or det in scanned_detectors
+
+    board_by_key: dict[str, dict] = {}
+    for card in board_cards or []:
+        key = card.get("idempotency_key")
+        if not key or not card.get("task_id"):
+            continue
+        if not _in_scope(key):
+            continue
+        board_by_key.setdefault(key, card)
+        if key in state and isinstance(state[key], dict) and not state[key].get("task_id"):
+            state[key]["task_id"] = card["task_id"]
+        if key in active_keys:
+            for op in plan:
+                if op["idempotency_key"] == key and not op.get("task_id"):
+                    op["task_id"] = card["task_id"]
+
+    already_planned: set[str] = set()
     for key, prev in previous.items():
         if key in active_keys or not isinstance(prev, dict) or prev.get("status") != "active":
+            continue
+        if not _in_scope(key):
             continue
         plan.append({
             "action": "resolve",
             "idempotency_key": key,
-            "task_id": prev.get("task_id"),
+            "task_id": prev.get("task_id") or (board_by_key.get(key) or {}).get("task_id"),
             "title": prev.get("title", key),
         })
+        already_planned.add(key)
         resolved = dict(prev)
         resolved["status"] = "resolved"
         resolved["resolved_at"] = now_ts
         state[key] = resolved
+
+    # Réconciliation board : cartes ouvertes dont la clé n'est plus un finding.
+    for key, card in board_by_key.items():
+        if key in active_keys or key in already_planned:
+            continue
+        plan.append({
+            "action": "resolve",
+            "idempotency_key": key,
+            "task_id": card.get("task_id"),
+            "title": card.get("title", key),
+            "source": "board",
+        })
+        already_planned.add(key)
+        resolved = dict(previous.get(key) or {})
+        resolved.update({
+            "status": "resolved",
+            "resolved_at": now_ts,
+            "task_id": card.get("task_id"),
+            "title": card.get("title", key),
+            "detector": (previous.get(key) or {}).get("detector", "unknown"),
+        })
+        state[key] = resolved
+
     return plan, state
 
 
@@ -284,7 +469,8 @@ def apply_kanban_plan(plan: list[dict], state: dict, findings_by_key: dict[str, 
     results: list[dict] = []
     for op in plan:
         if dry_run:
-            results.append({k: op.get(k) for k in ("action", "idempotency_key", "task_id", "title")})
+            results.append({k: op.get(k) for k in
+                            ("action", "idempotency_key", "task_id", "title", "source")})
             continue
         action = op["action"]
         key = op["idempotency_key"]
@@ -880,16 +1066,48 @@ def det_secret_exposure(t: dict) -> list[Finding]:
     return out
 
 
+def _gh_open_issues(repo: Path) -> tuple[int | None, int, str]:
+    """Nombre d'issues ouvertes du repo, ou ``None`` si la mesure est impossible.
+
+    Un ``None`` signifie « je ne sais pas », jamais « zéro ». Retourne aussi le
+    returncode et le début de stderr pour que l'échec soit diagnosticable dans
+    la sortie du scan (avant ce correctif, ils étaient jetés : l'échec était
+    invisible et invérifiable).
+    """
+    try:
+        r = subprocess.run(
+            ["gh", "issue", "list", "--state", "open", "--json", "number", "-L", "100"],
+            cwd=str(repo), capture_output=True, text=True, timeout=25)
+    except Exception as e:  # noqa: BLE001
+        return None, -1, f"{type(e).__name__}: {e}"
+    err = (r.stderr or "").strip()
+    if r.returncode != 0:
+        return None, r.returncode, err
+    out = (r.stdout or "").strip()
+    if not out:
+        return None, r.returncode, err or "stdout vide"
+    try:
+        payload = json.loads(out)
+    except Exception as e:  # noqa: BLE001
+        return None, r.returncode, f"JSON invalide: {e}"
+    if not isinstance(payload, list):
+        return None, r.returncode, "JSON inattendu (pas une liste)"
+    return len(payload), r.returncode, err
+
+
 def det_repo_idle(t: dict) -> list[Finding]:
     """Mode amélioration des apps. Local uniquement (repos sur VPS-Omar).
     - app sans commit > 5j ET 0 issue ouverte = pas en mode amélioration (P2)
-    - fichiers non commités > 0 depuis > 24h = risque de perte (P1)"""
+    - fichiers non commités > 0 depuis > 24h = risque de perte (P1)
+    - issues GitHub illisibles (échec gh) = gh_unreadable (P2), jamais repo_idle
+    - repo déclaré `frozen` dans var/repo-intent.json = pas de repo_idle (P2)"""
     out: list[Finding] = []
     if t["mode"] != "local":
         return out
-    base = Path("/home/omar/23-Offre/actifs")
+    base = REPOS_BASE
     if not base.exists():
         return out
+    registry = load_repo_intent()
     now = time.time()
     for repo in sorted(base.glob("omar-*")):
         if not (repo / ".git").is_dir():
@@ -906,31 +1124,37 @@ def det_repo_idle(t: dict) -> list[Finding]:
 
         last = git(["log", "-1", "--format=%ct"])
         days = (now - int(last)) / 86400 if last.isdigit() else None
-        dirty = [l for l in git(["status", "--porcelain"]).splitlines() if l.strip()]
+
+        # Porcelain SANS strip() : le préfixe XY compte deux caractères, et un
+        # strip() supprime l'espace de " M fichier" — le chemin extrait devenait
+        # alors "p.py" (faux), donc l'âge du fichier sale n'était jamais mesuré
+        # et le P1 « non commité depuis > 24h » ne sortait jamais pour une
+        # modification (seuls les "??" passaient par chance).
+        def git_raw(args, _r=repo):
+            try:
+                return subprocess.run(["git", "-C", str(_r), *args],
+                                      capture_output=True, text=True,
+                                      timeout=20).stdout
+            except Exception:  # noqa: BLE001
+                return ""
+
+        dirty = [l for l in git_raw(["status", "--porcelain"]).splitlines() if l.strip()]
         # commits non poussés
         unpushed = git(["log", "--oneline", "@{u}..HEAD"]) if git(
             ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]) else ""
         n_unpushed = len([l for l in unpushed.splitlines() if l.strip()])
-        # issues GitHub ouvertes
-        n_issues = None
-        gh = subprocess.run(["gh", "issue", "list", "--repo-dir", str(repo),
-                             "--json", "number", "-L", "100"],
-                            capture_output=True, text=True, timeout=25) \
-            if False else None  # gh n'a pas --repo-dir ; on appelle depuis le repo
-        try:
-            r = subprocess.run(["gh", "issue", "list", "--json", "number", "-L", "100"],
-                               cwd=str(repo), capture_output=True, text=True, timeout=25)
-            if r.returncode == 0 and r.stdout.strip():
-                n_issues = len(json.loads(r.stdout))
-        except Exception:  # noqa: BLE001
-            n_issues = None
+        # issues GitHub ouvertes — un échec gh n'est JAMAIS « 0 issue »
+        n_issues, gh_rc, gh_err = _gh_open_issues(repo)
 
         # P1 — fichiers non commités depuis > 24h (risque de perte)
         if dirty:
             # âge approximé par le fichier modifié le plus ancien parmi les dirty
             oldest = now
             for l in dirty:
-                fp = repo / l[3:].strip().strip('"')
+                rel = l[3:].strip().strip('"')
+                if " -> " in rel:  # renommage : "R  ancien -> nouveau"
+                    rel = rel.split(" -> ", 1)[1].strip().strip('"')
+                fp = repo / rel
                 try:
                     oldest = min(oldest, fp.stat().st_mtime)
                 except Exception:  # noqa: BLE001
@@ -946,15 +1170,46 @@ def det_repo_idle(t: dict) -> list[Finding]:
                     f"cd {repo} && git status ; committer (ou stash/clean si générés).",
                     "repo_idle"))
 
-        # P2 — pas en mode amélioration
-        if days is not None and days > REPO_IDLE_DAYS and (n_issues == 0 or n_issues is None):
-            iss = "0 issue ouverte" if n_issues == 0 else "issues GitHub illisibles"
+        intent = repo_intent_of(name, registry)
+
+        # P2 — issues GitHub illisibles : « je ne sais pas » n'est pas « 0 issue »
+        if n_issues is None:
+            SCAN_NOTES.append(
+                f"gh issue list a échoué sur {name} (rc={gh_rc}) : "
+                f"{gh_err[:200] or 'sans stderr'}")
+            out.append(Finding(
+                "P2", f"{name} : issues GitHub illisibles",
+                f"{name} : impossible de lire les issues ouvertes via gh "
+                f"(returncode {gh_rc}). Le backlog est INCONNU — ce n'est pas "
+                f"« pas de backlog ».",
+                t["name"],
+                "Vérifier `gh auth status` et l'accès réseau à github.com, "
+                "puis relancer oa-observe.",
+                "gh_unreadable"))
+
+        if intent == "frozen":
+            entry = registry.get(name) or {}
+            decided = f"{entry.get('decided_by') or 'n/a'} le {entry.get('decided_at') or 'n/a'}"
+            card = f", carte {entry['card']}" if entry.get("card") else ""
+            reopen = str(entry.get("reopen_condition") or "non définie").rstrip(". ")
+            out.append(Finding(
+                "INFO", f"{name} : figé volontairement",
+                f"{name} est déclaré `frozen` dans le registre d'intention "
+                f"(décision {decided}{card}). Aucun `repo_idle` n'est émis pour "
+                f"ce repo. Condition de réouverture : {reopen}.",
+                t["name"],
+                "Aucune action : gel décidé. Réévaluer seulement si la "
+                "condition de réouverture est remplie.",
+                "repo_intent_frozen"))
+        elif days is not None and days > REPO_IDLE_DAYS and n_issues == 0:
             out.append(Finding(
                 "P2", f"{name} : pas en mode amélioration ({days:.0f}j sans commit)",
-                f"{name} : dernier commit il y a {days:.0f} jours et {iss}. L'app "
-                f"semble en pause — ni évolution récente, ni backlog identifié.",
+                f"{name} : dernier commit il y a {days:.0f} jours et 0 issue "
+                f"ouverte. L'app semble en pause — ni évolution récente, ni "
+                f"backlog identifié.",
                 t["name"],
-                f"Décider : ouvrir 1-2 issues d'amélioration, ou acter que l'app est figée.",
+                "Décider : ouvrir 1-2 issues d'amélioration, ou acter que l'app "
+                "est figée (var/repo-intent.json).",
                 "repo_idle"))
 
         # P2 — commits non poussés (risque moindre mais à signaler)
@@ -1070,6 +1325,7 @@ def build_observations(findings: list[Finding]) -> list[Observation]:
 def scan(only: list[str] | None = None) -> tuple[list[Finding], list[str]]:
     findings: list[Finding] = []
     notes: list[str] = []
+    SCAN_NOTES.clear()
     dets = DETECTORS if not only else {k: v for k, v in DETECTORS.items() if k in only}
     for t in TARGETS:
         if not reachable(t):
@@ -1087,6 +1343,10 @@ def scan(only: list[str] | None = None) -> tuple[list[Finding], list[str]]:
                 findings += fn(t)
             except Exception as e:  # noqa: BLE001
                 notes.append(f"détecteur {dname} a échoué sur {t['name']} : {e}")
+    # diagnostics remontés par les détecteurs (ex: gh en échec) — visibles
+    for n in SCAN_NOTES:
+        if n not in notes:
+            notes.append(n)
     findings.sort(key=lambda f: (f.order(), f.vps))
     return findings, notes
 
@@ -1097,6 +1357,7 @@ def render_briefing(findings: list[Finding], obs: list[Observation],
     p0 = [f for f in findings if f.severite == "P0"]
     p1 = [f for f in findings if f.severite == "P1"]
     p2 = [f for f in findings if f.severite == "P2"]
+    info = [f for f in findings if f.severite == "INFO"]
     L = [f"# Observateur de flotte OA — {today}", ""]
     L.append(f"_Scan automatique de {len(TARGETS)} cible(s) : "
              + ", ".join(t["name"] for t in TARGETS) + "._")
@@ -1120,6 +1381,13 @@ def render_briefing(findings: list[Finding], obs: list[Observation],
             L.append("")
             L.append(f"**Remédiation** — {f.remediation}")
             L.append("")
+
+    if info:
+        L.append("## 🧊 Repos figés volontairement (informatif)")
+        L.append("")
+        for f in info:
+            L.append(f"- **{f.titre}** — {f.detail}")
+        L.append("")
 
     L.append("## 💬 Observations & questions pour Alex")
     L.append("")
@@ -1179,6 +1447,8 @@ def main() -> int:
                     help="fichier état local oa-observe -> Kanban")
     ap.add_argument("--kanban-assignee", default="default", help="assignee des cartes Kanban créées")
     ap.add_argument("--kanban-priority", type=int, default=85, help="priorité des cartes Kanban créées")
+    ap.add_argument("--no-board-reconcile", action="store_true",
+                    help="désactive la réconciliation avec les cartes encore ouvertes du board")
     args = ap.parse_args()
 
     only = [s.strip() for s in args.only.split(",") if s.strip()] or None
@@ -1199,7 +1469,16 @@ def main() -> int:
     if args.kanban or args.kanban_dry_run:
         state_path = Path(args.kanban_state)
         previous = load_kanban_state(state_path)
-        plan, next_state = plan_kanban_sync(findings, previous)
+        # Détecteurs réellement mesurés : borne la réconciliation. Un scan
+        # partiel ne doit pas clore les cartes des détecteurs non exécutés.
+        scanned_detectors = set(only) if only else set(DETECTORS)
+        board_cards: list[dict] = []
+        board_reconcile = not args.no_board_reconcile and not args.fixture
+        if board_reconcile:
+            board_cards = list_observe_board_cards()
+        plan, next_state = plan_kanban_sync(
+            findings, previous, board_cards=board_cards,
+            scanned_detectors=scanned_detectors)
         by_key = {finding_idempotency_key(f): f for f in findings}
         results, next_state = apply_kanban_plan(
             plan, next_state, by_key, dry_run=args.kanban_dry_run,
@@ -1208,6 +1487,8 @@ def main() -> int:
             "schema": "oa.observe.kanban-sync/1",
             "dry_run": bool(args.kanban_dry_run),
             "state_path": str(state_path),
+            "board_reconcile": board_reconcile,
+            "board_open_cards": len(board_cards),
             "operations": results,
         }
         failures = [r for r in results if r.get("returncode") not in (None, 0)]
